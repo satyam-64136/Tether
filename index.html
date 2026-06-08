@@ -2,15 +2,23 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"/>
 <meta name="mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
-<meta name="apple-mobile-web-app-status-bar-style" content="default"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="theme-color" content="#f9f4f5" id="theme-meta"/>
 <title>us.</title>
 <link rel="manifest" href="manifest.json"/>
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Geist:wght@300;400;500;600&display=swap" rel="stylesheet"/>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+/* FULLSCREEN — hide browser chrome when installed as PWA or in standalone */
+html{height:100%;height:-webkit-fill-available}
+body{
+  min-height:100vh;min-height:-webkit-fill-available;
+  position:fixed;width:100%;overflow:hidden;
+}
 
 /* ══════════════════════════════
    THEME TOKENS
@@ -181,6 +189,7 @@ html,body{
   background:var(--bg);color:var(--text);
   font-family:'Geist',sans-serif;-webkit-font-smoothing:antialiased;
   transition:background 0.45s,color 0.45s;
+  overscroll-behavior:none;
 }
 
 /* ── ANIMATED BG ── */
@@ -631,23 +640,88 @@ html,body{
 @keyframes menuin{from{opacity:0;transform:scale(0.9) translateY(6px)}to{opacity:1;transform:none}}
 .cxi{
   padding:12px 14px;border-radius:10px;font-size:14px;color:var(--text);
-  cursor:pointer;display:flex;align-items:center;gap:9px;
+  cursor:pointer;display:flex;align-items:center;gap:10px;
   transition:background 0.1s;min-height:44px;
 }
+.cxi svg{flex-shrink:0;opacity:0.7}
 .cxi:active{background:var(--glass2)}
 .cxi.red{color:#e05555}
+.cxi.red svg{opacity:1}
 
 #rxnpick{
   position:fixed;
   background:var(--menu-bg);backdrop-filter:blur(24px);
   border:1px solid var(--border2);border-radius:40px;
-  padding:8px 12px;display:none;gap:2px;z-index:420;
+  padding:8px 10px;display:none;gap:2px;z-index:420;
   box-shadow:0 8px 32px var(--shadow);
   animation:menuin 0.17s cubic-bezier(.2,1.4,.4,1);
+  /* will be positioned by JS to never overflow */
+  max-width:calc(100vw - 24px);
+  flex-wrap:wrap;
 }
 #rxnpick.on{display:flex}
-.rxno{font-size:24px;cursor:pointer;padding:4px 5px;border-radius:50%;transition:transform 0.15s cubic-bezier(.2,1.4,.4,1);min-width:40px;min-height:40px;display:flex;align-items:center;justify-content:center}
+.rxno{font-size:22px;cursor:pointer;padding:4px;border-radius:50%;transition:transform 0.15s cubic-bezier(.2,1.4,.4,1);width:38px;height:38px;display:flex;align-items:center;justify-content:center}
 .rxno:active{transform:scale(1.42)}
+
+/* LEFT SWIPE ACTION STRIP */
+.swipe-actions{
+  position:absolute;
+  top:50%;transform:translateY(-50%);
+  display:flex;gap:6px;
+  opacity:0;pointer-events:none;
+  transition:opacity 0.15s;
+}
+.mw.me .swipe-actions{right:calc(100% + 8px);flex-direction:row-reverse}
+.mw.her .swipe-actions{left:calc(100% + 8px)}
+.swipe-actions.show{opacity:1}
+.sw-act-btn{
+  width:32px;height:32px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  background:var(--glass2);border:1px solid var(--border);
+  color:var(--accent);
+}
+
+/* MULTI-SELECT MODE */
+.msgs.selecting .mw{cursor:pointer}
+.mw.selected .bbl{
+  outline:2px solid var(--accent);
+  outline-offset:2px;
+}
+.mw.selected::before{
+  content:'';
+  position:absolute;inset:0;
+  background:rgba(var(--accent-rgb),0.08);
+  border-radius:18px;
+  pointer-events:none;
+}
+
+/* DELETE BAR (multi-select) */
+#del-bar{
+  position:fixed;bottom:0;left:0;right:0;z-index:600;
+  padding:14px 20px;
+  padding-bottom:calc(14px + env(safe-area-inset-bottom,0px));
+  background:var(--menu-bg);
+  backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+  border-top:1px solid var(--border);
+  display:none;align-items:center;justify-content:space-between;
+  gap:12px;
+  animation:slideup 0.22s cubic-bezier(.2,1.4,.4,1);
+}
+#del-bar.on{display:flex}
+.del-count{font-size:14px;font-weight:500;color:var(--text)}
+.del-actions{display:flex;gap:10px}
+.del-cancel{
+  padding:8px 16px;border-radius:20px;font-size:13px;
+  background:var(--glass2);border:1px solid var(--border);
+  color:var(--text2);cursor:pointer;font-family:'Geist',sans-serif;
+}
+.del-confirm{
+  padding:8px 16px;border-radius:20px;font-size:13px;font-weight:500;
+  background:rgba(220,50,50,0.15);border:1px solid rgba(220,50,50,0.3);
+  color:#e03535;cursor:pointer;font-family:'Geist',sans-serif;
+  display:flex;align-items:center;gap:6px;
+}
+
 
 /* LIGHTBOX */
 #lb{position:fixed;inset:0;background:rgba(0,0,0,0.93);z-index:800;display:none;align-items:center;justify-content:center;backdrop-filter:blur(5px)}
@@ -721,16 +795,23 @@ html,body{
         <span id="sttxt">—</span>
       </div>
     </div>
-    <div class="hdr-btn" onclick="openMenu()">☰</div>
+    <div class="hdr-btn" onclick="openMenu()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </div>
   </div>
 
   <div class="msgs" id="msgs">
-    <div class="empty" id="empty"><div class="ei">💬</div><p>say something first</p></div>
+    <div class="empty" id="empty">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" style="opacity:0.3"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      <p>say something first</p>
+    </div>
   </div>
 
   <div id="iprv">
     <img id="prvimg" src="" alt=""/>
-    <button onclick="clearImg()">✕</button>
+    <button onclick="clearImg()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
   </div>
 
   <div id="rbar">
@@ -738,17 +819,25 @@ html,body{
       <div class="rb-lbl">Replying to</div>
       <div class="rb-txt" id="rbtxt">—</div>
     </div>
-    <button class="rb-x" onclick="clearReply()">✕</button>
+    <button class="rb-x" onclick="clearReply()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
   </div>
 
   <div class="inputrow">
-    <label class="attbtn" for="ifile">📎</label>
+    <label class="attbtn" for="ifile">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+    </label>
     <input type="file" id="ifile" accept="image/*" style="display:none" onchange="handleImg(event)"/>
     <div class="inpwrap">
       <textarea id="minp" placeholder="message..." rows="1" oninput="onInp(this)" onkeydown="onKey(event)"></textarea>
     </div>
-    <button class="recbtn" id="recbtn" onpointerdown="startRec()" onpointerup="stopRec()" onpointerleave="stopRec()">🎤</button>
-    <button class="sndbtn" id="sndbtn" onclick="send()">↑</button>
+    <button class="recbtn" id="recbtn" onpointerdown="startRec()" onpointerup="stopRec()" onpointerleave="stopRec()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+    </button>
+    <button class="sndbtn" id="sndbtn" onclick="send()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
+    </button>
   </div>
 </div>
 
@@ -765,7 +854,7 @@ html,body{
     <div>
       <div class="msec-ttl">Wallpaper</div>
       <label class="bguparea" for="bgfile">
-        <div class="upico">🖼</div>
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" style="opacity:0.55"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
         <p>Set wallpaper</p>
         <small>syncs to both phones</small>
       </label>
@@ -784,13 +873,25 @@ html,body{
 
 <!-- CTX -->
 <div id="ctx">
-  <div class="cxi" onclick="ctxReply()">↩&nbsp; Reply</div>
-  <div class="cxi ctx-copy" onclick="ctxCopy()">📋&nbsp; Copy</div>
-  <div class="cxi" onclick="ctxReact()">😊&nbsp; React</div>
-  <div class="cxi red" onclick="ctxDel()">🗑&nbsp; Delete</div>
+  <div class="cxi" onclick="ctxReply()">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>
+    Reply
+  </div>
+  <div class="cxi ctx-copy" onclick="ctxCopy()">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+    Copy
+  </div>
+  <div class="cxi" onclick="ctxReact()">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+    React
+  </div>
+  <div class="cxi red" onclick="ctxDel()">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+    Delete
+  </div>
 </div>
 
-<!-- REACTION PICKER -->
+<!-- REACTION PICKER — emojis are fine here, they're content not UI -->
 <div id="rxnpick">
   <span class="rxno" onclick="addRxn('❤️')">❤️</span>
   <span class="rxno" onclick="addRxn('😂')">😂</span>
@@ -802,8 +903,22 @@ html,body{
 
 <!-- LIGHTBOX -->
 <div id="lb" onclick="closeLB()">
-  <button id="lbx">✕</button>
+  <button id="lbx">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+  </button>
   <img id="lbimg" src="" alt=""/>
+</div>
+
+<!-- MULTI-DELETE BAR -->
+<div id="del-bar">
+  <div class="del-count" id="del-count">0 selected</div>
+  <div class="del-actions">
+    <button class="del-cancel" onclick="cancelSelect()">Cancel</button>
+    <button class="del-confirm" onclick="deleteSelected()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+      Delete
+    </button>
+  </div>
 </div>
 
 <div id="toast"></div>
@@ -1101,9 +1216,26 @@ function mkEl(msg){
     renderContent(msg.content,b);
   }
 
-  if(!msg.deleted) b.addEventListener('click',ev=>openCtx(ev,msg.id));
+  if(!msg.deleted){
+    b.addEventListener('click',ev=>{
+      if(selectMode){toggleSelect(msg.id);return;}
+      openCtx(ev,msg.id);
+    });
+  }
   // prevent browser long-press context menu on mobile
   b.addEventListener('contextmenu',e=>e.preventDefault());
+
+  // Long press = enter multi-select
+  let lpTimer;
+  bw.addEventListener('touchstart',()=>{
+    lpTimer=setTimeout(()=>{
+      if(!selectMode) enterSelectMode(msg.id);
+      else toggleSelect(msg.id);
+    },500);
+  },{passive:true});
+  bw.addEventListener('touchend',()=>clearTimeout(lpTimer),{passive:true});
+  bw.addEventListener('touchmove',()=>clearTimeout(lpTimer),{passive:true});
+
   bw.appendChild(b);
   w.appendChild(bw);
 
@@ -1139,48 +1271,114 @@ function mkEl(msg){
 }
 
 function addSwipe(bw,arrow,msg){
-  let startX=0,startY=0,dx=0,swiping=false,fired=false;
-  const THRESHOLD=60;
+  let startX=0,startY=0,dx=0,swiping=false,fired=false,dir=0;
+  const THRESHOLD=58;
 
   bw.addEventListener('touchstart',e=>{
     startX=e.touches[0].clientX;
     startY=e.touches[0].clientY;
-    dx=0;swiping=true;fired=false;
+    dx=0;swiping=true;fired=false;dir=0;
   },{passive:true});
 
   bw.addEventListener('touchmove',e=>{
     if(!swiping)return;
     dx=e.touches[0].clientX-startX;
     const dy=Math.abs(e.touches[0].clientY-startY);
-    // cancel if more vertical than horizontal
-    if(dy>Math.abs(dx)){swiping=false;return;}
-    // only right swipe
-    if(dx<0){bw.style.transform='';arrow.classList.remove('show');return;}
-    const clamped=Math.min(dx,THRESHOLD*1.2);
+    if(dy>Math.abs(dx)){swiping=false;bw.style.transform='';arrow.style.opacity='';return;}
+
+    if(dir===0) dir=dx>0?1:-1;
+    const clamped=Math.max(-THRESHOLD*1.2,Math.min(dx,THRESHOLD*1.2));
     bw.style.transform=`translateX(${clamped}px)`;
-    const progress=Math.min(dx/THRESHOLD,1);
-    arrow.style.opacity=progress;
-    if(dx>=THRESHOLD&&!fired){
-      fired=true;
-      arrow.classList.add('show');
-      // haptic if available
-      if(navigator.vibrate) navigator.vibrate(18);
+
+    if(dir===1){
+      // right swipe = reply arrow
+      const progress=Math.min(dx/THRESHOLD,1);
+      arrow.style.opacity=String(Math.max(0,progress));
+      if(dx>=THRESHOLD&&!fired){fired=true;if(navigator.vibrate)navigator.vibrate(18);}
+    } else {
+      // left swipe = action tray fades in from right
+      arrow.style.opacity='0';
+      if(dx<=-THRESHOLD&&!fired){fired=true;if(navigator.vibrate)navigator.vibrate(18);}
     }
   },{passive:true});
 
   const endSwipe=()=>{
     if(!swiping)return;
     swiping=false;
-    bw.style.transition='transform 0.22s cubic-bezier(.2,1.4,.4,1)';
+    bw.style.transition='transform 0.2s cubic-bezier(.2,1.4,.4,1)';
     bw.style.transform='';
     arrow.classList.remove('show');
     arrow.style.opacity='';
-    setTimeout(()=>bw.style.transition='',250);
-    if(fired) setReply(msg);
+    setTimeout(()=>bw.style.transition='',220);
+    if(fired){
+      if(dir===1){
+        // right swipe = reply
+        setReply(msg);
+      } else {
+        // left swipe = open ctx menu centered on this bubble
+        const rect=bw.getBoundingClientRect();
+        const fakeEv={preventDefault:()=>{},clientX:rect.right-10,clientY:rect.top+rect.height/2};
+        openCtx(fakeEv,msg.id);
+      }
+    }
   };
 
   bw.addEventListener('touchend',endSwipe,{passive:true});
   bw.addEventListener('touchcancel',endSwipe,{passive:true});
+}
+
+// ── MULTI-SELECT ──
+let selectMode=false,selectedIds=new Set();
+
+function enterSelectMode(id){
+  selectMode=true;selectedIds=new Set([id]);
+  document.getElementById('msgs').classList.add('selecting');
+  document.getElementById('del-bar').classList.add('on');
+  updateDelBar();
+  const el=document.querySelector(`.mw[data-id="${id}"]`);
+  if(el)el.classList.add('selected');
+  if(navigator.vibrate)navigator.vibrate([15,30,15]);
+}
+
+function toggleSelect(id){
+  if(!selectMode)return;
+  const el=document.querySelector(`.mw[data-id="${id}"]`);
+  if(selectedIds.has(id)){
+    selectedIds.delete(id);
+    el?.classList.remove('selected');
+  } else {
+    selectedIds.add(id);
+    el?.classList.add('selected');
+  }
+  if(selectedIds.size===0){cancelSelect();return;}
+  updateDelBar();
+}
+
+function updateDelBar(){
+  document.getElementById('del-count').textContent=`${selectedIds.size} selected`;
+}
+
+function cancelSelect(){
+  selectMode=false;selectedIds.clear();
+  document.getElementById('msgs').classList.remove('selecting');
+  document.getElementById('del-bar').classList.remove('on');
+  document.querySelectorAll('.mw.selected').forEach(e=>e.classList.remove('selected'));
+}
+
+async function deleteSelected(){
+  const ids=[...selectedIds].filter(id=>{
+    const msg=msgs.find(m=>m.id===id);
+    return msg&&msg.sender===CU&&!msg.deleted;
+  });
+  if(!ids.length){toast("Can only delete your own messages");cancelSelect();return;}
+  const other=selectedIds.size-ids.length;
+  if(other>0) toast(`Skipped ${other} message(s) you didn't send`);
+  // soft delete all at once
+  const{error}=await sb.from('messages')
+    .update({deleted:true,content:null,image_url:null,reactions:{}})
+    .in('id',ids);
+  if(error) toast('Delete failed');
+  cancelSelect();
 }
 
 // ── REALTIME ──
@@ -1349,6 +1547,7 @@ function closeCtx(){
 }
 function closeAll(){
   closeMenu();closeCtx();
+  if(selectMode) cancelSelect();
 }
 function ctxReply(){const m=msgs.find(m=>m.id===ctxId);if(m)setReply(m);closeCtx();}
 function ctxCopy(){
@@ -1362,8 +1561,14 @@ function ctxCopy(){
 function ctxReact(){
   const menu=document.getElementById('ctx'),pick=document.getElementById('rxnpick');
   pick.classList.add('on');
-  pick.style.left=menu.style.left;
-  pick.style.top=(parseInt(menu.style.top)-66)+'px';
+  // Calculate safe position — never go off right edge or top
+  const pickW=Math.min(280, window.innerWidth-24); // 6 emojis * ~44px + padding
+  const menuLeft=parseInt(menu.style.left)||0;
+  const menuTop=parseInt(menu.style.top)||0;
+  const safeLeft=Math.max(12, Math.min(menuLeft, window.innerWidth-pickW-12));
+  const safeTop=Math.max(12, menuTop-60);
+  pick.style.left=safeLeft+'px';
+  pick.style.top=safeTop+'px';
   menu.classList.remove('on');
 }
 async function addRxn(em){
