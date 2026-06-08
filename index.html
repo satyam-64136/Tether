@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default"/>
 <title>us.</title>
 <link rel="manifest" href="manifest.json"/>
-<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Instrument+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Geist:wght@300;400;500;600&display=swap" rel="stylesheet"/>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 
@@ -179,7 +179,7 @@
 html,body{
   height:100%;width:100%;overflow:hidden;
   background:var(--bg);color:var(--text);
-  font-family:'Instrument Sans',sans-serif;-webkit-font-smoothing:antialiased;
+  font-family:'Geist',sans-serif;-webkit-font-smoothing:antialiased;
   transition:background 0.45s,color 0.45s;
 }
 
@@ -417,6 +417,73 @@ html,body{
 .empty .ei{font-size:40px;animation:orbFloat 4s ease-in-out infinite}
 .empty p{font-size:13px;font-style:italic}
 
+/* PREVENT BROWSER TEXT SELECTION ON MOBILE */
+.bbl,.mw,.bbl-wrap{
+  -webkit-user-select:none;
+  -webkit-touch-callout:none;
+  user-select:none;
+}
+/* prevent browser context menu on long press */
+.bbl{-webkit-tap-highlight-color:transparent}
+/* but allow selection inside input */
+#minp{-webkit-user-select:text;user-select:text}
+
+/* LINK IN BUBBLE */
+.bbl a{color:var(--accent);text-decoration:underline;text-decoration-style:dotted;word-break:break-all}
+
+/* LINK PREVIEW CARD */
+.link-card{
+  margin-top:8px;border-radius:12px;overflow:hidden;
+  border:1px solid var(--border);background:var(--glass2);
+  backdrop-filter:blur(12px);cursor:pointer;
+  transition:opacity 0.15s;max-width:240px;
+}
+.link-card:active{opacity:0.75}
+.link-card-img{width:100%;height:100px;object-fit:cover;display:block}
+.link-card-body{padding:8px 10px}
+.link-card-title{font-size:12px;font-weight:600;color:var(--text);line-height:1.3;margin-bottom:2px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.link-card-url{font-size:10px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.link-card-placeholder{display:flex;align-items:center;gap:8px;padding:10px}
+.link-card-placeholder .lp-icon{font-size:22px;flex-shrink:0}
+.link-card-placeholder .lp-url{font-size:11px;color:var(--accent);word-break:break-all}
+
+/* VOICE MESSAGE */
+.voice-msg{
+  display:flex;align-items:center;gap:10px;
+  padding:4px 2px;min-width:160px;
+}
+.voice-play{
+  width:34px;height:34px;border-radius:50%;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  background:var(--accent);color:white;font-size:14px;
+  cursor:pointer;border:none;transition:transform 0.15s;
+}
+.voice-play:active{transform:scale(0.88)}
+.voice-waveform{flex:1;height:28px;position:relative;cursor:pointer}
+.voice-waveform canvas{width:100%;height:100%}
+.voice-dur{font-size:11px;color:var(--text2);flex-shrink:0;min-width:30px;text-align:right}
+
+/* RECORD BTN */
+.recbtn{
+  width:42px;height:42px;border-radius:50%;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  font-size:18px;cursor:pointer;
+  background:var(--glass2);border:1px solid var(--border);
+  color:var(--text2);transition:all 0.18s;
+  position:relative;
+}
+.recbtn:active,.recbtn.recording{background:rgba(220,50,50,0.15);border-color:rgba(220,50,50,0.4);color:#dc3232}
+.recbtn.recording::after{
+  content:'';position:absolute;inset:-3px;border-radius:50%;
+  border:2px solid rgba(220,50,50,0.5);
+  animation:recpulse 1s ease infinite;
+}
+@keyframes recpulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.15);opacity:0.5}}
+
+/* CTX COPY ITEM */
+.ctx-copy{}
+
+
 /* REPLY BAR */
 #rbar{display:none;align-items:center;gap:10px;padding:10px 16px;background:var(--header-bg);backdrop-filter:blur(22px);border-top:1px solid var(--border);animation:slideup 0.18s ease}
 #rbar.on{display:flex}
@@ -461,7 +528,7 @@ html,body{
 
 #minp{
   flex:1;background:none;border:none;outline:none;
-  color:var(--text);font-family:'Instrument Sans',sans-serif;
+  color:var(--text);font-family:'Geist',sans-serif;
   font-size:15px;line-height:1.4;resize:none;
   max-height:100px;min-height:24px;
 }
@@ -680,6 +747,7 @@ html,body{
     <div class="inpwrap">
       <textarea id="minp" placeholder="message..." rows="1" oninput="onInp(this)" onkeydown="onKey(event)"></textarea>
     </div>
+    <button class="recbtn" id="recbtn" onpointerdown="startRec()" onpointerup="stopRec()" onpointerleave="stopRec()">🎤</button>
     <button class="sndbtn" id="sndbtn" onclick="send()">↑</button>
   </div>
 </div>
@@ -717,6 +785,7 @@ html,body{
 <!-- CTX -->
 <div id="ctx">
   <div class="cxi" onclick="ctxReply()">↩&nbsp; Reply</div>
+  <div class="cxi ctx-copy" onclick="ctxCopy()">📋&nbsp; Copy</div>
   <div class="cxi" onclick="ctxReact()">😊&nbsp; React</div>
   <div class="cxi red" onclick="ctxDel()">🗑&nbsp; Delete</div>
 </div>
@@ -1013,19 +1082,28 @@ function mkEl(msg){
   if(msg.deleted){
     b.classList.add('deleted');
     b.textContent='this message was deleted';
+  } else if(msg.voice&&msg.image_url){
+    // voice message
+    const durMatch=(msg.content||'').match(/\[voice:(\d+)\]/);
+    const dur=durMatch?parseInt(durMatch[1]):0;
+    renderVoice(msg.image_url,dur,b);
   } else if(msg.image_url){
     const img=document.createElement('img');
     img.src=msg.image_url;img.loading='lazy';
     img.onclick=ev=>{ev.stopPropagation();openLB(msg.image_url);};
     b.appendChild(img);
     if(msg.content){
-      const t=document.createElement('div');t.style.marginTop='7px';t.textContent=msg.content;b.appendChild(t);
+      const t=document.createElement('div');t.style.marginTop='7px';
+      renderContent(msg.content,t);
+      b.appendChild(t);
     }
-  } else {
-    b.textContent=msg.content;
+  } else if(msg.content){
+    renderContent(msg.content,b);
   }
 
   if(!msg.deleted) b.addEventListener('click',ev=>openCtx(ev,msg.id));
+  // prevent browser long-press context menu on mobile
+  b.addEventListener('contextmenu',e=>e.preventDefault());
   bw.appendChild(b);
   w.appendChild(bw);
 
@@ -1108,18 +1186,15 @@ function addSwipe(bw,arrow,msg){
 // ── REALTIME ──
 function subAll(){
   subMsgs();subTyping();subSettings();
-  // heartbeat reconnect
-  reconnT=setInterval(()=>{
-    if(msgCh){sb.removeChannel(msgCh);}
-    subMsgs();
-  },50000);
+  // NO periodic reconnect — causes flicker. Channel handles its own recovery.
 }
 
 function subMsgs(){
+  if(msgCh){try{sb.removeChannel(msgCh);}catch(e){}}
   msgCh=sb.channel(`msgs-${Date.now()}`)
     .on('postgres_changes',{event:'*',schema:'public',table:'messages'},p=>{
       if(p.eventType==='INSERT'){
-        if(msgs.find(m=>m.id===p.new.id))return; // dedup
+        if(msgs.find(m=>m.id===p.new.id))return;
         msgs.push(p.new);
         document.getElementById('empty').style.display='none';
         document.getElementById('msgs').appendChild(mkEl(p.new));
@@ -1134,18 +1209,36 @@ function subMsgs(){
         const el=document.querySelector(`.mw[data-id="${p.new.id}"]`);
         if(el)el.replaceWith(mkEl(p.new));
       } else if(p.eventType==='DELETE'){
-        // hard delete fallback — shouldn't happen with soft delete but handle gracefully
         const i=msgs.findIndex(m=>m.id===p.old.id);
         if(i!==-1){msgs[i]={...msgs[i],deleted:true};}
         const el=document.querySelector(`.mw[data-id="${p.old.id}"]`);
         if(el&&msgs[i]) el.replaceWith(mkEl(msgs[i]));
       }
     })
-    .subscribe(s=>{
-      if(s==='CLOSED'||s==='CHANNEL_ERROR'){
-        setTimeout(()=>{loadMsgs();subMsgs();},3500);
+    .subscribe(async status=>{
+      if(status==='CLOSED'||status==='CHANNEL_ERROR'){
+        // Silently fetch only missed messages since last known, no full re-render
+        await catchupMsgs();
+        setTimeout(subMsgs, 3000);
       }
     });
+}
+
+// Fetch only messages newer than what we have — no flicker
+async function catchupMsgs(){
+  const lastTs=msgs.length?msgs[msgs.length-1].created_at:new Date(0).toISOString();
+  const{data}=await sb.from('messages').select('*')
+    .gt('created_at',lastTs)
+    .order('created_at',{ascending:true});
+  if(!data||!data.length)return;
+  const area=document.getElementById('msgs');
+  data.forEach(m=>{
+    if(msgs.find(x=>x.id===m.id))return;
+    msgs.push(m);
+    document.getElementById('empty').style.display='none';
+    area.appendChild(mkEl(m));
+  });
+  if(data.length) scrollBot(true);
 }
 
 let typT2;
@@ -1258,6 +1351,14 @@ function closeAll(){
   closeMenu();closeCtx();
 }
 function ctxReply(){const m=msgs.find(m=>m.id===ctxId);if(m)setReply(m);closeCtx();}
+function ctxCopy(){
+  const msg=msgs.find(m=>m.id===ctxId);
+  if(!msg||msg.deleted){closeCtx();return;}
+  const txt=msg.content||'';
+  if(navigator.clipboard){navigator.clipboard.writeText(txt).then(()=>toast('Copied'));}
+  else{const ta=document.createElement('textarea');ta.value=txt;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);toast('Copied');}
+  closeCtx();
+}
 function ctxReact(){
   const menu=document.getElementById('ctx'),pick=document.getElementById('rxnpick');
   pick.classList.add('on');
@@ -1274,10 +1375,174 @@ async function addRxn(em){
 async function ctxDel(){
   const msg=msgs.find(m=>m.id===ctxId);
   if(!msg||msg.sender!==CU){toast("Can't delete their message");closeCtx();return;}
-  // soft delete — UPDATE with deleted:true, keeps row in DB
   const{error}=await sb.from('messages').update({deleted:true,content:null,image_url:null,reactions:{}}).eq('id',ctxId);
   if(error)toast('Delete failed');
   closeCtx();
+}
+
+// ── LINK DETECTION ──
+const URL_RE=/https?:\/\/[^\s<>"']+/gi;
+function hasLink(txt){return txt&&URL_RE.test(txt);}
+function renderContent(txt,bubble){
+  if(!txt){return;}
+  URL_RE.lastIndex=0;
+  let last=0,match;
+  const frag=document.createDocumentFragment();
+  while((match=URL_RE.exec(txt))!==null){
+    if(match.index>last){
+      frag.appendChild(document.createTextNode(txt.slice(last,match.index)));
+    }
+    const a=document.createElement('a');
+    a.href=match[0];a.textContent=match[0];
+    a.target='_blank';a.rel='noopener noreferrer';
+    // prevent long-press selection but allow click/tap
+    a.addEventListener('click',e=>{e.stopPropagation();window.open(match[0],'_blank');});
+    frag.appendChild(a);
+    last=match.index+match[0].length;
+    // attach link preview card for first link only
+    if(URL_RE.lastIndex>0) break; // only first link preview
+  }
+  if(last<txt.length) frag.appendChild(document.createTextNode(txt.slice(last)));
+  bubble.appendChild(frag);
+
+  // Link preview card
+  URL_RE.lastIndex=0;
+  const firstUrl=URL_RE.exec(txt);
+  if(firstUrl) attachLinkPreview(bubble,firstUrl[0]);
+}
+
+function attachLinkPreview(bubble,url){
+  const card=document.createElement('div');
+  card.className='link-card';
+  card.innerHTML=`<div class="link-card-placeholder"><span class="lp-icon">🔗</span><span class="lp-url">${url}</span></div>`;
+  card.onclick=e=>{e.stopPropagation();window.open(url,'_blank');};
+  bubble.appendChild(card);
+  // Try to fetch OG data via a free proxy
+  fetchOG(url).then(og=>{
+    if(!og)return;
+    let inner='';
+    if(og.image) inner+=`<img class="link-card-img" src="${og.image}" alt="" loading="lazy" onerror="this.style.display='none'"/>`;
+    inner+=`<div class="link-card-body"><div class="link-card-title">${og.title||url}</div><div class="link-card-url">${new URL(url).hostname}</div></div>`;
+    card.innerHTML=inner;
+    card.onclick=e=>{e.stopPropagation();window.open(url,'_blank');};
+  }).catch(()=>{});
+}
+
+async function fetchOG(url){
+  try{
+    // Use allorigins as a CORS proxy to fetch OG tags
+    const proxy=`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+    const r=await fetch(proxy,{signal:AbortSignal.timeout(5000)});
+    const j=await r.json();
+    const html=j.contents||'';
+    const ogTitle=html.match(/<meta[^>]*property=["']og:title["'][^>]*content=["']([^"']+)["']/i)?.[1]
+      ||html.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1]||'';
+    const ogImage=html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i)?.[1]||'';
+    return{title:ogTitle.trim().slice(0,80),image:ogImage};
+  }catch{return null;}
+}
+
+// ── VOICE MESSAGES ──
+let mediaRec=null,audioChunks=[],recStart=0,recTimer=null;
+
+async function startRec(){
+  if(mediaRec&&mediaRec.state==='recording')return;
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+    audioChunks=[];
+    mediaRec=new MediaRecorder(stream,{mimeType:getSupportedMime()});
+    mediaRec.ondataavailable=e=>{if(e.data.size>0)audioChunks.push(e.data);};
+    mediaRec.onstop=async()=>{
+      stream.getTracks().forEach(t=>t.stop());
+      if(audioChunks.length===0)return;
+      const blob=new Blob(audioChunks,{type:mediaRec.mimeType});
+      const dur=Math.round((Date.now()-recStart)/1000);
+      await sendVoice(blob,dur);
+    };
+    mediaRec.start(100);
+    recStart=Date.now();
+    document.getElementById('recbtn').classList.add('recording');
+    // max 60s auto stop
+    recTimer=setTimeout(()=>stopRec(),60000);
+    if(navigator.vibrate) navigator.vibrate(20);
+  } catch(e){
+    toast('Microphone access denied');
+  }
+}
+
+function stopRec(){
+  clearTimeout(recTimer);
+  document.getElementById('recbtn').classList.remove('recording');
+  if(mediaRec&&mediaRec.state==='recording'){
+    mediaRec.stop();
+  }
+}
+
+function getSupportedMime(){
+  const types=['audio/webm;codecs=opus','audio/webm','audio/ogg;codecs=opus','audio/mp4'];
+  return types.find(t=>MediaRecorder.isTypeSupported(t))||'audio/webm';
+}
+
+async function sendVoice(blob,dur){
+  toast('Sending voice...');
+  const ext=blob.type.includes('ogg')?'ogg':blob.type.includes('mp4')?'m4a':'webm';
+  const path=`voice_${Date.now()}.${ext}`;
+  const{error}=await sb.storage.from('images').upload(path,blob,{contentType:blob.type});
+  if(error){toast('Voice upload failed');return;}
+  const url=sb.storage.from('images').getPublicUrl(path).data.publicUrl;
+  await sb.from('messages').insert({
+    sender:CU,content:`[voice:${dur}]`,image_url:url,
+    reply_to:replyTo?.id||null,seen:false,reactions:{},voice:true
+  });
+  clearReply();
+}
+
+// Render voice message inside bubble
+function renderVoice(url,dur,bubble){
+  bubble.innerHTML='';
+  const wrap=document.createElement('div');wrap.className='voice-msg';
+  const btn=document.createElement('button');btn.className='voice-play';btn.textContent='▶';
+  const canvas=document.createElement('canvas');
+  canvas.width=120;canvas.height=28;
+  const wf=document.createElement('div');wf.className='voice-waveform';wf.appendChild(canvas);
+  const durEl=document.createElement('span');durEl.className='voice-dur';
+  durEl.textContent=formatDur(dur);
+  wrap.append(btn,wf,durEl);
+  bubble.appendChild(wrap);
+
+  // Draw static waveform bars (decorative)
+  drawWaveform(canvas);
+
+  let audio=null,playing=false,interval=null;
+  btn.onclick=e=>{
+    e.stopPropagation();
+    if(!audio){audio=new Audio(url);audio.onended=()=>{playing=false;btn.textContent='▶';clearInterval(interval);durEl.textContent=formatDur(dur);};}
+    if(playing){audio.pause();audio.currentTime=0;playing=false;btn.textContent='▶';clearInterval(interval);durEl.textContent=formatDur(dur);}
+    else{audio.play();playing=true;btn.textContent='⏹';
+      interval=setInterval(()=>{
+        const rem=dur-Math.floor(audio.currentTime);
+        durEl.textContent=formatDur(Math.max(0,rem));
+      },500);
+    }
+  };
+}
+
+function drawWaveform(canvas){
+  const ctx=canvas.getContext('2d');
+  const w=canvas.width,h=canvas.height;
+  const bars=28;const bw=3;const gap=1;
+  ctx.clearRect(0,0,w,h);
+  for(let i=0;i<bars;i++){
+    const bh=4+Math.random()*(h-8);
+    const x=i*(bw+gap);const y=(h-bh)/2;
+    ctx.fillStyle='rgba(var(--accent-rgb,184,96,112),0.5)';
+    ctx.beginPath();ctx.roundRect(x,y,bw,bh,2);ctx.fill();
+  }
+}
+
+function formatDur(s){
+  const m=Math.floor(s/60);const sec=s%60;
+  return`${m}:${String(sec).padStart(2,'0')}`;
 }
 
 // ── LIGHTBOX ──

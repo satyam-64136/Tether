@@ -1,9 +1,12 @@
-const CACHE = 'us-v2';
-const ASSETS = ['/index.html', '/manifest.json'];
+const CACHE = 'us-v3';
+// GitHub Pages subpath — adjust if repo name changes
+const BASE = '/Tether';
+const ASSETS = [`${BASE}/`, `${BASE}/index.html`, `${BASE}/manifest.json`];
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
-  // Don't skip waiting automatically — wait for message
+  e.waitUntil(caches.open(CACHE).then(c => {
+    return c.addAll(ASSETS).catch(()=>{}); // don't fail install if assets 404
+  }));
 });
 
 self.addEventListener('activate', e => {
@@ -13,17 +16,15 @@ self.addEventListener('activate', e => {
   self.clients.claim();
 });
 
-// Listen for skip waiting message from app
 self.addEventListener('message', e => {
   if (e.data?.type === 'SKIP_WAITING') self.skipWaiting();
 });
 
 self.addEventListener('fetch', e => {
-  // Network first — always get latest code
-  // Fall back to cache only if offline
+  // Network first — always latest code, cache as fallback
+  if (e.request.method !== 'GET') return;
   e.respondWith(
     fetch(e.request).then(res => {
-      // Update cache with fresh response
       const clone = res.clone();
       caches.open(CACHE).then(c => c.put(e.request, clone));
       return res;
