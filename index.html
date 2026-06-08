@@ -6,9 +6,11 @@
 <meta name="mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="us."/>
 <meta name="theme-color" content="#f9f4f5" id="theme-meta"/>
 <title>us.</title>
 <link rel="manifest" href="manifest.json"/>
+<link rel="apple-touch-icon" href="icon.png"/>
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Geist:wght@300;400;500;600&display=swap" rel="stylesheet"/>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -1012,7 +1014,7 @@ function setUser(name){
   loadSettings();
   startPresence();
   document.addEventListener('visibilitychange',()=>{
-    if(document.visibilityState==='visible'){markSeen();updatePres();}
+    if(document.visibilityState==='visible'){markSeen();updatePres();syncUpdatedMsgs();}
     else setOffPres();
   });
 }
@@ -1403,9 +1405,9 @@ function subMsgs(){
         }
       } else if(p.eventType==='UPDATE'){
         const i=msgs.findIndex(m=>m.id===p.new.id);
-        if(i!==-1)msgs[i]=p.new;
+        if(i!==-1) msgs[i]={...msgs[i],...p.new};
         const el=document.querySelector(`.mw[data-id="${p.new.id}"]`);
-        if(el)el.replaceWith(mkEl(p.new));
+        if(el) el.replaceWith(mkEl(msgs[i!==-1?i:0]));
       } else if(p.eventType==='DELETE'){
         const i=msgs.findIndex(m=>m.id===p.old.id);
         if(i!==-1){msgs[i]={...msgs[i],deleted:true};}
@@ -1428,15 +1430,41 @@ async function catchupMsgs(){
   const{data}=await sb.from('messages').select('*')
     .gt('created_at',lastTs)
     .order('created_at',{ascending:true});
-  if(!data||!data.length)return;
-  const area=document.getElementById('msgs');
-  data.forEach(m=>{
-    if(msgs.find(x=>x.id===m.id))return;
-    msgs.push(m);
-    document.getElementById('empty').style.display='none';
-    area.appendChild(mkEl(m));
+  if(data&&data.length){
+    const area=document.getElementById('msgs');
+    data.forEach(m=>{
+      if(msgs.find(x=>x.id===m.id))return;
+      msgs.push(m);
+      document.getElementById('empty').style.display='none';
+      area.appendChild(mkEl(m));
+    });
+    scrollBot(true);
+  }
+  // Also re-sync any messages that were updated (e.g. soft-deleted) while offline
+  await syncUpdatedMsgs();
+}
+
+// Re-fetch all existing messages and patch any that changed (deleted, reacted, seen)
+async function syncUpdatedMsgs(){
+  if(!msgs.length)return;
+  const ids=msgs.map(m=>m.id);
+  const{data}=await sb.from('messages').select('*').in('id',ids);
+  if(!data)return;
+  let anyChange=false;
+  data.forEach(fresh=>{
+    const i=msgs.findIndex(m=>m.id===fresh.id);
+    if(i===-1)return;
+    const old=msgs[i];
+    // Check if anything meaningful changed
+    const changed=old.deleted!==fresh.deleted||old.seen!==fresh.seen||
+      JSON.stringify(old.reactions)!==JSON.stringify(fresh.reactions);
+    if(changed){
+      msgs[i]=fresh;
+      const el=document.querySelector(`.mw[data-id="${fresh.id}"]`);
+      if(el)el.replaceWith(mkEl(fresh));
+      anyChange=true;
+    }
   });
-  if(data.length) scrollBot(true);
 }
 
 let typT2;
@@ -1773,7 +1801,7 @@ function toast(t){
 
 // ── SW (auto-update) ──
 if('serviceWorker'in navigator){
-  navigator.serviceWorker.register('sw.js').then(reg=>{
+  navigator.serviceWorker.register('/Tether/sw.js',{scope:'/Tether/'}).then(reg=>{
     setInterval(()=>reg.update(),300000);
     reg.addEventListener('updatefound',()=>{
       const nw=reg.installing;
