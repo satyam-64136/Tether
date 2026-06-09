@@ -1041,9 +1041,9 @@ html,body{
   <div class="pg-inner">
     <div class="pg-icon">🔔</div>
     <div class="pg-title">stay connected</div>
-    <div class="pg-sub">allow notifications so you never miss a message from each other, even when the app is closed</div>
-    <button class="pg-btn" onclick="gateAllow()">Allow Notifications</button>
-    <div class="pg-note">you can turn this off anytime in your phone settings</div>
+    <div class="pg-sub" id="pg-sub">allow notifications so you never miss a message from each other, even when the app is closed</div>
+    <button class="pg-btn" id="pg-btn" onclick="gateAllow()">Allow Notifications</button>
+    <div class="pg-note" id="pg-note">you can turn this off anytime in your phone settings</div>
   </div>
 </div>
 
@@ -1199,9 +1199,12 @@ async function loadSettings(){
   });
 }
 
+let _settingsCh=null;
 function subSettings(){
-  sb.channel('settings-rt')
+  if(_settingsCh){try{sb.removeChannel(_settingsCh);}catch(e){}}
+  _settingsCh=sb.channel('settings-rt')
     .on('postgres_changes',{event:'*',schema:'public',table:'settings'},p=>{
+      if(!p.new)return;
       if(p.new.key==='background') applyBgUrl(p.new.value||'');
       if(p.new.key==='theme'&&p.new.value) setTheme(p.new.value,false);
     }).subscribe();
@@ -1270,6 +1273,8 @@ async function removeBg(){
 
 // ── PRESENCE ──
 async function startPresence(){
+  // Clear old interval if re-entering
+  if(presT){clearInterval(presT);presT=null;}
   await updatePres();
   presT=setInterval(()=>{if(document.visibilityState==='visible')updatePres();},20000);
   subPres();
@@ -1282,10 +1287,12 @@ async function setOffPres(){
   if(!CU)return;
   await sb.from('presence').upsert({username:CU,last_seen:new Date().toISOString(),online:false},{onConflict:'username'});
 }
+let _presCh=null;
 function subPres(){
-  sb.channel('pres-rt')
+  if(_presCh){try{sb.removeChannel(_presCh);}catch(e){}}
+  _presCh=sb.channel('pres-rt')
     .on('postgres_changes',{event:'*',schema:'public',table:'presence'},p=>{
-      if(p.new.username===OU)updStUI(p.new);
+      if(p.new&&p.new.username===OU)updStUI(p.new);
     }).subscribe();
   sb.from('presence').select('*').eq('username',OU).maybeSingle().then(({data})=>{if(data)updStUI(data);});
 }
@@ -1589,9 +1596,11 @@ function subMsgs(){
         }
       } else if(p.eventType==='UPDATE'){
         const i=msgs.findIndex(m=>m.id===p.new.id);
-        if(i!==-1)msgs[i]=p.new;
+        // Merge to preserve fields Supabase may omit in partial payload
+        const merged=i!==-1?{...msgs[i],...p.new}:p.new;
+        if(i!==-1)msgs[i]=merged;
         const el=document.querySelector(`.mw[data-id="${p.new.id}"]`);
-        if(el)el.replaceWith(mkEl(p.new));
+        if(el)el.replaceWith(mkEl(merged));
       } else if(p.eventType==='DELETE'){
         const i=msgs.findIndex(m=>m.id===p.old.id);
         if(i!==-1){msgs[i]={...msgs[i],deleted:true};}
@@ -1608,25 +1617,45 @@ function subMsgs(){
     });
 }
 
-// Fetch only messages newer than what we have — no flicker
+// Fetch new messages AND sync any updates (deletes, reactions) missed while disconnected
 async function catchupMsgs(){
   const lastTs=msgs.length?msgs[msgs.length-1].created_at:new Date(0).toISOString();
-  const{data}=await sb.from('messages').select('*')
+  // 1. Get new inserts
+  const{data:newMsgs}=await sb.from('messages').select('*')
     .gt('created_at',lastTs)
     .order('created_at',{ascending:true});
-  if(!data||!data.length)return;
   const area=document.getElementById('msgs');
-  data.forEach(m=>{
-    if(msgs.find(x=>x.id===m.id))return;
-    msgs.push(m);
-    document.getElementById('empty').style.display='none';
-    area.appendChild(mkEl(m));
+  if(newMsgs&&newMsgs.length){
+    newMsgs.forEach(m=>{
+      if(msgs.find(x=>x.id===m.id))return;
+      msgs.push(m);
+      document.getElementById('empty').style.display='none';
+      area.appendChild(mkEl(m));
+    });
+    scrollBot(true);
+  }
+  // 2. Re-sync existing messages that may have changed (deleted, reacted, seen)
+  if(!msgs.length)return;
+  const ids=msgs.map(m=>m.id);
+  const{data:refreshed}=await sb.from('messages').select('*').in('id',ids);
+  if(!refreshed)return;
+  refreshed.forEach(fresh=>{
+    const i=msgs.findIndex(m=>m.id===fresh.id);
+    if(i===-1)return;
+    const old=msgs[i];
+    const changed=old.deleted!==fresh.deleted||old.seen!==fresh.seen||
+      JSON.stringify(old.reactions)!==JSON.stringify(fresh.reactions);
+    if(changed){
+      msgs[i]={...old,...fresh};
+      const el=document.querySelector(`.mw[data-id="${fresh.id}"]`);
+      if(el)el.replaceWith(mkEl(msgs[i]));
+    }
   });
-  if(data.length) scrollBot(true);
 }
 
 let typT2;
 function subTyping(){
+  if(typCh2){try{sb.removeChannel(typCh2);}catch(e){}}
   typCh2=sb.channel('typing2')
     .on('broadcast',{event:'typ'},({payload})=>{
       if(payload.u===CU)return;
@@ -1673,9 +1702,13 @@ async function send(){
   clearReply();
 }
 
+let _seenT=null;
 async function markSeen(){
   if(!OU)return;
-  await sb.from('messages').update({seen:true}).eq('sender',OU).eq('seen',false);
+  clearTimeout(_seenT);
+  _seenT=setTimeout(async()=>{
+    await sb.from('messages').update({seen:true}).eq('sender',OU).eq('seen',false);
+  },400);
 }
 
 // ── INPUT ──
@@ -2044,11 +2077,7 @@ function hideGate(){
 }
 
 async function gateAllow(){
-  if(!('Notification'in window)){
-    // Device doesn't support it — just let them in
-    hideGate();
-    return;
-  }
+  if(!('Notification'in window)){hideGate();return;}
   try{
     const perm=await Notification.requestPermission();
     if(perm==='granted'){
@@ -2056,16 +2085,12 @@ async function gateAllow(){
       toast('Notifications enabled 🔔');
       subscribeToSWPush();
     } else if(perm==='denied'){
-      // Show a softer message — can't force them
-      document.querySelector('.pg-sub').textContent='notifications were blocked. you can enable them in your browser settings, or continue without them.';
-      document.querySelector('.pg-btn').textContent='continue anyway';
-      document.querySelector('.pg-btn').onclick=hideGate;
-      document.querySelector('.pg-note').textContent='go to Settings → Safari/Chrome → Notifications to enable later';
+      document.getElementById('pg-sub').textContent='notifications were blocked. you can enable them in your phone settings, or continue without them.';
+      document.getElementById('pg-btn').textContent='continue anyway';
+      document.getElementById('pg-btn').onclick=hideGate;
+      document.getElementById('pg-note').textContent='Settings → your browser → Notifications → allow';
     }
-  } catch(err){
-    // requestPermission failed (e.g. called without gesture on some browsers) — let them in
-    hideGate();
-  }
+  }catch(err){hideGate();}
 }
 
 // ── NOTIFICATIONS ──
