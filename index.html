@@ -857,7 +857,40 @@ html,body{
   display:flex;align-items:center;justify-content:center;
 }
 
-#ldr{position:fixed;inset:0;z-index:9999;background:var(--bg);display:flex;align-items:center;justify-content:center;transition:opacity 0.4s}
+.logout-btn{
+  width:100%;padding:13px 16px;border-radius:14px;
+  background:var(--glass);backdrop-filter:blur(12px);
+  border:1px solid var(--border);
+  color:var(--text2);font-family:'Geist',sans-serif;font-size:14px;
+  display:flex;align-items:center;gap:10px;cursor:pointer;
+  transition:all 0.18s;
+}
+.logout-btn:active{background:rgba(220,50,50,0.10);border-color:rgba(220,50,50,0.25);color:#e03535;}
+.logout-btn svg{flex-shrink:0;opacity:0.6}
+.logout-btn:active svg{opacity:1}
+
+.install-card{
+  background:var(--glass);backdrop-filter:blur(12px);
+  border:1px solid var(--border);border-radius:14px;
+  padding:14px;display:flex;flex-direction:column;gap:12px;
+}
+.install-card-top{display:flex;align-items:center;gap:12px}
+.install-icon{
+  width:42px;height:42px;border-radius:12px;flex-shrink:0;
+  background:rgba(var(--accent-rgb),0.12);
+  border:1px solid rgba(var(--accent-rgb),0.2);
+  display:flex;align-items:center;justify-content:center;
+  color:var(--accent);
+}
+.install-title{font-size:14px;font-weight:500;color:var(--text)}
+.install-sub{font-size:11px;color:var(--text3);margin-top:2px}
+.install-btn{
+  width:100%;padding:11px;border-radius:10px;
+  background:var(--accent);border:none;
+  color:white;font-family:'Geist',sans-serif;font-size:14px;font-weight:500;
+  cursor:pointer;transition:opacity 0.15s;
+}
+.install-btn:active{opacity:0.8}
 #ldr.off{opacity:0;pointer-events:none}
 .ldots{display:flex;gap:9px}
 .ldots span{width:9px;height:9px;border-radius:50%;background:var(--accent);animation:ldp 1.3s ease infinite}
@@ -983,6 +1016,46 @@ html,body{
       <div class="msec-ttl">Theme</div>
       <div class="tgrid" id="tgrid"></div>
     </div>
+    <div>
+      <div class="msec-ttl">Account</div>
+      <button class="logout-btn" onclick="logout()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Switch user
+      </button>
+    </div>
+
+    <div id="install-section" style="display:none">
+      <div class="msec-ttl">Install</div>
+      <div class="install-card" id="install-card">
+        <div class="install-card-top">
+          <div class="install-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          </div>
+          <div class="install-text">
+            <div class="install-title">Install us.</div>
+            <div class="install-sub">opens fullscreen, no browser bar</div>
+          </div>
+        </div>
+        <button class="install-btn" id="install-btn" onclick="triggerInstall()">Install App</button>
+      </div>
+    </div>
+
+    <!-- iOS fallback — shown only on iOS since iOS can't use beforeinstallprompt -->
+    <div id="ios-section" style="display:none">
+      <div class="msec-ttl">Install</div>
+      <div class="install-card">
+        <div class="install-card-top">
+          <div class="install-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          </div>
+          <div class="install-text">
+            <div class="install-title">Install on iPhone</div>
+            <div class="install-sub">tap Share ⎙ → Add to Home Screen</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -1123,6 +1196,7 @@ function boot(){
   const theme=localStorage.getItem('us_theme')||'dusty-rose';
   setTheme(theme,false);
   document.getElementById('ldr').classList.add('off');
+  checkInstallState();
   const saved=localStorage.getItem('us_user');
   if(saved) setUser(saved);
   else document.getElementById('setup').classList.remove('off');
@@ -1276,7 +1350,7 @@ async function startPresence(){
   // Clear old interval if re-entering
   if(presT){clearInterval(presT);presT=null;}
   await updatePres();
-  presT=setInterval(()=>{if(document.visibilityState==='visible')updatePres();},20000);
+  presT=setInterval(()=>{if(document.visibilityState==='visible')updatePres();},30000);
   subPres();
 }
 async function updatePres(){
@@ -1292,15 +1366,37 @@ function subPres(){
   if(_presCh){try{sb.removeChannel(_presCh);}catch(e){}}
   _presCh=sb.channel('pres-rt')
     .on('postgres_changes',{event:'*',schema:'public',table:'presence'},p=>{
-      if(p.new&&p.new.username===OU)updStUI(p.new);
+      if(p.new&&p.new.username===OU){
+        _lastPresData=p.new;
+        updStUI(p.new);
+      }
     }).subscribe();
-  sb.from('presence').select('*').eq('username',OU).maybeSingle().then(({data})=>{if(data)updStUI(data);});
+  // Initial fetch
+  sb.from('presence').select('*').eq('username',OU).maybeSingle().then(({data})=>{
+    if(data){_lastPresData=data;updStUI(data);}
+  });
+  // Refresh the "last seen Xm ago" text every 30s locally
+  // Also detects stale online:true when phone died without going offline
+  if(_presRefreshT) clearInterval(_presRefreshT);
+  _presRefreshT=setInterval(()=>{
+    if(_lastPresData) updStUI(_lastPresData);
+  },30000);
 }
+
+let _lastPresData=null;
+let _presRefreshT=null;
+
 function updStUI(p){
   const dot=document.getElementById('stdot');
   const txt=document.getElementById('sttxt');
   const st=document.getElementById('hdrst');
-  if(p.online){
+
+  // Stale check — if online:true but last_seen is >45s ago, treat as offline
+  // This catches phone-killed / no-internet cases where setOffPres never fired
+  const staleMs=Date.now()-new Date(p.last_seen).getTime();
+  const isOnline=p.online && staleMs<45000;
+
+  if(isOnline){
     dot.className='st-dot live';
     txt.textContent='online';
     st.className='hdr-st';
@@ -2126,6 +2222,72 @@ if('serviceWorker'in navigator){
     });
   }).catch(()=>{});
   navigator.serviceWorker.addEventListener('controllerchange',()=>window.location.reload());
+}
+
+// ── INSTALL PROMPT ──
+let deferredInstall = null;
+
+// Capture the browser's install prompt before it auto-fires
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredInstall = e;
+  // Show install section in menu
+  document.getElementById('install-section').style.display = 'block';
+});
+
+// Hide install section once installed
+window.addEventListener('appinstalled', () => {
+  deferredInstall = null;
+  document.getElementById('install-section').style.display = 'none';
+  toast('Installed ✓ open from your home screen');
+});
+
+function triggerInstall() {
+  if (!deferredInstall) return;
+  deferredInstall.prompt();
+  deferredInstall.userChoice.then(choice => {
+    if (choice.outcome === 'accepted') {
+      document.getElementById('install-section').style.display = 'none';
+    }
+    deferredInstall = null;
+  });
+}
+
+function checkInstallState() {
+  // Already running as installed PWA — hide install section
+  const isStandalone = window.navigator.standalone === true
+    || window.matchMedia('(display-mode: standalone)').matches;
+  if (isStandalone) {
+    document.getElementById('install-section').style.display = 'none';
+    document.getElementById('ios-section').style.display = 'none';
+    return;
+  }
+  // iOS — no beforeinstallprompt, show manual instructions
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  if (isIOS) {
+    document.getElementById('ios-section').style.display = 'block';
+  }
+  // Android/Chrome: install-section shown when beforeinstallprompt fires above
+}
+
+// ── LOGOUT ──
+async function logout(){
+  if(!confirm('Switch user? You\'ll be asked to pick again.')) return;
+  // go offline
+  await setOffPres();
+  // tell SW to stop background polling
+  if('serviceWorker'in navigator&&navigator.serviceWorker.controller){
+    navigator.serviceWorker.controller.postMessage({type:'STOP_WATCH'});
+  }
+  // clear device lock
+  localStorage.removeItem('us_user');
+  // reset state
+  CU=null;OU=null;msgs=[];
+  if(msgCh){try{sb.removeChannel(msgCh);}catch(e){}}
+  // show setup, hide chat
+  document.getElementById('chat').classList.add('off');
+  document.getElementById('setup').classList.remove('off');
+  closeMenu();
 }
 
 window.addEventListener('beforeunload',setOffPres);
