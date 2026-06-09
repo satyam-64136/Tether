@@ -913,6 +913,25 @@ html,body{
 .ldots span:nth-child(2){animation-delay:0.18s;background:rgba(var(--accent-rgb),0.7)}
 .ldots span:nth-child(3){animation-delay:0.36s;background:rgba(var(--accent-rgb),0.45)}
 @keyframes ldp{0%,80%,100%{transform:scale(0.55);opacity:0.3}40%{transform:scale(1);opacity:1}}
+
+/* ── PERFORMANCE ── */
+.bg-orbs{will-change:transform}
+.bbl-wrap{will-change:transform}
+/* Strip expensive backdrop-filter on very low-end phones (≤360px) */
+@media (max-width:360px){
+  .bbl,.rxchip,.rxchip{backdrop-filter:none;-webkit-backdrop-filter:none}
+  .bg-orbs{display:none}
+}
+/* Respect OS reduce-motion setting */
+@media(prefers-reduced-motion:reduce){
+  .bg-orbs,.orb{animation:none!important}
+  .mw{animation:none!important}
+  *{transition-duration:0.05ms!important}
+}
+/* Prevent layout shift when keyboard opens on iOS */
+.inputrow,.hdr{transform:translateZ(0)}
+/* GPU layer for messages scroll */
+.msgs{-webkit-overflow-scrolling:touch;transform:translateZ(0)}
 </style>
 </head>
 <body>
@@ -1252,7 +1271,14 @@ function setTheme(id,sync){
   localStorage.setItem('us_theme',id);
   document.querySelectorAll('.tswatch').forEach(s=>s.classList.toggle('cur',s.dataset.tid===id));
   const t=THEMES.find(x=>x.id===id);
-  // update swatch checkmark color
+  if(t){
+    // Update browser chrome / status bar color to match theme
+    const meta=document.getElementById('theme-meta');
+    if(meta) meta.setAttribute('content',t.bg);
+    // Also update apple status bar style based on light/dark
+    const appleBar=document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
+    if(appleBar) appleBar.setAttribute('content',t.light?'default':'black-translucent');
+  }
   document.querySelectorAll('.tswatch.cur').forEach(s=>{
     s.style.setProperty('color',t?.light?'rgba(0,0,0,0.8)':'rgba(255,255,255,0.9)');
   });
@@ -2211,12 +2237,11 @@ function updateNotifBtn(){
 async function toggleNotifications(){
   if(!('Notification'in window)){toast('Not supported on this browser');return;}
   if(Notification.permission==='granted'){
-    // Already on — inform user how to turn off
     toast('To disable: browser Settings → Notifications');
     return;
   }
   if(Notification.permission==='denied'){
-    toast('Enable in your phone Settings → Browser → Notifications');
+    toast('Enable in phone Settings → Browser → Notifications');
     return;
   }
   try{
@@ -2224,7 +2249,8 @@ async function toggleNotifications(){
     updateNotifBtn();
     if(result==='granted'){
       toast('Notifications enabled ✓');
-      subscribeToSWPush();
+      // Wait for SW to be fully ready before subscribing
+      await subscribeToSWPush();
     } else {
       toast('Notifications not enabled');
     }
@@ -2246,16 +2272,21 @@ function pushNotif(msg){
 }
 
 async function subscribeToSWPush(){
-  if(!('serviceWorker'in navigator))return;
+  if(!('serviceWorker'in navigator)||!CU)return;
   try{
     const reg=await navigator.serviceWorker.ready;
-    reg.active?.postMessage({type:'WATCH_CHANNEL',supabaseUrl:SU,supabaseKey:SK,currentUser:CU});
+    const sw=reg.active||reg.waiting||reg.installing;
+    if(!sw){
+      // SW not ready yet — retry in 2s
+      setTimeout(subscribeToSWPush,2000);
+      return;
+    }
+    sw.postMessage({type:'WATCH_CHANNEL',supabaseUrl:SU,supabaseKey:SK,currentUser:CU});
   }catch(e){}
 }
 
-// ── SW ──
+// ── SW REGISTRATION ──
 if('serviceWorker'in navigator){
-  // Track whether we had a controller before registration
   const hadController=!!navigator.serviceWorker.controller;
   navigator.serviceWorker.register('/Tether/sw.js',{scope:'/Tether/'}).then(reg=>{
     setInterval(()=>reg.update(),300000);
@@ -2268,9 +2299,17 @@ if('serviceWorker'in navigator){
       });
     });
   }).catch(()=>{});
-  // Only reload when SW updates — NOT on first install
+
   navigator.serviceWorker.addEventListener('controllerchange',()=>{
+    // On update: reload so new SW takes effect
     if(hadController) window.location.reload();
+    // Re-subscribe background push after SW change
+    if(CU){
+      try{
+        if('Notification'in window&&Notification.permission==='granted')
+          setTimeout(subscribeToSWPush,500);
+      }catch(e){}
+    }
   });
 }
 
