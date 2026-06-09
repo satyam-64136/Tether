@@ -1,4 +1,4 @@
-const CACHE = 'us-v4';
+const CACHE = 'us-v5';
 const BASE = '/Tether';
 const ASSETS = [`${BASE}/`, `${BASE}/index.html`, `${BASE}/manifest.json`];
 
@@ -13,7 +13,6 @@ self.addEventListener('activate', e => {
   self.clients.claim();
 });
 
-// Network-first fetch strategy
 self.addEventListener('fetch', e => {
   if(e.request.method !== 'GET') return;
   e.respondWith(
@@ -25,7 +24,7 @@ self.addEventListener('fetch', e => {
   );
 });
 
-// Handle messages from the page
+// ── MESSAGES FROM PAGE ──
 self.addEventListener('message', e => {
   if(!e.data) return;
 
@@ -34,13 +33,13 @@ self.addEventListener('message', e => {
     return;
   }
 
-  // Show a notification directly (tab is hidden but page is open)
+  // Page is hidden but still open — show notif directly
   if(e.data.type === 'SHOW_NOTIF'){
     self.registration.showNotification(e.data.title || 'us.', {
       body: e.data.body || '…',
       icon: `${BASE}/icon.png`,
       badge: `${BASE}/icon.png`,
-      tag: 'us-message',          // replaces previous notif instead of stacking
+      tag: 'us-message',
       renotify: true,
       vibrate: [120, 60, 120],
       data: { url: `${BASE}/` }
@@ -48,25 +47,24 @@ self.addEventListener('message', e => {
     return;
   }
 
-  // Watch Supabase realtime channel for background push
-  // When the page is fully closed, the SW keeps a polling interval
+  // App fully closed — start background polling
   if(e.data.type === 'WATCH_CHANNEL'){
     const { supabaseUrl, supabaseKey, currentUser } = e.data;
+    // Store credentials so they survive SW restarts
+    self._bgCreds = { supabaseUrl, supabaseKey, currentUser };
     startBgWatch(supabaseUrl, supabaseKey, currentUser);
     return;
   }
 
-  if(e.data.type === 'STOP_WATCH'){
-    stopBgWatch();
-  }
+  if(e.data.type === 'STOP_WATCH') stopBgWatch();
 });
 
-// Notification click — focus or open the app
+// ── NOTIFICATION CLICK ──
 self.addEventListener('notificationclick', e => {
   e.notification.close();
   const target = e.notification.data?.url || `${BASE}/`;
   e.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
+    clients.matchAll({ type:'window', includeUncontrolled:true }).then(list => {
       for(const c of list){
         if(c.url.includes(BASE) && 'focus' in c) return c.focus();
       }
@@ -76,31 +74,47 @@ self.addEventListener('notificationclick', e => {
 });
 
 // ── BACKGROUND POLLING ──
-// When app is closed, poll Supabase REST every 30s for new messages
 let bgInterval = null;
-let bgLastId = null;
+let bgLastTs = null;   // ISO timestamp of last notified message
 
 function stopBgWatch(){
   if(bgInterval){ clearInterval(bgInterval); bgInterval = null; }
 }
 
-async function startBgWatch(url, key, currentUser){
-  stopBgWatch(); // clear any existing
-  // Run immediately then every 30s
-  await bgPoll(url, key, currentUser);
-  bgInterval = setInterval(() => bgPoll(url, key, currentUser), 30000);
+function startBgWatch(url, key, currentUser){
+  stopBgWatch();
+  // Set baseline timestamp to now so we only notify about NEW messages
+  if(!bgLastTs) bgLastTs = new Date().toISOString();
+  bgInterval = setInterval(() => bgPoll(url, key, currentUser), 25000);
 }
 
 async function bgPoll(url, key, currentUser){
-  // Only fire when no clients are visible (app is truly in background/closed)
-  const list = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+  // If any window is visible the page handles its own notifs
+  const list = await clients.matchAll({ type:'window', includeUncontrolled:true });
   const anyVisible = list.some(c => c.visibilityState === 'visible');
-  if(anyVisible) return; // page is open and visible — it'll handle its own notifs
+  if(anyVisible) return;
 
   try {
-    const query = bgLastId
-      ? `${url}/rest/v1/messages?select=id,sender,content,image_url,video,created_at&sender=neq.${encodeURIComponent(currentUser)}&seen=eq.false&id=gt.${bgLastId}&order=created_at.asc&limit=5`
-      : `${url}/rest/v1/messages?select=id,sender,content,image_url,video,created_at&sender=neq.${encodeURIComponent(currentUser)}&seen=eq.false&order=created_at.desc&limit=1`;
+    // Correct Supabase REST filter syntax:
+    // sender=neq.X  →  sender != X
+    // seen=is.false →  seen is false (boolean)
+    // created_at=gt.X → created_at > X
+    const ts = bgLastTs || new Date().toISOString();
+    const qs = new URLSearchParams({
+      select: 'id,sender,content,image_url,created_at',
+      'sender': `neq.${currentUser}`,
+      'seen':   'is.false',
+      'created_at': `gt.${ts}`,
+      order: 'created_at.asc',
+      limit: '5'
+    });
+    // Supabase REST needs filter operators as column=op.value in the URL
+    // URLSearchParams doesn't handle this right — build manually
+    const query = `${url}/rest/v1/messages?select=id,sender,content,image_url,created_at`
+      + `&sender=neq.${encodeURIComponent(currentUser)}`
+      + `&seen=is.false`
+      + `&created_at=gt.${encodeURIComponent(ts)}`
+      + `&order=created_at.asc&limit=5`;
 
     const res = await fetch(query, {
       headers: {
@@ -109,28 +123,36 @@ async function bgPoll(url, key, currentUser){
         'Content-Type': 'application/json'
       }
     });
+
     if(!res.ok) return;
     const msgs = await res.json();
-    if(!msgs || !msgs.length) return;
+    if(!Array.isArray(msgs) || !msgs.length) return;
 
     for(const msg of msgs){
-      if(!bgLastId || msg.id > bgLastId){
-        bgLastId = msg.id;
-        const body = msg.video ? '🎥 sent a video'
-                   : msg.image_url ? '📷 sent a photo'
-                   : msg.content || '…';
-        await self.registration.showNotification(msg.sender, {
-          body,
-          icon: `${BASE}/icon.png`,
-          badge: `${BASE}/icon.png`,
-          tag: 'us-message',
-          renotify: true,
-          vibrate: [120, 60, 120],
-          data: { url: `${BASE}/` }
-        });
-      }
+      // Update timestamp watermark
+      if(!bgLastTs || msg.created_at > bgLastTs) bgLastTs = msg.created_at;
+
+      const isVid = isVideoUrl(msg.image_url);
+      const body = isVid ? '🎥 sent a video'
+                 : msg.image_url ? '📷 sent a photo'
+                 : msg.content || '…';
+
+      await self.registration.showNotification(msg.sender, {
+        body,
+        icon: `${BASE}/icon.png`,
+        badge: `${BASE}/icon.png`,
+        tag: 'us-message',
+        renotify: true,
+        vibrate: [120, 60, 120],
+        data: { url: `${BASE}/` }
+      });
     }
   } catch(err) {
-    // Silently fail — no internet etc.
+    // No internet or DB error — silently skip
   }
+}
+
+function isVideoUrl(url){
+  if(!url) return false;
+  return /\.(mp4|mov|webm|mkv|avi|m4v)(\?|$)/i.test(url);
 }

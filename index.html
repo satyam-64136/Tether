@@ -1178,10 +1178,13 @@ function setUser(name){
   startPresence();
   checkPermGate();
   if(Notification.permission==='granted') subscribeToSWPush();
-  document.addEventListener('visibilitychange',()=>{
-    if(document.visibilityState==='visible'){markSeen();updatePres();}
-    else setOffPres();
-  });
+  if(!setUser._vis){
+    setUser._vis=true;
+    document.addEventListener('visibilitychange',()=>{
+      if(document.visibilityState==='visible'){markSeen();updatePres();}
+      else setOffPres();
+    });
+  }
 }
 
 // ── SETTINGS ──
@@ -2010,17 +2013,12 @@ function showIOSInstall(){
 // ── PERMISSION GATE ──
 // Called on boot — shows gate if permission not yet granted
 function checkPermGate(){
-  // iOS Safari < 16.4 doesn't support Notification API at all
-  // In that case skip the gate but show iOS install hint
   const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
   const isSafari=/^((?!chrome|android).)*safari/i.test(navigator.userAgent);
   const isStandalone=window.navigator.standalone===true||window.matchMedia('(display-mode:standalone)').matches;
 
-  // If already granted, hide gate and go
   if('Notification'in window&&Notification.permission==='granted'){
     hideGate();
-    subscribeToSWPush();
-    // Show iOS install hint if on iOS and not yet installed
     if(isIOS&&!isStandalone&&!localStorage.getItem('us_ios_hint_shown')){
       setTimeout(showIOSInstall,3000);
       localStorage.setItem('us_ios_hint_shown','1');
@@ -2028,7 +2026,6 @@ function checkPermGate(){
     return;
   }
 
-  // iOS without Notification support — skip gate, just show install hint
   if(isIOS&&isSafari&&!('Notification'in window)){
     hideGate();
     if(!isStandalone&&!localStorage.getItem('us_ios_hint_shown')){
@@ -2038,7 +2035,7 @@ function checkPermGate(){
     return;
   }
 
-  // Android or desktop — show the gate
+  // Android/desktop — show the blocking gate
   document.getElementById('perm-gate').classList.remove('off');
 }
 
