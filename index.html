@@ -9,6 +9,9 @@
 <meta name="theme-color" content="#f9f4f5" id="theme-meta"/>
 <title>us.</title>
 <link rel="manifest" href="manifest.json"/>
+<!-- Apple touch icon — uses a generated SVG data URI as fallback so no 404 -->
+<link rel="apple-touch-icon" href="icon.png"/>
+<link rel="icon" href="icon.png" type="image/png"/>
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Geist:wght@300;400;500;600&display=swap" rel="stylesheet"/>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -857,7 +860,40 @@ html,body{
   display:flex;align-items:center;justify-content:center;
 }
 
-#ldr{position:fixed;inset:0;z-index:9999;background:var(--bg);display:flex;align-items:center;justify-content:center;transition:opacity 0.4s}
+.logout-btn{
+  width:100%;padding:13px 16px;border-radius:14px;
+  background:var(--glass);backdrop-filter:blur(12px);
+  border:1px solid var(--border);
+  color:var(--text2);font-family:'Geist',sans-serif;font-size:14px;
+  display:flex;align-items:center;gap:10px;cursor:pointer;
+  transition:all 0.18s;
+}
+.logout-btn:active{background:rgba(220,50,50,0.10);border-color:rgba(220,50,50,0.25);color:#e03535;}
+.logout-btn svg{flex-shrink:0;opacity:0.6}
+.logout-btn:active svg{opacity:1}
+
+.install-card{
+  background:var(--glass);backdrop-filter:blur(12px);
+  border:1px solid var(--border);border-radius:14px;
+  padding:14px;display:flex;flex-direction:column;gap:12px;
+}
+.install-card-top{display:flex;align-items:center;gap:12px}
+.install-icon{
+  width:42px;height:42px;border-radius:12px;flex-shrink:0;
+  background:rgba(var(--accent-rgb),0.12);
+  border:1px solid rgba(var(--accent-rgb),0.2);
+  display:flex;align-items:center;justify-content:center;
+  color:var(--accent);
+}
+.install-title{font-size:14px;font-weight:500;color:var(--text)}
+.install-sub{font-size:11px;color:var(--text3);margin-top:2px}
+.install-btn{
+  width:100%;padding:11px;border-radius:10px;
+  background:var(--accent);border:none;
+  color:white;font-family:'Geist',sans-serif;font-size:14px;font-weight:500;
+  cursor:pointer;transition:opacity 0.15s;
+}
+.install-btn:active{opacity:0.8}
 #ldr.off{opacity:0;pointer-events:none}
 .ldots{display:flex;gap:9px}
 .ldots span{width:9px;height:9px;border-radius:50%;background:var(--accent);animation:ldp 1.3s ease infinite}
@@ -983,6 +1019,46 @@ html,body{
       <div class="msec-ttl">Theme</div>
       <div class="tgrid" id="tgrid"></div>
     </div>
+    <div>
+      <div class="msec-ttl">Account</div>
+      <button class="logout-btn" onclick="logout()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Switch user
+      </button>
+    </div>
+
+    <div id="install-section" style="display:none">
+      <div class="msec-ttl">Install</div>
+      <div class="install-card" id="install-card">
+        <div class="install-card-top">
+          <div class="install-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          </div>
+          <div class="install-text">
+            <div class="install-title">Install us.</div>
+            <div class="install-sub">opens fullscreen, no browser bar</div>
+          </div>
+        </div>
+        <button class="install-btn" id="install-btn" onclick="triggerInstall()">Install App</button>
+      </div>
+    </div>
+
+    <!-- iOS fallback — shown only on iOS since iOS can't use beforeinstallprompt -->
+    <div id="ios-section" style="display:none">
+      <div class="msec-ttl">Install</div>
+      <div class="install-card">
+        <div class="install-card-top">
+          <div class="install-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          </div>
+          <div class="install-text">
+            <div class="install-title">Install on iPhone</div>
+            <div class="install-sub">tap Share ⎙ → Add to Home Screen</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -1103,6 +1179,7 @@ const THEMES=[
 let sb,CU,OU;
 let msgs=[],replyTo=null,ctxId=null,pendingImg=null;
 let msgCh,typCh2,reconnT,presT;
+let _lastPresData=null,_presRefreshT=null;
 
 function isVideoUrl(url){
   if(!url)return false;
@@ -1113,16 +1190,43 @@ function isVideoUrl(url){
 (function(){
   const s=document.createElement('script');
   s.src='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js';
-  s.onload=()=>{sb=supabase.createClient(SU,SK);boot()};
-  s.onerror=()=>toast('No internet');
+  s.onload=()=>{
+    try{sb=supabase.createClient(SU,SK);}
+    catch(e){showFatal('Failed to connect. Check your internet.');}
+    boot();
+  };
+  s.onerror=()=>{
+    // Hide loader so user isn't stuck on a blank screen
+    document.getElementById('ldr').classList.add('off');
+    showFatal('No internet connection. Please connect and reload.');
+  };
+  // Safety timeout — if CDN takes >10s, don't stay stuck
+  setTimeout(()=>{
+    if(!sb){
+      document.getElementById('ldr').classList.add('off');
+      showFatal('Loading timed out. Please reload.');
+    }
+  },10000);
   document.head.appendChild(s);
 })();
+
+function showFatal(msg){
+  // Show a simple retry screen instead of a blank white loader
+  const ldr=document.getElementById('ldr');
+  ldr.classList.remove('off');
+  ldr.innerHTML=`<div style="display:flex;flex-direction:column;align-items:center;gap:16px;padding:32px;text-align:center">
+    <div style="font-size:32px">⚠️</div>
+    <div style="font-size:14px;color:var(--text2);max-width:260px;line-height:1.5">${msg}</div>
+    <button onclick="location.reload()" style="padding:10px 24px;border-radius:20px;background:var(--accent);border:none;color:white;font-size:14px;font-family:Geist,sans-serif;cursor:pointer">Reload</button>
+  </div>`;
+}
 
 function boot(){
   buildThemes();
   const theme=localStorage.getItem('us_theme')||'dusty-rose';
   setTheme(theme,false);
   document.getElementById('ldr').classList.add('off');
+  checkInstallState();
   const saved=localStorage.getItem('us_user');
   if(saved) setUser(saved);
   else document.getElementById('setup').classList.remove('off');
@@ -1176,8 +1280,11 @@ function setUser(name){
   subAll();
   loadSettings();
   startPresence();
-  checkPermGate();
-  if(Notification.permission==='granted') subscribeToSWPush();
+  // Safe perm check — CU is now set so subscribeToSWPush works correctly
+  try{
+    checkPermGate();
+    if('Notification'in window&&Notification.permission==='granted') subscribeToSWPush();
+  }catch(e){}
   if(!setUser._vis){
     setUser._vis=true;
     document.addEventListener('visibilitychange',()=>{
@@ -1276,7 +1383,7 @@ async function startPresence(){
   // Clear old interval if re-entering
   if(presT){clearInterval(presT);presT=null;}
   await updatePres();
-  presT=setInterval(()=>{if(document.visibilityState==='visible')updatePres();},20000);
+  presT=setInterval(()=>{if(document.visibilityState==='visible')updatePres();},30000);
   subPres();
 }
 async function updatePres(){
@@ -1292,15 +1399,30 @@ function subPres(){
   if(_presCh){try{sb.removeChannel(_presCh);}catch(e){}}
   _presCh=sb.channel('pres-rt')
     .on('postgres_changes',{event:'*',schema:'public',table:'presence'},p=>{
-      if(p.new&&p.new.username===OU)updStUI(p.new);
+      if(p.new&&p.new.username===OU){
+        _lastPresData=p.new;
+        updStUI(p.new);
+      }
     }).subscribe();
-  sb.from('presence').select('*').eq('username',OU).maybeSingle().then(({data})=>{if(data)updStUI(data);});
+  sb.from('presence').select('*').eq('username',OU).maybeSingle().then(({data})=>{
+    if(data){_lastPresData=data;updStUI(data);}
+  });
+  if(_presRefreshT) clearInterval(_presRefreshT);
+  _presRefreshT=setInterval(()=>{
+    if(_lastPresData) updStUI(_lastPresData);
+  },30000);
 }
 function updStUI(p){
   const dot=document.getElementById('stdot');
   const txt=document.getElementById('sttxt');
   const st=document.getElementById('hdrst');
-  if(p.online){
+
+  // Stale check — if online:true but last_seen is >45s ago, treat as offline
+  // This catches phone-killed / no-internet cases where setOffPres never fired
+  const staleMs=Date.now()-new Date(p.last_seen).getTime();
+  const isOnline=p.online && staleMs<45000;
+
+  if(isOnline){
     dot.className='st-dot live';
     txt.textContent='online';
     st.className='hdr-st';
@@ -1418,16 +1540,20 @@ function mkEl(msg){
   // prevent browser long-press context menu on mobile
   b.addEventListener('contextmenu',e=>e.preventDefault());
 
-  // Long press = enter multi-select
+  // Long press = enter multi-select (only if not swiping)
   let lpTimer;
-  bw.addEventListener('touchstart',()=>{
+  bw.addEventListener('touchstart',e=>{
     lpTimer=setTimeout(()=>{
       if(!selectMode) enterSelectMode(msg.id);
       else toggleSelect(msg.id);
-    },500);
+    },520);
+  },{passive:true});
+  // Cancel long press if finger moves (user is swiping)
+  bw.addEventListener('touchmove',e=>{
+    clearTimeout(lpTimer);
   },{passive:true});
   bw.addEventListener('touchend',()=>clearTimeout(lpTimer),{passive:true});
-  bw.addEventListener('touchmove',()=>clearTimeout(lpTimer),{passive:true});
+  bw.addEventListener('touchcancel',()=>clearTimeout(lpTimer),{passive:true});
 
   bw.appendChild(b);
   w.appendChild(bw);
@@ -1981,13 +2107,18 @@ function renderVoice(url,dur,bubble){
 function drawWaveform(canvas){
   const ctx=canvas.getContext('2d');
   const w=canvas.width,h=canvas.height;
-  const bars=28;const bw=3;const gap=1;
+  // Read actual computed accent color — CSS vars don't work in canvas
+  const accentRgb=getComputedStyle(document.body).getPropertyValue('--accent-rgb').trim()||'184,96,112';
+  const bars=28,bw=3,gap=1;
   ctx.clearRect(0,0,w,h);
   for(let i=0;i<bars;i++){
     const bh=4+Math.random()*(h-8);
-    const x=i*(bw+gap);const y=(h-bh)/2;
-    ctx.fillStyle='rgba(var(--accent-rgb,184,96,112),0.5)';
-    ctx.beginPath();ctx.roundRect(x,y,bw,bh,2);ctx.fill();
+    const x=i*(bw+gap),y=(h-bh)/2;
+    ctx.fillStyle=`rgba(${accentRgb},0.55)`;
+    ctx.beginPath();
+    if(ctx.roundRect) ctx.roundRect(x,y,bw,bh,2);
+    else ctx.rect(x,y,bw,bh);
+    ctx.fill();
   }
 }
 
@@ -2015,26 +2146,40 @@ let deferredInstall=null;
 window.addEventListener('beforeinstallprompt',e=>{
   e.preventDefault();
   deferredInstall=e;
+  // Show in menu panel too
+  const sec=document.getElementById('install-section');
+  if(sec) sec.style.display='block';
+  // Show banner if not dismissed
   if(!localStorage.getItem('us_install_dismissed')){
-    setTimeout(()=>document.getElementById('install-banner').classList.add('on'),2000);
+    setTimeout(()=>{
+      const b=document.getElementById('install-banner');
+      if(b) b.classList.add('on');
+    },2000);
   }
 });
 window.addEventListener('appinstalled',()=>{
-  document.getElementById('install-banner').classList.remove('on');
   deferredInstall=null;
   localStorage.setItem('us_install_dismissed','1');
+  const b=document.getElementById('install-banner');
+  if(b) b.classList.remove('on');
+  const sec=document.getElementById('install-section');
+  if(sec) sec.style.display='none';
+  toast('Installed ✓ open from your home screen');
 });
 function doInstall(){
   if(!deferredInstall)return;
   deferredInstall.prompt();
   deferredInstall.userChoice.then(()=>{
     deferredInstall=null;
-    document.getElementById('install-banner').classList.remove('on');
+    const b=document.getElementById('install-banner');
+    if(b) b.classList.remove('on');
     localStorage.setItem('us_install_dismissed','1');
   });
 }
+function triggerInstall(){ doInstall(); }
 function dismissInstall(){
-  document.getElementById('install-banner').classList.remove('on');
+  const b=document.getElementById('install-banner');
+  if(b) b.classList.remove('on');
   localStorage.setItem('us_install_dismissed','1');
 }
 
@@ -2044,31 +2189,12 @@ function showIOSInstall(){
 }
 
 // ── PERMISSION GATE ──
-// Called on boot — shows gate if permission not yet granted
 function checkPermGate(){
-  const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
-  const isSafari=/^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-  const isStandalone=window.navigator.standalone===true||window.matchMedia('(display-mode:standalone)').matches;
-
-  if('Notification'in window&&Notification.permission==='granted'){
-    hideGate();
-    if(isIOS&&!isStandalone&&!localStorage.getItem('us_ios_hint_shown')){
-      setTimeout(showIOSInstall,3000);
-      localStorage.setItem('us_ios_hint_shown','1');
-    }
-    return;
-  }
-
-  if(isIOS&&isSafari&&!('Notification'in window)){
-    hideGate();
-    if(!isStandalone&&!localStorage.getItem('us_ios_hint_shown')){
-      setTimeout(showIOSInstall,2000);
-      localStorage.setItem('us_ios_hint_shown','1');
-    }
-    return;
-  }
-
-  // Android/desktop — show the blocking gate
+  // Never block the app — always show a skip option
+  if(!('Notification'in window)){hideGate();return;}
+  if(Notification.permission==='granted'){hideGate();subscribeToSWPush();return;}
+  if(Notification.permission==='denied'){hideGate();return;} // already denied, don't nag
+  // Only show gate if permission is 'default' (not asked yet)
   document.getElementById('perm-gate').classList.remove('off');
 }
 
@@ -2082,13 +2208,11 @@ async function gateAllow(){
     const perm=await Notification.requestPermission();
     if(perm==='granted'){
       hideGate();
-      toast('Notifications enabled 🔔');
+      toast('Notifications on ✓');
       subscribeToSWPush();
-    } else if(perm==='denied'){
-      document.getElementById('pg-sub').textContent='notifications were blocked. you can enable them in your phone settings, or continue without them.';
-      document.getElementById('pg-btn').textContent='continue anyway';
-      document.getElementById('pg-btn').onclick=hideGate;
-      document.getElementById('pg-note').textContent='Settings → your browser → Notifications → allow';
+    } else {
+      // Denied or dismissed — just hide, don't block
+      hideGate();
     }
   }catch(err){hideGate();}
 }
@@ -2096,13 +2220,15 @@ async function gateAllow(){
 // ── NOTIFICATIONS ──
 function pushNotif(msg){
   if(document.visibilityState==='visible')return;
-  if(!('Notification'in window)||Notification.permission!=='granted')return;
-  const body=(msg.video||isVideoUrl(msg.image_url))?'🎥 sent a video':msg.image_url?'📷 sent a photo':msg.content||'…';
-  if('serviceWorker'in navigator&&navigator.serviceWorker.controller){
-    navigator.serviceWorker.controller.postMessage({type:'SHOW_NOTIF',title:msg.sender,body});
-  } else {
-    new Notification(msg.sender,{body,icon:'/Tether/icon.png'});
-  }
+  try{
+    if(!('Notification'in window)||Notification.permission!=='granted')return;
+    const body=(msg.video||isVideoUrl(msg.image_url))?'🎥 sent a video':msg.image_url?'📷 sent a photo':msg.content||'…';
+    if('serviceWorker'in navigator&&navigator.serviceWorker.controller){
+      navigator.serviceWorker.controller.postMessage({type:'SHOW_NOTIF',title:msg.sender,body});
+    } else {
+      new Notification(msg.sender,{body,icon:'/Tether/icon.png'});
+    }
+  }catch(e){/* WebView restriction — skip silently */}
 }
 
 async function subscribeToSWPush(){
@@ -2115,17 +2241,84 @@ async function subscribeToSWPush(){
 
 // ── SW ──
 if('serviceWorker'in navigator){
+  // Track whether we had a controller before registration
+  const hadController=!!navigator.serviceWorker.controller;
   navigator.serviceWorker.register('/Tether/sw.js',{scope:'/Tether/'}).then(reg=>{
     setInterval(()=>reg.update(),300000);
     reg.addEventListener('updatefound',()=>{
       const nw=reg.installing;
+      if(!nw)return;
       nw.addEventListener('statechange',()=>{
         if(nw.state==='installed'&&navigator.serviceWorker.controller)
           nw.postMessage({type:'SKIP_WAITING'});
       });
     });
   }).catch(()=>{});
-  navigator.serviceWorker.addEventListener('controllerchange',()=>window.location.reload());
+  // Only reload when SW updates — NOT on first install
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{
+    if(hadController) window.location.reload();
+  });
+}
+
+// ── INSTALL PROMPT — handled by the banner block above (doInstall / dismissInstall) ──
+
+function checkInstallState(){
+  const isStandalone=window.navigator.standalone===true
+    ||window.matchMedia('(display-mode:standalone)').matches;
+  const sec=document.getElementById('install-section');
+  const ios=document.getElementById('ios-section');
+  const banner=document.getElementById('install-banner');
+
+  if(isStandalone){
+    // Running as installed app — hide all install UI
+    if(sec) sec.style.display='none';
+    if(ios) ios.style.display='none';
+    if(banner) banner.classList.remove('on');
+    return;
+  }
+  // iOS Safari — no beforeinstallprompt API
+  const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
+  if(isIOS&&!localStorage.getItem('us_install_dismissed')){
+    if(ios) ios.style.display='block';
+  }
+  // Android/Chrome: install-section appears when beforeinstallprompt fires
+}
+
+// ── LOGOUT ──
+async function logout(){
+  if(!confirm('Switch user? You\'ll be asked to pick again.')) return;
+  await setOffPres();
+  // Tell SW to stop background polling
+  if('serviceWorker'in navigator&&navigator.serviceWorker.controller){
+    navigator.serviceWorker.controller.postMessage({type:'STOP_WATCH'});
+  }
+  // Clean up all realtime channels
+  try{
+    if(msgCh) sb.removeChannel(msgCh);
+    if(typCh2) sb.removeChannel(typCh2);
+    if(_settingsCh) sb.removeChannel(_settingsCh);
+    if(_presCh) sb.removeChannel(_presCh);
+  }catch(e){}
+  // Clear all timers
+  clearInterval(presT);
+  clearInterval(_presRefreshT);
+  msgCh=null;typCh2=null;_settingsCh=null;_presCh=null;
+  _lastPresData=null;
+  // Reset app state
+  msgs=[];replyTo=null;ctxId=null;pendingImg=null;
+  selectMode=false;selectedIds=new Set();
+  CU=null;OU=null;
+  // Reset UI
+  document.getElementById('msgs').querySelectorAll('.mw,.datediv').forEach(e=>e.remove());
+  document.getElementById('empty').style.display='flex';
+  document.getElementById('del-bar').classList.remove('on');
+  document.getElementById('msgs').classList.remove('selecting');
+  // Clear device lock and switch screens
+  localStorage.removeItem('us_user');
+  document.getElementById('chat').classList.add('off');
+  document.getElementById('setup').classList.remove('off');
+  closeMenu();
+  setUser._vis=false;
 }
 
 window.addEventListener('beforeunload',setOffPres);
