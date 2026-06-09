@@ -860,6 +860,19 @@ html,body{
   display:flex;align-items:center;justify-content:center;
 }
 
+.notif-toggle-btn{
+  width:100%;padding:13px 16px;border-radius:14px;
+  background:var(--glass);backdrop-filter:blur(12px);
+  border:1px solid var(--border);
+  color:var(--text2);font-family:'Geist',sans-serif;font-size:14px;
+  display:flex;align-items:center;gap:10px;cursor:pointer;
+  transition:all 0.18s;text-align:left;
+}
+.notif-toggle-btn:active{background:var(--glass2);}
+.notif-toggle-btn.enabled{color:var(--accent);border-color:rgba(var(--accent-rgb),0.3);background:rgba(var(--accent-rgb),0.06)}
+.notif-toggle-btn svg{flex-shrink:0;opacity:0.6}
+.notif-toggle-btn.enabled svg{opacity:1}
+
 .logout-btn{
   width:100%;padding:13px 16px;border-radius:14px;
   background:var(--glass);backdrop-filter:blur(12px);
@@ -1027,36 +1040,28 @@ html,body{
       </button>
     </div>
 
-    <div id="install-section" style="display:none">
-      <div class="msec-ttl">Install</div>
-      <div class="install-card" id="install-card">
-        <div class="install-card-top">
-          <div class="install-icon">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          </div>
-          <div class="install-text">
-            <div class="install-title">Install us.</div>
-            <div class="install-sub">opens fullscreen, no browser bar</div>
-          </div>
-        </div>
-        <button class="install-btn" id="install-btn" onclick="triggerInstall()">Install App</button>
-      </div>
-    </div>
-
-    <!-- iOS fallback — shown only on iOS since iOS can't use beforeinstallprompt -->
-    <div id="ios-section" style="display:none">
-      <div class="msec-ttl">Install</div>
+    <div id="install-section">
+      <div class="msec-ttl">Install App</div>
       <div class="install-card">
         <div class="install-card-top">
           <div class="install-icon">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           </div>
           <div class="install-text">
-            <div class="install-title">Install on iPhone</div>
-            <div class="install-sub">tap Share ⎙ → Add to Home Screen</div>
+            <div class="install-title">Add to Home Screen</div>
+            <div class="install-sub" id="install-sub-txt">installs as a real app, not a shortcut</div>
           </div>
         </div>
+        <button class="install-btn" id="install-btn-main" onclick="triggerInstall()">Install</button>
       </div>
+    </div>
+
+    <div>
+      <div class="msec-ttl">Notifications</div>
+      <button class="notif-toggle-btn" id="notif-btn" onclick="toggleNotifications()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <span id="notif-btn-txt">Enable Notifications</span>
+      </button>
     </div>
 
   </div>
@@ -1113,15 +1118,7 @@ html,body{
 </div>
 
 <!-- PERMISSION GATE — blocks app until notification granted -->
-<div id="perm-gate" class="off">
-  <div class="pg-inner">
-    <div class="pg-icon">🔔</div>
-    <div class="pg-title">stay connected</div>
-    <div class="pg-sub" id="pg-sub">allow notifications so you never miss a message from each other, even when the app is closed</div>
-    <button class="pg-btn" id="pg-btn" onclick="gateAllow()">Allow Notifications</button>
-    <div class="pg-note" id="pg-note">you can turn this off anytime in your phone settings</div>
-  </div>
-</div>
+<!-- notifications asked only when user taps bell in menu -->
 
 <!-- iOS INSTALL INSTRUCTIONS -->
 <div id="ios-install">
@@ -1282,7 +1279,7 @@ function setUser(name){
   startPresence();
   // Safe perm check — CU is now set so subscribeToSWPush works correctly
   try{
-    checkPermGate();
+    updateNotifBtn();
     if('Notification'in window&&Notification.permission==='granted') subscribeToSWPush();
   }catch(e){}
   if(!setUser._vis){
@@ -2146,15 +2143,15 @@ let deferredInstall=null;
 window.addEventListener('beforeinstallprompt',e=>{
   e.preventDefault();
   deferredInstall=e;
-  // Show in menu panel too
+  // Show install section in menu
   const sec=document.getElementById('install-section');
   if(sec) sec.style.display='block';
-  // Show banner if not dismissed
+  // Show bottom banner after 3s if not dismissed
   if(!localStorage.getItem('us_install_dismissed')){
     setTimeout(()=>{
       const b=document.getElementById('install-banner');
       if(b) b.classList.add('on');
-    },2000);
+    },3000);
   }
 });
 window.addEventListener('appinstalled',()=>{
@@ -2188,33 +2185,50 @@ function showIOSInstall(){
   document.getElementById('ios-install').classList.add('on');
 }
 
-// ── PERMISSION GATE ──
-function checkPermGate(){
-  // Never block the app — always show a skip option
-  if(!('Notification'in window)){hideGate();return;}
-  if(Notification.permission==='granted'){hideGate();subscribeToSWPush();return;}
-  if(Notification.permission==='denied'){hideGate();return;} // already denied, don't nag
-  // Only show gate if permission is 'default' (not asked yet)
-  document.getElementById('perm-gate').classList.remove('off');
+// ── NOTIFICATIONS — user-initiated only, never automatic ──
+function updateNotifBtn(){
+  const btn=document.getElementById('notif-btn');
+  const txt=document.getElementById('notif-btn-txt');
+  if(!btn||!txt)return;
+  if(!('Notification'in window)){
+    btn.style.display='none';return;
+  }
+  const p=Notification.permission;
+  if(p==='granted'){
+    btn.classList.add('enabled');
+    txt.textContent='Notifications on ✓';
+  } else if(p==='denied'){
+    btn.classList.remove('enabled');
+    txt.textContent='Notifications blocked — enable in phone Settings';
+    btn.style.opacity='0.5';btn.style.pointerEvents='none';
+  } else {
+    btn.classList.remove('enabled');
+    txt.textContent='Enable Notifications';
+    btn.style.opacity='';btn.style.pointerEvents='';
+  }
 }
 
-function hideGate(){
-  document.getElementById('perm-gate').classList.add('off');
-}
-
-async function gateAllow(){
-  if(!('Notification'in window)){hideGate();return;}
+async function toggleNotifications(){
+  if(!('Notification'in window)){toast('Not supported on this browser');return;}
+  if(Notification.permission==='granted'){
+    // Already on — inform user how to turn off
+    toast('To disable: browser Settings → Notifications');
+    return;
+  }
+  if(Notification.permission==='denied'){
+    toast('Enable in your phone Settings → Browser → Notifications');
+    return;
+  }
   try{
-    const perm=await Notification.requestPermission();
-    if(perm==='granted'){
-      hideGate();
-      toast('Notifications on ✓');
+    const result=await Notification.requestPermission();
+    updateNotifBtn();
+    if(result==='granted'){
+      toast('Notifications enabled ✓');
       subscribeToSWPush();
     } else {
-      // Denied or dismissed — just hide, don't block
-      hideGate();
+      toast('Notifications not enabled');
     }
-  }catch(err){hideGate();}
+  }catch(e){toast('Could not request permission');}
 }
 
 // ── NOTIFICATIONS ──
@@ -2266,22 +2280,38 @@ function checkInstallState(){
   const isStandalone=window.navigator.standalone===true
     ||window.matchMedia('(display-mode:standalone)').matches;
   const sec=document.getElementById('install-section');
-  const ios=document.getElementById('ios-section');
+  const subTxt=document.getElementById('install-sub-txt');
+  const btn=document.getElementById('install-btn-main');
   const banner=document.getElementById('install-banner');
 
   if(isStandalone){
-    // Running as installed app — hide all install UI
+    // Already running as app — hide install section and banner
     if(sec) sec.style.display='none';
-    if(ios) ios.style.display='none';
     if(banner) banner.classList.remove('on');
     return;
   }
-  // iOS Safari — no beforeinstallprompt API
+
   const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
-  if(isIOS&&!localStorage.getItem('us_install_dismissed')){
-    if(ios) ios.style.display='block';
+  const isSafari=/^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+
+  if(isIOS&&isSafari){
+    // iOS Safari — no beforeinstallprompt, show manual steps
+    if(sec) sec.style.display='block';
+    if(subTxt) subTxt.textContent='tap Share ⎙ → Add to Home Screen → Add';
+    if(btn){ btn.textContent='How to install'; btn.onclick=()=>{
+      const ios=document.getElementById('ios-install');
+      if(ios){ios.classList.add('on');closeMenu();}
+    };}
+    return;
   }
-  // Android/Chrome: install-section appears when beforeinstallprompt fires
+  // Android/Chrome — shown when beforeinstallprompt fires
+  // If already dismissed, still show it (user can always install from menu)
+  if(deferredInstall){
+    if(sec) sec.style.display='block';
+  } else {
+    // beforeinstallprompt hasn't fired yet (already installed or not supported)
+    if(sec) sec.style.display='none';
+  }
 }
 
 // ── LOGOUT ──
