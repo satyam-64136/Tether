@@ -6,11 +6,9 @@
 <meta name="mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
-<meta name="apple-mobile-web-app-title" content="us."/>
 <meta name="theme-color" content="#f9f4f5" id="theme-meta"/>
 <title>us.</title>
 <link rel="manifest" href="manifest.json"/>
-<link rel="apple-touch-icon" href="icon.png"/>
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Geist:wght@300;400;500;600&display=swap" rel="stylesheet"/>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -201,9 +199,11 @@ html,body{
 .bg-orbs::before{content:'';position:absolute;inset:0;background:var(--orb-a),var(--orb-b),var(--orb-c)}
 /* gentle float — light themes do subtle scale, dark do translate */
 .bg-orbs{animation:orbFloat 12s ease-in-out infinite}
+.bg-photo.show~* .bg-orbs,.has-wallpaper .bg-orbs{animation-play-state:paused}
 @keyframes orbFloat{0%,100%{transform:scale(1)}50%{transform:scale(1.04) translateY(-12px)}}
-.bg-photo{position:absolute;inset:0;background-size:cover;background-position:center;opacity:0;transition:opacity 0.6s}
+.bg-photo{position:absolute;inset:0;opacity:0;transition:opacity 0.6s;overflow:hidden;contain:strict;will-change:opacity}
 .bg-photo.show{opacity:1}
+.bg-photo img{width:100%;height:100%;object-fit:cover;object-position:center;display:block;pointer-events:none}
 /* scrim over bg photo — light themes lighter, dark darker */
 .bg-scrim{position:absolute;inset:0;
   background:linear-gradient(to bottom,
@@ -743,7 +743,66 @@ html,body{
 }
 #toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
 
-/* LOADER */
+/* VIDEO IN BUBBLE */
+.bbl video{
+  max-width:min(220px,60vw);max-height:260px;
+  border-radius:12px;display:block;
+  background:#000;outline:none;
+}
+
+/* INSTALL BANNER */
+#install-banner{
+  position:fixed;bottom:0;left:0;right:0;z-index:1000;
+  padding:14px 18px;
+  padding-bottom:calc(14px + env(safe-area-inset-bottom,0px));
+  background:var(--menu-bg);
+  backdrop-filter:blur(28px);-webkit-backdrop-filter:blur(28px);
+  border-top:1px solid var(--border);
+  display:none;align-items:center;gap:14px;
+  animation:slideup 0.28s cubic-bezier(.2,1.4,.4,1);
+  box-shadow:0 -4px 32px var(--shadow);
+}
+#install-banner.on{display:flex}
+.ib-icon{font-size:28px;flex-shrink:0}
+.ib-txt{flex:1}
+.ib-txt strong{display:block;font-size:14px;font-weight:500;color:var(--text);margin-bottom:2px}
+.ib-txt span{font-size:12px;color:var(--text2)}
+.ib-install{
+  padding:9px 18px;border-radius:20px;font-size:13px;font-weight:500;
+  background:var(--accent);border:none;color:white;cursor:pointer;
+  font-family:'Geist',sans-serif;flex-shrink:0;
+  transition:opacity 0.15s,transform 0.15s;
+}
+.ib-install:active{opacity:0.8;transform:scale(0.96)}
+.ib-dismiss{
+  background:none;border:none;color:var(--text3);font-size:20px;
+  cursor:pointer;padding:6px;flex-shrink:0;min-width:32px;min-height:32px;
+  display:flex;align-items:center;justify-content:center;
+}
+
+/* NOTIF PROMPT BANNER */
+#notif-banner{
+  position:fixed;top:calc(env(safe-area-inset-top,0px) + 60px);left:12px;right:12px;z-index:999;
+  background:var(--menu-bg);
+  backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+  border:1px solid var(--border2);border-radius:18px;
+  padding:14px 16px;
+  display:none;align-items:center;gap:12px;
+  animation:menuin 0.28s cubic-bezier(.2,1.4,.4,1);
+  box-shadow:0 8px 32px var(--shadow);
+}
+#notif-banner.on{display:flex}
+.nb-ico{font-size:24px;flex-shrink:0}
+.nb-txt{flex:1}
+.nb-txt strong{display:block;font-size:13px;font-weight:500;color:var(--text);margin-bottom:2px}
+.nb-txt span{font-size:11px;color:var(--text2)}
+.nb-allow{
+  padding:8px 15px;border-radius:18px;font-size:12px;font-weight:500;
+  background:var(--accent);border:none;color:white;cursor:pointer;
+  font-family:'Geist',sans-serif;flex-shrink:0;
+}
+.nb-x{background:none;border:none;color:var(--text3);font-size:18px;cursor:pointer;padding:4px;flex-shrink:0}
+
 #ldr{position:fixed;inset:0;z-index:9999;background:var(--bg);display:flex;align-items:center;justify-content:center;transition:opacity 0.4s}
 #ldr.off{opacity:0;pointer-events:none}
 .ldots{display:flex;gap:9px}
@@ -759,7 +818,7 @@ html,body{
 <div class="bg-wrap">
   <div class="bg-base"></div>
   <div class="bg-orbs"></div>
-  <div class="bg-photo" id="bgphoto"></div>
+  <div class="bg-photo" id="bgphoto"><img id="bgphotoimg" src="" alt="" style="display:none"/></div>
   <div class="bg-scrim"></div>
   <div class="bg-dark-overlay"></div>
 </div>
@@ -830,7 +889,7 @@ html,body{
     <label class="attbtn" for="ifile">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
     </label>
-    <input type="file" id="ifile" accept="image/*" style="display:none" onchange="handleImg(event)"/>
+    <input type="file" id="ifile" accept="image/*,video/*" style="display:none" onchange="handleImg(event)"/>
     <div class="inpwrap">
       <textarea id="minp" placeholder="message..." rows="1" oninput="onInp(this)" onkeydown="onKey(event)"></textarea>
     </div>
@@ -923,6 +982,28 @@ html,body{
   </div>
 </div>
 
+<!-- INSTALL BANNER -->
+<div id="install-banner">
+  <div class="ib-icon">💌</div>
+  <div class="ib-txt">
+    <strong>Add to Home Screen</strong>
+    <span>install us. to use it like an app</span>
+  </div>
+  <button class="ib-install" onclick="doInstall()">Install</button>
+  <button class="ib-dismiss" onclick="dismissInstall()">✕</button>
+</div>
+
+<!-- NOTIF BANNER -->
+<div id="notif-banner">
+  <div class="nb-ico">🔔</div>
+  <div class="nb-txt">
+    <strong>Enable notifications</strong>
+    <span>get notified even when the app is closed</span>
+  </div>
+  <button class="nb-allow" onclick="askNotif()">Allow</button>
+  <button class="nb-x" onclick="dismissNotif()">✕</button>
+</div>
+
 <div id="toast"></div>
 
 <script>
@@ -1013,8 +1094,10 @@ function setUser(name){
   subAll();
   loadSettings();
   startPresence();
+  checkNotifPrompt();
+  if(Notification.permission==='granted') subscribeToSWPush();
   document.addEventListener('visibilitychange',()=>{
-    if(document.visibilityState==='visible'){markSeen();updatePres();syncUpdatedMsgs();}
+    if(document.visibilityState==='visible'){markSeen();updatePres();}
     else setOffPres();
   });
 }
@@ -1077,14 +1160,18 @@ async function uploadBg(e){
 
 function applyBgUrl(url){
   const el=document.getElementById('bgphoto');
+  const im=document.getElementById('bgphotoimg');
   const pw=document.getElementById('bgprvwrap');
   const pi=document.getElementById('bgprvimg');
   if(!url){
-    el.classList.remove('show');el.style.backgroundImage='';
+    el.classList.remove('show');
+    im.src='';im.style.display='none';
+    document.body.classList.remove('has-wallpaper');
     pw.style.display='none';return;
   }
-  el.style.backgroundImage=`url('${url}')`;
+  im.src=url;im.style.display='block';
   el.classList.add('show');
+  document.body.classList.add('has-wallpaper');
   pi.src=url;
   pw.style.display='block';
 }
@@ -1179,7 +1266,7 @@ function mkEl(msg){
     if(orig){
       const rp=document.createElement('div');
       rp.className='rprev';
-      rp.textContent=orig.deleted?'🚫 deleted message':(orig.content||'📷 Photo');
+      rp.textContent=orig.deleted?'🚫 deleted message':(orig.content||( orig.video?'🎥 Video':'📷 Photo'));
       w.appendChild(rp);
     }
   }
@@ -1204,6 +1291,19 @@ function mkEl(msg){
     const durMatch=(msg.content||'').match(/\[voice:(\d+)\]/);
     const dur=durMatch?parseInt(durMatch[1]):0;
     renderVoice(msg.image_url,dur,b);
+  } else if(msg.video&&msg.image_url){
+    // video message
+    const vid=document.createElement('video');
+    vid.src=msg.image_url;
+    vid.controls=true;vid.playsInline=true;vid.preload='metadata';
+    vid.style.maxWidth='min(220px,60vw)';vid.style.maxHeight='300px';
+    vid.style.borderRadius='12px';vid.style.display='block';
+    vid.addEventListener('click',e=>e.stopPropagation());
+    b.appendChild(vid);
+    if(msg.content){
+      const t=document.createElement('div');t.style.marginTop='7px';
+      renderContent(msg.content,t);b.appendChild(t);
+    }
   } else if(msg.image_url){
     const img=document.createElement('img');
     img.src=msg.image_url;img.loading='lazy';
@@ -1405,9 +1505,9 @@ function subMsgs(){
         }
       } else if(p.eventType==='UPDATE'){
         const i=msgs.findIndex(m=>m.id===p.new.id);
-        if(i!==-1) msgs[i]={...msgs[i],...p.new};
+        if(i!==-1)msgs[i]=p.new;
         const el=document.querySelector(`.mw[data-id="${p.new.id}"]`);
-        if(el) el.replaceWith(mkEl(msgs[i!==-1?i:0]));
+        if(el)el.replaceWith(mkEl(p.new));
       } else if(p.eventType==='DELETE'){
         const i=msgs.findIndex(m=>m.id===p.old.id);
         if(i!==-1){msgs[i]={...msgs[i],deleted:true};}
@@ -1430,41 +1530,15 @@ async function catchupMsgs(){
   const{data}=await sb.from('messages').select('*')
     .gt('created_at',lastTs)
     .order('created_at',{ascending:true});
-  if(data&&data.length){
-    const area=document.getElementById('msgs');
-    data.forEach(m=>{
-      if(msgs.find(x=>x.id===m.id))return;
-      msgs.push(m);
-      document.getElementById('empty').style.display='none';
-      area.appendChild(mkEl(m));
-    });
-    scrollBot(true);
-  }
-  // Also re-sync any messages that were updated (e.g. soft-deleted) while offline
-  await syncUpdatedMsgs();
-}
-
-// Re-fetch all existing messages and patch any that changed (deleted, reacted, seen)
-async function syncUpdatedMsgs(){
-  if(!msgs.length)return;
-  const ids=msgs.map(m=>m.id);
-  const{data}=await sb.from('messages').select('*').in('id',ids);
-  if(!data)return;
-  let anyChange=false;
-  data.forEach(fresh=>{
-    const i=msgs.findIndex(m=>m.id===fresh.id);
-    if(i===-1)return;
-    const old=msgs[i];
-    // Check if anything meaningful changed
-    const changed=old.deleted!==fresh.deleted||old.seen!==fresh.seen||
-      JSON.stringify(old.reactions)!==JSON.stringify(fresh.reactions);
-    if(changed){
-      msgs[i]=fresh;
-      const el=document.querySelector(`.mw[data-id="${fresh.id}"]`);
-      if(el)el.replaceWith(mkEl(fresh));
-      anyChange=true;
-    }
+  if(!data||!data.length)return;
+  const area=document.getElementById('msgs');
+  data.forEach(m=>{
+    if(msgs.find(x=>x.id===m.id))return;
+    msgs.push(m);
+    document.getElementById('empty').style.display='none';
+    area.appendChild(mkEl(m));
   });
+  if(data.length) scrollBot(true);
 }
 
 let typT2;
@@ -1491,12 +1565,14 @@ async function send(){
   const inp=document.getElementById('minp');
   const txt=inp.value.trim();
   if(!txt&&!pendingImg)return;
-  let imgUrl=null;
+  let imgUrl=null,isVid=false;
   if(pendingImg){
-    const ext=pendingImg.name.split('.').pop()||'jpg';
+    isVid=pendingImg.type.startsWith('video/');
+    const ext=pendingImg.name.split('.').pop()||( isVid?'mp4':'jpg');
     const path=`chat_${Date.now()}.${ext}`;
-    const{error}=await sb.storage.from('images').upload(path,pendingImg);
-    if(error){toast('Image upload failed');return;}
+    toast(isVid?'Uploading video...':'Uploading image...');
+    const{error}=await sb.storage.from('images').upload(path,pendingImg,{contentType:pendingImg.type});
+    if(error){toast(isVid?'Video upload failed':'Image upload failed');return;}
     imgUrl=sb.storage.from('images').getPublicUrl(path).data.publicUrl;
     clearImg();
   }
@@ -1504,7 +1580,8 @@ async function send(){
   document.getElementById('sndbtn').classList.remove('on');
   const{error}=await sb.from('messages').insert({
     sender:CU,content:txt||null,image_url:imgUrl,
-    reply_to:replyTo?.id||null,seen:false,reactions:{}
+    reply_to:replyTo?.id||null,seen:false,reactions:{},
+    video:isVid||false
   });
   if(error)toast('Send failed');
   clearReply();
@@ -1529,18 +1606,40 @@ function onKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();}}
 function handleImg(e){
   const f=e.target.files[0];if(!f)return;
   pendingImg=f;
-  const r=new FileReader();
-  r.onload=ev=>{
-    document.getElementById('prvimg').src=ev.target.result;
-    document.getElementById('iprv').classList.add('on');
-    document.getElementById('sndbtn').classList.add('on');
-  };
-  r.readAsDataURL(f);e.target.value='';
+  const isVid=f.type.startsWith('video/');
+  const prv=document.getElementById('prvimg');
+  if(isVid){
+    // show video icon as preview placeholder
+    prv.src='';
+    prv.style.display='none';
+    let vprv=document.getElementById('prvvid');
+    if(!vprv){
+      vprv=document.createElement('video');
+      vprv.id='prvvid';vprv.style.cssText='width:54px;height:54px;object-fit:cover;border-radius:11px;border:1px solid var(--border)';
+      vprv.muted=true;vprv.playsInline=true;
+      document.getElementById('iprv').insertBefore(vprv,prv);
+    }
+    vprv.src=URL.createObjectURL(f);
+    vprv.style.display='block';
+  } else {
+    let vprv=document.getElementById('prvvid');
+    if(vprv){vprv.src='';vprv.style.display='none';}
+    prv.style.display='block';
+    const r=new FileReader();
+    r.onload=ev=>{prv.src=ev.target.result;};
+    r.readAsDataURL(f);
+  }
+  document.getElementById('iprv').classList.add('on');
+  document.getElementById('sndbtn').classList.add('on');
+  e.target.value='';
 }
 function clearImg(){
   pendingImg=null;
   document.getElementById('iprv').classList.remove('on');
   document.getElementById('prvimg').src='';
+  document.getElementById('prvimg').style.display='block';
+  const vprv=document.getElementById('prvvid');
+  if(vprv){vprv.src='';vprv.style.display='none';}
   document.getElementById('sndbtn').classList.toggle('on',document.getElementById('minp').value.trim().length>0);
 }
 
@@ -1785,13 +1884,6 @@ function closeLB(){document.getElementById('lb').classList.remove('on');}
 // ── SCROLL ──
 function scrollBot(s){const a=document.getElementById('msgs');a.scrollTo({top:a.scrollHeight,behavior:s?'smooth':'auto'});}
 
-// ── NOTIF ──
-function pushNotif(msg){
-  if(document.visibilityState==='visible')return;
-  if(!('Notification'in window)||Notification.permission!=='granted')return;
-  new Notification(msg.sender,{body:msg.image_url?'📷 sent a photo':msg.content});
-}
-
 // ── TOAST ──
 function toast(t){
   const el=document.getElementById('toast');
@@ -1799,7 +1891,86 @@ function toast(t){
   clearTimeout(toast._t);toast._t=setTimeout(()=>el.classList.remove('on'),2800);
 }
 
-// ── SW (auto-update) ──
+// ── INSTALL BANNER ──
+let deferredInstall=null;
+window.addEventListener('beforeinstallprompt',e=>{
+  e.preventDefault();
+  deferredInstall=e;
+  // Only show if not dismissed before
+  if(!localStorage.getItem('us_install_dismissed')){
+    setTimeout(()=>document.getElementById('install-banner').classList.add('on'),3000);
+  }
+});
+window.addEventListener('appinstalled',()=>{
+  document.getElementById('install-banner').classList.remove('on');
+  deferredInstall=null;
+  localStorage.setItem('us_install_dismissed','1');
+});
+function doInstall(){
+  if(!deferredInstall)return;
+  deferredInstall.prompt();
+  deferredInstall.userChoice.then(()=>{
+    deferredInstall=null;
+    document.getElementById('install-banner').classList.remove('on');
+    localStorage.setItem('us_install_dismissed','1');
+  });
+}
+function dismissInstall(){
+  document.getElementById('install-banner').classList.remove('on');
+  localStorage.setItem('us_install_dismissed','1');
+}
+
+// ── NOTIFICATIONS ──
+function checkNotifPrompt(){
+  if(!('Notification'in window))return;
+  if(Notification.permission==='granted')return;
+  if(Notification.permission==='denied')return;
+  if(localStorage.getItem('us_notif_dismissed'))return;
+  setTimeout(()=>document.getElementById('notif-banner').classList.add('on'),5000);
+}
+function dismissNotif(){
+  document.getElementById('notif-banner').classList.remove('on');
+  localStorage.setItem('us_notif_dismissed','1');
+}
+async function askNotif(){
+  document.getElementById('notif-banner').classList.remove('on');
+  const perm=await Notification.requestPermission();
+  if(perm==='granted'){
+    toast('Notifications enabled 🔔');
+    subscribeToSWPush();
+  } else {
+    localStorage.setItem('us_notif_dismissed','1');
+  }
+}
+
+// Tell SW to watch Supabase channel for background notifications
+async function subscribeToSWPush(){
+  if(!('serviceWorker'in navigator))return;
+  const reg=await navigator.serviceWorker.ready;
+  reg.active?.postMessage({
+    type:'WATCH_CHANNEL',
+    supabaseUrl:SU,
+    supabaseKey:SK,
+    currentUser:CU
+  });
+}
+
+function pushNotif(msg){
+  if(document.visibilityState==='visible')return;
+  if(!('Notification'in window)||Notification.permission!=='granted')return;
+  const body=msg.video?'🎥 sent a video':msg.image_url?'📷 sent a photo':msg.content||'…';
+  if('serviceWorker'in navigator&&navigator.serviceWorker.controller){
+    navigator.serviceWorker.controller.postMessage({
+      type:'SHOW_NOTIF',
+      title:msg.sender,
+      body
+    });
+  } else {
+    new Notification(msg.sender,{body,icon:'/Tether/icon.png'});
+  }
+}
+
+// ── SW ──
 if('serviceWorker'in navigator){
   navigator.serviceWorker.register('/Tether/sw.js',{scope:'/Tether/'}).then(reg=>{
     setInterval(()=>reg.update(),300000);

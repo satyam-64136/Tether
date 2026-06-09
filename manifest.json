@@ -5,7 +5,6 @@
   "start_url": "/Tether/",
   "scope": "/Tether/",
   "display": "standalone",
-  "display_override": ["standalone", "fullscreen"],
   "background_color": "#f9f4f5",
   "theme_color": "#f9f4f5",
   "orientation": "portrait",
