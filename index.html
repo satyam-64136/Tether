@@ -392,6 +392,11 @@ html,body{
   transition:transform 0.15s cubic-bezier(.2,1.4,.4,1);
   color:var(--text);
 }
+.rxchip.rxchip-mine{
+  background:rgba(var(--accent-rgb),0.15);
+  border-color:rgba(var(--accent-rgb),0.35);
+  color:var(--accent);
+}
 .rxchip:active{transform:scale(1.28)}
 
 /* SWIPE TO REPLY */
@@ -676,18 +681,55 @@ html,body{
 
 #rxnpick{
   position:fixed;
-  background:var(--menu-bg);backdrop-filter:blur(24px);
-  border:1px solid var(--border2);border-radius:40px;
-  padding:8px 10px;display:none;gap:2px;z-index:420;
-  box-shadow:0 8px 32px var(--shadow);
-  animation:menuin 0.17s cubic-bezier(.2,1.4,.4,1);
-  /* will be positioned by JS to never overflow */
-  max-width:calc(100vw - 24px);
-  flex-wrap:wrap;
+  background:var(--menu-bg);
+  backdrop-filter:blur(28px);-webkit-backdrop-filter:blur(28px);
+  border:1px solid var(--border2);
+  border-radius:18px;
+  z-index:420;
+  display:none;
+  flex-direction:column;
+  box-shadow:0 12px 40px var(--shadow);
+  animation:menuin 0.18s cubic-bezier(.2,1.4,.4,1);
+  width:min(320px, calc(100vw - 24px));
+  max-height:min(340px, 50vh);
+  overflow:hidden;
 }
 #rxnpick.on{display:flex}
-.rxno{font-size:22px;cursor:pointer;padding:4px;border-radius:50%;transition:transform 0.15s cubic-bezier(.2,1.4,.4,1);width:38px;height:38px;display:flex;align-items:center;justify-content:center}
-.rxno:active{transform:scale(1.42)}
+
+/* Category tabs */
+.epk-tabs{
+  display:flex;gap:2px;padding:8px 8px 0;
+  overflow-x:auto;flex-shrink:0;
+}
+.epk-tabs::-webkit-scrollbar{display:none}
+.epk-tab{
+  font-size:17px;padding:5px 7px;border-radius:8px;cursor:pointer;
+  border:none;background:none;
+  transition:background 0.12s;flex-shrink:0;
+  opacity:0.55;
+}
+.epk-tab.active,.epk-tab:active{background:var(--glass2);opacity:1}
+
+/* Emoji grid */
+.epk-grid{
+  display:grid;
+  grid-template-columns:repeat(8,1fr);
+  gap:1px;
+  padding:6px 8px 10px;
+  overflow-y:auto;
+  flex:1;
+}
+.epk-grid::-webkit-scrollbar{display:none}
+.epk-em{
+  font-size:22px;
+  width:36px;height:36px;
+  display:flex;align-items:center;justify-content:center;
+  border-radius:8px;cursor:pointer;
+  border:none;background:none;
+  transition:background 0.1s,transform 0.12s cubic-bezier(.2,1.4,.4,1);
+  -webkit-tap-highlight-color:transparent;
+}
+.epk-em:active{background:var(--glass2);transform:scale(1.32)}
 
 /* LEFT SWIPE ACTION STRIP */
 .swipe-actions{
@@ -1165,12 +1207,8 @@ html,body{
 
 <!-- REACTION PICKER — emojis are fine here, they're content not UI -->
 <div id="rxnpick">
-  <span class="rxno" onclick="addRxn('❤️')">❤️</span>
-  <span class="rxno" onclick="addRxn('😂')">😂</span>
-  <span class="rxno" onclick="addRxn('😮')">😮</span>
-  <span class="rxno" onclick="addRxn('🔥')">🔥</span>
-  <span class="rxno" onclick="addRxn('💜')">💜</span>
-  <span class="rxno" onclick="addRxn('👍')">👍</span>
+  <div class="epk-tabs" id="epk-tabs"></div>
+  <div class="epk-grid" id="epk-grid"></div>
 </div>
 
 <!-- LIGHTBOX -->
@@ -1762,8 +1800,11 @@ function mkEl(msg){
     const rx=msg.reactions||{};
     if(Object.keys(rx).length){
       const row=document.createElement('div');row.className='rxrow';
+      const myRxns=_getUserRxns(msg.id);
       for(const[em,cnt] of Object.entries(rx)){
-        const c=document.createElement('div');c.className='rxchip';c.textContent=`${em} ${cnt}`;
+        const c=document.createElement('div');
+        c.className='rxchip'+(myRxns.includes(em)?' rxchip-mine':'');
+        c.textContent=`${em} ${cnt}`;
         row.appendChild(c);
       }
       w.appendChild(row);
@@ -2179,22 +2220,130 @@ function ctxCopy(){
   else{const ta=document.createElement('textarea');ta.value=txt;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);toast('Copied');}
   closeCtx();
 }
+// ── EMOJI PICKER ──
+const EMOJI_CATS=[
+  {icon:'😊',label:'Smileys',emojis:[
+    '😀','😃','😄','😁','😆','😅','🤣','😂','🙂','🙃','😉','😊','😇','🥰','😍',
+    '🤩','😘','😗','😚','😙','🥲','😋','😛','😜','🤪','😝','🤑','🤗','🤭','🫢',
+    '🫣','🤫','🤔','🫠','🤐','🥴','😐','😑','😶','😏','😒','🙄','😬','😮‍💨','🤥',
+    '😌','😔','😪','🤤','😴','😷','🤒','🤕','🤧','🥵','🥶','🥺','😢','😭','😤',
+    '😠','😡','🤬','😈','👿','💀','☠️','💩','🤡','👹','👺','👻','👽','🤖','😺',
+  ]},
+  {icon:'❤️',label:'Hearts & Love',emojis:[
+    '❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','❤️‍🔥','❤️‍🩹','💕','💞',
+    '💓','💗','💖','💘','💝','💟','♥️','🫀','💋','💌','🥰','😍','🤩','😘',
+  ]},
+  {icon:'👍',label:'Gestures',emojis:[
+    '👍','👎','👌','🤌','🤏','✌️','🤞','🫰','🤙','🤘','🤟','👈','👉','👆','👇',
+    '☝️','👋','🤚','🖐️','✋','🖖','🫱','🫲','🤜','🤛','👊','✊','🫳','🫴','🙌',
+    '👏','🤲','🙏','🤝','💪','🦾','🖕','🤳','💅','🦵','🦶','👂','👃','👀','👁',
+  ]},
+  {icon:'🐶',label:'Animals',emojis:[
+    '🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐨','🐯','🦁','🐮','🐷','🐸','🐵',
+    '🙈','🙉','🙊','🐔','🐧','🐦','🦆','🦅','🦉','🦇','🐺','🐗','🐴','🦄','🐝',
+    '🦋','🐛','🐌','🐞','🐜','🦟','🐢','🐍','🦎','🦖','🐙','🦑','🦐','🦀','🐡',
+    '🐠','🐟','🐬','🐳','🦈','🐊','🦒','🦓','🦏','🐘','🦣','🦛','🦍','🐆','🐅',
+  ]},
+  {icon:'🍕',label:'Food',emojis:[
+    '🍕','🍔','🍟','🌭','🍿','🧂','🥓','🥚','🍳','🧇','🥞','🧈','🍞','🥐','🥖',
+    '🥨','🧀','🥗','🥙','🥪','🌮','🌯','🫔','🥫','🍝','🍜','🍲','🍛','🍣','🍱',
+    '🥟','🦪','🍤','🍙','🍚','🍘','🍥','🥮','🍡','🧁','🍰','🎂','🍮','🍭','🍬',
+    '🍫','🍿','🍩','🍪','🌰','🥜','🍯','🧃','🥤','🧋','☕','🍵','🍺','🍻','🥂',
+  ]},
+  {icon:'⚡',label:'Objects',emojis:[
+    '⚡','🔥','💥','✨','🌟','⭐','🌙','☀️','🌈','❄️','🌊','💨','🎉','🎊','🎈',
+    '🎁','🎀','🏆','🥇','🎯','🎮','🕹️','🎲','🎭','🎨','🖼️','🎪','🎬','🎤','🎵',
+    '🎶','🎸','🎹','🥁','🎺','🎻','📱','💻','⌨️','🖥️','📷','📸','📹','🎥','📺',
+    '📻','📡','🔋','🔌','💡','🔦','🕯️','🧨','💣','🔑','🗝️','🔒','🔓','🔨','⚙️',
+    '🛒','💊','💉','🩺','🌡️','🧬','🔬','🔭','📚','📖','✏️','🖊️','📝','📎','✂️',
+  ]},
+];
+
+let _pickerBuilt=false;
+function buildEmojiPicker(){
+  if(_pickerBuilt)return;
+  _pickerBuilt=true;
+  const tabs=document.getElementById('epk-tabs');
+  const grid=document.getElementById('epk-grid');
+
+  EMOJI_CATS.forEach((cat,i)=>{
+    const tab=document.createElement('button');
+    tab.className='epk-tab'+(i===0?' active':'');
+    tab.title=cat.label;
+    tab.textContent=cat.icon;
+    tab.onclick=()=>{
+      tabs.querySelectorAll('.epk-tab').forEach(t=>t.classList.remove('active'));
+      tab.classList.add('active');
+      showCat(cat);
+    };
+    tabs.appendChild(tab);
+  });
+
+  showCat(EMOJI_CATS[0]);
+
+  function showCat(cat){
+    grid.innerHTML='';
+    cat.emojis.forEach(em=>{
+      const btn=document.createElement('button');
+      btn.className='epk-em';
+      btn.textContent=em;
+      btn.onclick=()=>addRxn(em);
+      grid.appendChild(btn);
+    });
+  }
+}
+
 function ctxReact(){
-  const menu=document.getElementById('ctx'),pick=document.getElementById('rxnpick');
+  buildEmojiPicker();
+  const menu=document.getElementById('ctx');
+  const pick=document.getElementById('rxnpick');
   pick.classList.add('on');
-  // Calculate safe position — never go off right edge or top
-  const pickW=Math.min(280, window.innerWidth-24); // 6 emojis * ~44px + padding
+
+  // Position: prefer above the ctx menu, clamp to screen
+  const pickW=Math.min(320,window.innerWidth-24);
+  const pickH=340; // approximate max height
   const menuLeft=parseInt(menu.style.left)||0;
   const menuTop=parseInt(menu.style.top)||0;
-  const safeLeft=Math.max(12, Math.min(menuLeft, window.innerWidth-pickW-12));
-  const safeTop=Math.max(12, menuTop-60);
-  pick.style.left=safeLeft+'px';
-  pick.style.top=safeTop+'px';
+
+  let top=menuTop-pickH-8;
+  if(top<8) top=Math.min(menuTop+44, window.innerHeight-pickH-8);
+  const left=Math.max(12, Math.min(menuLeft, window.innerWidth-pickW-12));
+
+  pick.style.left=left+'px';
+  pick.style.top=Math.max(8,top)+'px';
+  pick.style.width=pickW+'px';
   menu.classList.remove('on');
 }
+// ── REACTION TOGGLE ──
+// Data structure stays {emoji: count}. We track which emojis THIS user
+// has reacted with per-message in localStorage so we can toggle off.
+function _getRxnKey(msgId){return`us_rxn_${msgId}`;}
+function _getUserRxns(msgId){
+  try{return JSON.parse(localStorage.getItem(_getRxnKey(msgId))||'[]');}
+  catch{return[];}
+}
+function _setUserRxns(msgId,arr){
+  localStorage.setItem(_getRxnKey(msgId),JSON.stringify(arr));
+}
+
 async function addRxn(em){
   const msg=msgs.find(m=>m.id===ctxId);if(!msg)return;
-  const rx={...(msg.reactions||{})};rx[em]=(rx[em]||0)+1;
+  const rx={...(msg.reactions||{})};
+  const myRxns=_getUserRxns(msg.id);
+  const alreadyReacted=myRxns.includes(em);
+
+  if(alreadyReacted){
+    // Toggle OFF — decrement, remove key if reaches 0
+    const newCount=(rx[em]||1)-1;
+    if(newCount<=0) delete rx[em];
+    else rx[em]=newCount;
+    _setUserRxns(msg.id,myRxns.filter(e=>e!==em));
+  } else {
+    // Toggle ON — increment
+    rx[em]=(rx[em]||0)+1;
+    _setUserRxns(msg.id,[...myRxns,em]);
+  }
+
   await sb.from('messages').update({reactions:rx}).eq('id',msg.id);
   closeCtx();
 }
