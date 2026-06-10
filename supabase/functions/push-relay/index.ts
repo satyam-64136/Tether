@@ -71,7 +71,13 @@ Deno.serve(async (req) => {
       url: '/Tether/'
     });
 
-    await webpush.sendNotification(row.subscription, notifPayload);
+    // Parse subscription — may be stored as string or object
+    let pushSub = row.subscription;
+    if(typeof pushSub === 'string') pushSub = JSON.parse(pushSub);
+    if(typeof pushSub === 'string') pushSub = JSON.parse(pushSub); // double-stringified
+
+    console.log('Sending push to endpoint:', pushSub?.endpoint?.slice(0,50));
+    await webpush.sendNotification(pushSub, notifPayload);
     console.log('Push sent successfully to', recipient);
 
     return new Response('sent', { status: 200 });

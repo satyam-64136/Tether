@@ -2702,7 +2702,7 @@ async function subscribeToSWPush(){
         applicationServerKey:urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
       });
     }
-    const subJson=sub.toJSON();
+    const subJson=JSON.parse(JSON.stringify(sub.toJSON()));
     const{error}=await sb.from('push_subscriptions').upsert({
       username:CU,
       subscription:subJson,
