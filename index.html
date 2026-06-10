@@ -679,57 +679,49 @@ html,body{
 .cxi.red{color:#e05555}
 .cxi.red svg{opacity:1}
 
+/* REACTION PILL — WhatsApp style */
 #rxnpick{
   position:fixed;
+  z-index:420;
+  display:none;
+  align-items:center;
+  gap:2px;
+  padding:6px 8px;
   background:var(--menu-bg);
   backdrop-filter:blur(28px);-webkit-backdrop-filter:blur(28px);
   border:1px solid var(--border2);
-  border-radius:18px;
-  z-index:420;
-  display:none;
-  flex-direction:column;
-  box-shadow:0 12px 40px var(--shadow);
-  animation:menuin 0.18s cubic-bezier(.2,1.4,.4,1);
-  width:min(320px, calc(100vw - 24px));
-  max-height:min(340px, 50vh);
-  overflow:hidden;
+  border-radius:999px;
+  box-shadow:0 8px 28px var(--shadow);
+  animation:rxn-bounce 0.22s cubic-bezier(.2,1.55,.4,1);
 }
 #rxnpick.on{display:flex}
-
-/* Category tabs */
-.epk-tabs{
-  display:flex;gap:2px;padding:8px 8px 0;
-  overflow-x:auto;flex-shrink:0;
+@keyframes rxn-bounce{
+  from{opacity:0;transform:scale(0.7) translateY(8px)}
+  to{opacity:1;transform:scale(1) translateY(0)}
 }
-.epk-tabs::-webkit-scrollbar{display:none}
-.epk-tab{
-  font-size:17px;padding:5px 7px;border-radius:8px;cursor:pointer;
-  border:none;background:none;
-  transition:background 0.12s;flex-shrink:0;
-  opacity:0.55;
-}
-.epk-tab.active,.epk-tab:active{background:var(--glass2);opacity:1}
-
-/* Emoji grid */
-.epk-grid{
-  display:grid;
-  grid-template-columns:repeat(8,1fr);
-  gap:1px;
-  padding:6px 8px 10px;
-  overflow-y:auto;
-  flex:1;
-}
-.epk-grid::-webkit-scrollbar{display:none}
-.epk-em{
-  font-size:22px;
-  width:36px;height:36px;
+.rxn-em{
+  font-size:26px;
+  width:42px;height:42px;
   display:flex;align-items:center;justify-content:center;
-  border-radius:8px;cursor:pointer;
-  border:none;background:none;
-  transition:background 0.1s,transform 0.12s cubic-bezier(.2,1.4,.4,1);
+  border-radius:50%;border:none;background:none;cursor:pointer;
+  transition:transform 0.15s cubic-bezier(.2,1.55,.4,1),background 0.1s;
   -webkit-tap-highlight-color:transparent;
 }
-.epk-em:active{background:var(--glass2);transform:scale(1.32)}
+.rxn-em:active{transform:scale(1.35);background:var(--glass2)}
+.rxn-em.rxn-mine{
+  background:rgba(var(--accent-rgb),0.15);
+}
+/* The "+" button to open native keyboard */
+.rxn-more{
+  font-size:18px;font-weight:600;
+  width:36px;height:36px;
+  display:flex;align-items:center;justify-content:center;
+  border-radius:50%;border:1px solid var(--border2);
+  background:var(--glass2);color:var(--text2);
+  cursor:pointer;margin-left:2px;flex-shrink:0;
+  -webkit-tap-highlight-color:transparent;
+}
+.rxn-more:active{background:var(--glass3)}
 
 /* LEFT SWIPE ACTION STRIP */
 .swipe-actions{
@@ -1206,10 +1198,11 @@ html,body{
 </div>
 
 <!-- REACTION PICKER — emojis are fine here, they're content not UI -->
-<div id="rxnpick">
-  <div class="epk-tabs" id="epk-tabs"></div>
-  <div class="epk-grid" id="epk-grid"></div>
-</div>
+<div id="rxnpick"><!-- populated by buildReactionPill() --></div>
+<!-- Hidden input to trigger native emoji keyboard -->
+<input id="emoji-kbd" type="text" inputmode="text"
+  style="position:fixed;opacity:0;pointer-events:none;width:1px;height:1px;top:-999px;left:-999px;"
+  autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
 
 <!-- LIGHTBOX -->
 <div id="lb" onclick="closeLB()">
@@ -2221,99 +2214,112 @@ function ctxCopy(){
   closeCtx();
 }
 // ── EMOJI PICKER ──
-const EMOJI_CATS=[
-  {icon:'😊',label:'Smileys',emojis:[
-    '😀','😃','😄','😁','😆','😅','🤣','😂','🙂','🙃','😉','😊','😇','🥰','😍',
-    '🤩','😘','😗','😚','😙','🥲','😋','😛','😜','🤪','😝','🤑','🤗','🤭','🫢',
-    '🫣','🤫','🤔','🫠','🤐','🥴','😐','😑','😶','😏','😒','🙄','😬','😮‍💨','🤥',
-    '😌','😔','😪','🤤','😴','😷','🤒','🤕','🤧','🥵','🥶','🥺','😢','😭','😤',
-    '😠','😡','🤬','😈','👿','💀','☠️','💩','🤡','👹','👺','👻','👽','🤖','😺',
-  ]},
-  {icon:'❤️',label:'Hearts & Love',emojis:[
-    '❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','❤️‍🔥','❤️‍🩹','💕','💞',
-    '💓','💗','💖','💘','💝','💟','♥️','🫀','💋','💌','🥰','😍','🤩','😘',
-  ]},
-  {icon:'👍',label:'Gestures',emojis:[
-    '👍','👎','👌','🤌','🤏','✌️','🤞','🫰','🤙','🤘','🤟','👈','👉','👆','👇',
-    '☝️','👋','🤚','🖐️','✋','🖖','🫱','🫲','🤜','🤛','👊','✊','🫳','🫴','🙌',
-    '👏','🤲','🙏','🤝','💪','🦾','🖕','🤳','💅','🦵','🦶','👂','👃','👀','👁',
-  ]},
-  {icon:'🐶',label:'Animals',emojis:[
-    '🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐨','🐯','🦁','🐮','🐷','🐸','🐵',
-    '🙈','🙉','🙊','🐔','🐧','🐦','🦆','🦅','🦉','🦇','🐺','🐗','🐴','🦄','🐝',
-    '🦋','🐛','🐌','🐞','🐜','🦟','🐢','🐍','🦎','🦖','🐙','🦑','🦐','🦀','🐡',
-    '🐠','🐟','🐬','🐳','🦈','🐊','🦒','🦓','🦏','🐘','🦣','🦛','🦍','🐆','🐅',
-  ]},
-  {icon:'🍕',label:'Food',emojis:[
-    '🍕','🍔','🍟','🌭','🍿','🧂','🥓','🥚','🍳','🧇','🥞','🧈','🍞','🥐','🥖',
-    '🥨','🧀','🥗','🥙','🥪','🌮','🌯','🫔','🥫','🍝','🍜','🍲','🍛','🍣','🍱',
-    '🥟','🦪','🍤','🍙','🍚','🍘','🍥','🥮','🍡','🧁','🍰','🎂','🍮','🍭','🍬',
-    '🍫','🍿','🍩','🍪','🌰','🥜','🍯','🧃','🥤','🧋','☕','🍵','🍺','🍻','🥂',
-  ]},
-  {icon:'⚡',label:'Objects',emojis:[
-    '⚡','🔥','💥','✨','🌟','⭐','🌙','☀️','🌈','❄️','🌊','💨','🎉','🎊','🎈',
-    '🎁','🎀','🏆','🥇','🎯','🎮','🕹️','🎲','🎭','🎨','🖼️','🎪','🎬','🎤','🎵',
-    '🎶','🎸','🎹','🥁','🎺','🎻','📱','💻','⌨️','🖥️','📷','📸','📹','🎥','📺',
-    '📻','📡','🔋','🔌','💡','🔦','🕯️','🧨','💣','🔑','🗝️','🔒','🔓','🔨','⚙️',
-    '🛒','💊','💉','🩺','🌡️','🧬','🔬','🔭','📚','📖','✏️','🖊️','📝','📎','✂️',
-  ]},
-];
+// ── REACTION PILL ──
+const RXN_DEFAULTS=['❤️','😂','😮','😢','👍'];
+const RXN_STORE='us_recent_emojis';
 
-let _pickerBuilt=false;
-function buildEmojiPicker(){
-  if(_pickerBuilt)return;
-  _pickerBuilt=true;
-  const tabs=document.getElementById('epk-tabs');
-  const grid=document.getElementById('epk-grid');
+function getRecentEmojis(){
+  try{
+    const stored=JSON.parse(localStorage.getItem(RXN_STORE)||'null');
+    if(Array.isArray(stored)&&stored.length) return stored.slice(0,5);
+  }catch{}
+  return [...RXN_DEFAULTS];
+}
 
-  EMOJI_CATS.forEach((cat,i)=>{
-    const tab=document.createElement('button');
-    tab.className='epk-tab'+(i===0?' active':'');
-    tab.title=cat.label;
-    tab.textContent=cat.icon;
-    tab.onclick=()=>{
-      tabs.querySelectorAll('.epk-tab').forEach(t=>t.classList.remove('active'));
-      tab.classList.add('active');
-      showCat(cat);
-    };
-    tabs.appendChild(tab);
+function saveRecentEmoji(em){
+  const list=getRecentEmojis().filter(e=>e!==em); // remove if already present
+  list.unshift(em); // put at front
+  localStorage.setItem(RXN_STORE,JSON.stringify(list.slice(0,5)));
+}
+
+function buildReactionPill(myRxns){
+  const pick=document.getElementById('rxnpick');
+  pick.innerHTML='';
+  const recent=getRecentEmojis();
+  recent.forEach(em=>{
+    const btn=document.createElement('button');
+    btn.className='rxn-em'+(myRxns.includes(em)?' rxn-mine':'');
+    btn.textContent=em;
+    btn.onclick=()=>{ saveRecentEmoji(em); addRxn(em); };
+    pick.appendChild(btn);
   });
-
-  showCat(EMOJI_CATS[0]);
-
-  function showCat(cat){
-    grid.innerHTML='';
-    cat.emojis.forEach(em=>{
-      const btn=document.createElement('button');
-      btn.className='epk-em';
-      btn.textContent=em;
-      btn.onclick=()=>addRxn(em);
-      grid.appendChild(btn);
-    });
-  }
+  // "+" button — opens native emoji keyboard
+  const more=document.createElement('button');
+  more.className='rxn-more';
+  more.textContent='+';
+  more.setAttribute('aria-label','More emojis');
+  more.onclick=(e)=>{
+    e.stopPropagation();
+    openNativeEmojiKbd();
+  };
+  pick.appendChild(more);
 }
 
 function ctxReact(){
-  buildEmojiPicker();
   const menu=document.getElementById('ctx');
   const pick=document.getElementById('rxnpick');
+  const msg=msgs.find(m=>m.id===ctxId);
+  const myRxns=msg?_getUserRxns(msg.id):[];
+  buildReactionPill(myRxns);
   pick.classList.add('on');
 
-  // Position: prefer above the ctx menu, clamp to screen
-  const pickW=Math.min(320,window.innerWidth-24);
-  const pickH=340; // approximate max height
-  const menuLeft=parseInt(menu.style.left)||0;
-  const menuTop=parseInt(menu.style.top)||0;
+  // Position: pill sits above the ctx menu, centred on it, clamped to screen
+  // Measure pill after it's shown
+  requestAnimationFrame(()=>{
+    const pillW=pick.offsetWidth||280;
+    const menuLeft=parseInt(menu.style.left)||0;
+    const menuTop=parseInt(menu.style.top)||0;
+    const centreLeft=menuLeft+(parseInt(menu.offsetWidth||154)/2)-(pillW/2);
+    const left=Math.max(8,Math.min(centreLeft,window.innerWidth-pillW-8));
+    const top=Math.max(8,menuTop-pick.offsetHeight-10);
+    pick.style.left=left+'px';
+    pick.style.top=top+'px';
+  });
 
-  let top=menuTop-pickH-8;
-  if(top<8) top=Math.min(menuTop+44, window.innerHeight-pickH-8);
-  const left=Math.max(12, Math.min(menuLeft, window.innerWidth-pickW-12));
-
-  pick.style.left=left+'px';
-  pick.style.top=Math.max(8,top)+'px';
-  pick.style.width=pickW+'px';
   menu.classList.remove('on');
 }
+
+// ── NATIVE EMOJI KEYBOARD ──
+function openNativeEmojiKbd(){
+  const inp=document.getElementById('emoji-kbd');
+  inp.value='';
+  inp.style.top='50%'; // bring briefly into viewport so focus works
+  inp.style.left='50%';
+  inp.style.opacity='0';
+  inp.style.pointerEvents='auto';
+  inp.focus();
+  // On some Android a second requestAnimationFrame is needed
+  requestAnimationFrame(()=>inp.focus());
+
+  // Listen for input — first emoji character wins
+  const onInput=()=>{
+    const raw=inp.value;
+    if(!raw)return;
+    // Extract first grapheme cluster (emoji can be multi-codepoint)
+    const seg=typeof Intl.Segmenter!=='undefined'
+      ?[...new Intl.Segmenter().segment(raw)].map(s=>s.segment)
+      :[...raw]; // fallback: spread unicode scalars
+    const em=seg.find(s=>s.trim()&&s!=='\n');
+    if(!em)return;
+    cleanup();
+    saveRecentEmoji(em);
+    addRxn(em);
+  };
+
+  const onBlur=()=>{ setTimeout(cleanup,300); };
+  const cleanup=()=>{
+    inp.removeEventListener('input',onInput);
+    inp.removeEventListener('blur',onBlur);
+    inp.value='';
+    inp.style.top='-999px';
+    inp.style.left='-999px';
+    inp.style.pointerEvents='none';
+  };
+
+  inp.addEventListener('input',onInput);
+  inp.addEventListener('blur',onBlur);
+}
+
 // ── REACTION TOGGLE ──
 // Data structure stays {emoji: count}. We track which emojis THIS user
 // has reacted with per-message in localStorage so we can toggle off.
