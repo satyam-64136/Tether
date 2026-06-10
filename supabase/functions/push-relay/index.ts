@@ -2,54 +2,68 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import webpush from 'npm:web-push@3.6.7';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
-const SUPABASE_SERVICE_KEY = Deno.env.get('SERVICE_ROLE_KEY')!;
+const SERVICE_ROLE_KEY = Deno.env.get('SERVICE_ROLE_KEY')!;
 const VAPID_PUBLIC_KEY = Deno.env.get('VAPID_PUBLIC_KEY')!;
 const VAPID_PRIVATE_KEY = Deno.env.get('VAPID_PRIVATE_KEY')!;
-const VAPID_MAILTO = Deno.env.get('VAPID_MAILTO') || 'mailto:you@example.com';
+const VAPID_MAILTO = Deno.env.get('VAPID_MAILTO') || 'mailto:satyam64136@gmail.com';
 
 webpush.setVapidDetails(VAPID_MAILTO, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
 
-const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+const sb = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
 Deno.serve(async (req) => {
-  // Only accept POST from Supabase webhook
-  if (req.method !== 'POST') {
+  if(req.method !== 'POST'){
     return new Response('ok', { status: 200 });
   }
 
   try {
     const payload = await req.json();
+    console.log('Webhook received:', JSON.stringify(payload).slice(0, 200));
 
-    // Supabase database webhook sends { type, table, record, ... }
     const msg = payload.record;
-    if (!msg || payload.type !== 'INSERT') {
-      return new Response('not an insert', { status: 200 });
+    if(!msg){
+      console.log('No record in payload');
+      return new Response('no record', { status: 200 });
     }
 
-    // Don't notify for deleted messages
-    if (msg.deleted) return new Response('deleted', { status: 200 });
+    // Only handle INSERT events
+    if(payload.type !== 'INSERT'){
+      return new Response('not insert', { status: 200 });
+    }
+
+    // Skip deleted messages
+    if(msg.deleted){
+      return new Response('deleted', { status: 200 });
+    }
 
     // Recipient is whoever is NOT the sender
     const recipient = msg.sender === 'Satyam' ? 'Snks' : 'Satyam';
+    console.log('Sender:', msg.sender, '→ Notifying:', recipient);
 
     // Look up their push subscription
-    const { data: sub, error } = await sb
+    const { data: row, error: fetchErr } = await sb
       .from('push_subscriptions')
       .select('subscription')
       .eq('username', recipient)
       .maybeSingle();
 
-    if (error || !sub?.subscription) {
+    if(fetchErr){
+      console.error('DB fetch error:', fetchErr);
+      return new Response('db error', { status: 200 });
+    }
+
+    if(!row?.subscription){
+      console.log('No subscription found for', recipient);
       return new Response('no subscription', { status: 200 });
     }
 
+    console.log('Subscription found for', recipient, '— sending push');
+
     // Build notification body
     const isVideo = /\.(mp4|mov|webm|mkv|avi|m4v)(\?|$)/i.test(msg.image_url || '');
-    const body = isVideo
-      ? '🎥 sent a video'
-      : msg.image_url
-      ? '📷 sent a photo'
-      : msg.content || '…';
+    const body = isVideo ? '🎥 sent a video'
+               : msg.image_url ? '📷 sent a photo'
+               : msg.content || '…';
 
     const notifPayload = JSON.stringify({
       title: msg.sender,
@@ -57,13 +71,13 @@ Deno.serve(async (req) => {
       url: '/Tether/'
     });
 
-    await webpush.sendNotification(sub.subscription, notifPayload);
+    await webpush.sendNotification(row.subscription, notifPayload);
+    console.log('Push sent successfully to', recipient);
 
     return new Response('sent', { status: 200 });
 
-  } catch (err) {
-    // Log but don't crash — always return 200 so Supabase doesn't retry endlessly
-    console.error('push-relay error:', err);
+  } catch(err) {
+    console.error('push-relay error:', err?.message || err);
     return new Response('error', { status: 200 });
   }
 });

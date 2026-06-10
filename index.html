@@ -1445,10 +1445,12 @@ function setUser(name){
   subAll();
   loadSettings();
   startPresence();
-  // Safe perm check — CU is now set so subscribeToSWPush works correctly
   try{
     updateNotifBtn();
-    if('Notification'in window&&Notification.permission==='granted') subscribeToSWPush();
+    // Always re-upsert subscription on login — keeps Supabase table fresh
+    if('Notification'in window&&Notification.permission==='granted'){
+      navigator.serviceWorker.ready.then(()=>subscribeToSWPush());
+    }
   }catch(e){}
   if(!setUser._vis){
     setUser._vis=true;
@@ -2692,7 +2694,7 @@ async function subscribeToSWPush(){
   if(!('serviceWorker'in navigator)||!CU)return;
   try{
     const reg=await navigator.serviceWorker.ready;
-    // Request a Web Push subscription using VAPID public key
+    if(!reg.pushManager){console.warn('pushManager not available');return;}
     let sub=await reg.pushManager.getSubscription();
     if(!sub){
       sub=await reg.pushManager.subscribe({
@@ -2700,14 +2702,16 @@ async function subscribeToSWPush(){
         applicationServerKey:urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
       });
     }
-    // Save subscription to Supabase so Edge Function can look it up
-    await sb.from('push_subscriptions').upsert({
+    const subJson=sub.toJSON();
+    const{error}=await sb.from('push_subscriptions').upsert({
       username:CU,
-      subscription:JSON.parse(JSON.stringify(sub)),
+      subscription:subJson,
       updated_at:new Date().toISOString()
     },{onConflict:'username'});
+    if(error) console.error('push_subscriptions upsert error:',error);
+    else console.log('Push subscription saved for',CU);
   }catch(e){
-    console.warn('Push subscription failed:',e);
+    console.warn('Push subscription failed:',e.message||e);
   }
 }
 
