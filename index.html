@@ -1100,7 +1100,7 @@ html,body{
     </label>
     <input type="file" id="ifile" accept="image/*,video/*" style="display:none" onchange="handleImg(event)"/>
     <div class="inpwrap">
-      <textarea id="minp" placeholder="message..." rows="1" oninput="onInp(this)" onkeydown="onKey(event)"></textarea>
+      <textarea id="minp" placeholder="message..." rows="1" oninput="onInp(this)"></textarea>
     </div>
     <button class="recbtn" id="recbtn" onpointerdown="startRec()" onpointerup="stopRec()" onpointerleave="stopRec()">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
@@ -1451,8 +1451,21 @@ function setUser(name){
   if(!setUser._vis){
     setUser._vis=true;
     document.addEventListener('visibilitychange',()=>{
-      if(document.visibilityState==='visible'){markSeen();updatePres();}
-      else setOffPres();
+      if(document.visibilityState==='visible'){
+        markSeen();
+        updatePres();
+        // Re-subscribe with fresh timestamps so SW knows user is back and caught up
+        if('Notification'in window&&Notification.permission==='granted') subscribeToSWPush();
+      } else {
+        setOffPres();
+        // Tell SW when page went hidden so it can skip messages user already saw
+        if('serviceWorker'in navigator&&navigator.serviceWorker.controller){
+          navigator.serviceWorker.controller.postMessage({
+            type:'PAGE_HIDDEN',
+            ts:new Date().toISOString()
+          });
+        }
+      }
     });
   }
 }
@@ -2093,7 +2106,7 @@ function onInp(el){
   clearTimeout(typTmr);typTmr=setTimeout(()=>{},1500);
   broadcastTyp();
 }
-function onKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();}}
+// Enter key adds newline normally — send only via button
 
 // ── IMAGE ATTACH ──
 function handleImg(e){
@@ -2291,16 +2304,19 @@ function openNativeEmojiKbd(){
   // On some Android a second requestAnimationFrame is needed
   requestAnimationFrame(()=>inp.focus());
 
-  // Listen for input — first emoji character wins
+  // Emoji-only regex — matches emoji sequences including ZWJ, variation selectors, skin tones
+  // \p{Emoji} alone matches digits too, so we require \p{Emoji_Presentation} or explicit sequences
+  const EMOJI_RE=/\p{Emoji_Presentation}|\p{Extended_Pictographic}(?:\uFE0F)?(?:\u20E3)?(?:[\u{1F3FB}-\u{1F3FF}])?(?:\u200D(?:\p{Emoji_Presentation}|\p{Extended_Pictographic})[\uFE0F\u20E3]?)*/gu;
+
+  // Listen for input — first valid emoji wins, plain text/letters are silently ignored
   const onInput=()=>{
     const raw=inp.value;
-    if(!raw)return;
-    // Extract first grapheme cluster (emoji can be multi-codepoint)
-    const seg=typeof Intl.Segmenter!=='undefined'
-      ?[...new Intl.Segmenter().segment(raw)].map(s=>s.segment)
-      :[...raw]; // fallback: spread unicode scalars
-    const em=seg.find(s=>s.trim()&&s!=='\n');
-    if(!em)return;
+    // Always clear the field immediately so letters don't accumulate
+    inp.value='';
+    if(!raw.trim())return;
+    const matches=raw.match(EMOJI_RE);
+    if(!matches||!matches.length)return; // plain text typed — ignore
+    const em=matches[0];
     cleanup();
     saveRecentEmoji(em);
     addRxn(em);
@@ -2664,15 +2680,18 @@ async function toggleNotifications(){
 
 // ── NOTIFICATIONS ──
 function pushNotif(msg){
-  if(document.visibilityState==='visible')return;
+  // Only notify when page is hidden — never when visible
+  if(document.visibilityState!=='hidden')return;
   try{
     if(!('Notification'in window)||Notification.permission!=='granted')return;
     const body=(msg.video||isVideoUrl(msg.image_url))?'🎥 sent a video':msg.image_url?'📷 sent a photo':msg.content||'…';
+    // Always route through SW — never use new Notification() directly
+    // This prevents double-notification (browser + app simultaneously)
     if('serviceWorker'in navigator&&navigator.serviceWorker.controller){
       navigator.serviceWorker.controller.postMessage({type:'SHOW_NOTIF',title:msg.sender,body});
-    } else {
-      new Notification(msg.sender,{body,icon:'/Tether/icon.png'});
     }
+    // If no SW controller (very first load before SW installs) — silently skip
+    // rather than show a duplicate native notification
   }catch(e){/* WebView restriction — skip silently */}
 }
 
@@ -2682,11 +2701,21 @@ async function subscribeToSWPush(){
     const reg=await navigator.serviceWorker.ready;
     const sw=reg.active||reg.waiting||reg.installing;
     if(!sw){
-      // SW not ready yet — retry in 2s
       setTimeout(subscribeToSWPush,2000);
       return;
     }
-    sw.postMessage({type:'WATCH_CHANNEL',supabaseUrl:SU,supabaseKey:SK,currentUser:CU});
+    // Pass the latest message timestamp we have so SW never re-notifies old messages
+    // and the current time as lastActiveTs so SW skips messages user already saw
+    const latestMsgTs=msgs.length?msgs[msgs.length-1].created_at:new Date().toISOString();
+    const lastActiveTs=new Date().toISOString();
+    sw.postMessage({
+      type:'WATCH_CHANNEL',
+      supabaseUrl:SU,
+      supabaseKey:SK,
+      currentUser:CU,
+      latestMsgTs,
+      lastActiveTs
+    });
   }catch(e){}
 }
 

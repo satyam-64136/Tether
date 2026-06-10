@@ -33,30 +33,40 @@ self.addEventListener('message', e => {
     return;
   }
 
-  // Page is hidden but still open — show notif directly
+  // Page is hidden — show notification via SW (routing all notifs through SW only)
   if(e.data.type === 'SHOW_NOTIF'){
-    self.registration.showNotification(e.data.title || 'us.', {
-      body: e.data.body || '…',
-      icon: `${BASE}/icon.png`,
-      badge: `${BASE}/icon.png`,
-      tag: 'us-message',
-      renotify: true,
-      vibrate: [120, 60, 120],
-      data: { url: `${BASE}/` }
-    });
+    // Don't show if any window is currently visible (user is looking at the app)
+    e.waitUntil(
+      clients.matchAll({ type:'window', includeUncontrolled:true }).then(list => {
+        const anyVisible = list.some(c => c.visibilityState === 'visible');
+        if(anyVisible) return;
+        return self.registration.showNotification(e.data.title || 'us.', {
+          body: e.data.body || '…',
+          icon:  `${BASE}/icon.png`,
+          badge: `${BASE}/icon.png`,
+          tag: 'us-message',
+          renotify: true,
+          vibrate: [120, 60, 120],
+          data: { url: `${BASE}/` }
+        });
+      })
+    );
     return;
   }
 
   // App fully closed — start background polling
   if(e.data.type === 'WATCH_CHANNEL'){
-    const { supabaseUrl, supabaseKey, currentUser } = e.data;
-    // Store credentials so they survive SW restarts
-    self._bgCreds = { supabaseUrl, supabaseKey, currentUser };
-    startBgWatch(supabaseUrl, supabaseKey, currentUser);
+    const { supabaseUrl, supabaseKey, currentUser, latestMsgTs, lastActiveTs } = e.data;
+    startBgWatch(supabaseUrl, supabaseKey, currentUser, latestMsgTs, lastActiveTs);
     return;
   }
 
   if(e.data.type === 'STOP_WATCH') stopBgWatch();
+
+  // Page went hidden — update lastActiveTs so SW skips already-seen messages
+  if(e.data.type === 'PAGE_HIDDEN'){
+    bgLastActiveTs = e.data.ts || new Date().toISOString();
+  }
 });
 
 // ── NOTIFICATION CLICK ──
@@ -75,42 +85,46 @@ self.addEventListener('notificationclick', e => {
 
 // ── BACKGROUND POLLING ──
 let bgInterval = null;
-let bgLastTs = null;   // ISO timestamp of last notified message
+// bgLastTs only ever moves forward — never reset to Date.now() on restart
+// Initialised from the page via WATCH_CHANNEL (latest message ts the user has seen)
+let bgLastTs = null;
+// lastActiveTs — set by page when app goes hidden, used to skip already-seen messages
+let bgLastActiveTs = null;
+let bgCreds = null;
 
 function stopBgWatch(){
   if(bgInterval){ clearInterval(bgInterval); bgInterval = null; }
 }
 
-function startBgWatch(url, key, currentUser){
+function startBgWatch(url, key, currentUser, latestMsgTs, lastActiveTs){
+  bgCreds = { url, key, currentUser };
+  // Only move bgLastTs forward, never backward, never to Date.now()
+  if(latestMsgTs && (!bgLastTs || latestMsgTs > bgLastTs)){
+    bgLastTs = latestMsgTs;
+  }
+  // If we have no baseline at all, use the passed timestamp or a safe fallback
+  if(!bgLastTs) bgLastTs = latestMsgTs || new Date().toISOString();
+  // lastActiveTs: page tells us when the user was last active
+  if(lastActiveTs) bgLastActiveTs = lastActiveTs;
   stopBgWatch();
-  // Set baseline timestamp to now so we only notify about NEW messages
-  if(!bgLastTs) bgLastTs = new Date().toISOString();
-  bgInterval = setInterval(() => bgPoll(url, key, currentUser), 25000);
+  bgInterval = setInterval(() => bgPoll(), 25000);
 }
 
-async function bgPoll(url, key, currentUser){
-  // If any window is visible the page handles its own notifs
+async function bgPoll(){
+  if(!bgCreds) return;
+  const { url, key, currentUser } = bgCreds;
+
+  // If any window is currently visible, the page handles its own notifications — skip
   const list = await clients.matchAll({ type:'window', includeUncontrolled:true });
   const anyVisible = list.some(c => c.visibilityState === 'visible');
   if(anyVisible) return;
 
   try {
-    // Correct Supabase REST filter syntax:
-    // sender=neq.X  →  sender != X
-    // seen=is.false →  seen is false (boolean)
-    // created_at=gt.X → created_at > X
-    const ts = bgLastTs || new Date().toISOString();
-    const qs = new URLSearchParams({
-      select: 'id,sender,content,image_url,created_at',
-      'sender': `neq.${currentUser}`,
-      'seen':   'is.false',
-      'created_at': `gt.${ts}`,
-      order: 'created_at.asc',
-      limit: '5'
-    });
-    // Supabase REST needs filter operators as column=op.value in the URL
-    // URLSearchParams doesn't handle this right — build manually
-    const query = `${url}/rest/v1/messages?select=id,sender,content,image_url,created_at`
+    // Use bgLastTs as the cutoff so we never re-notify old messages
+    const ts = bgLastTs;
+
+    const query = `${url}/rest/v1/messages`
+      + `?select=id,sender,content,image_url,created_at,seen`
       + `&sender=neq.${encodeURIComponent(currentUser)}`
       + `&seen=is.false`
       + `&created_at=gt.${encodeURIComponent(ts)}`
@@ -129,8 +143,15 @@ async function bgPoll(url, key, currentUser){
     if(!Array.isArray(msgs) || !msgs.length) return;
 
     for(const msg of msgs){
-      // Update timestamp watermark
-      if(!bgLastTs || msg.created_at > bgLastTs) bgLastTs = msg.created_at;
+      // Always advance the watermark — even if we skip the notification
+      if(msg.created_at > bgLastTs) bgLastTs = msg.created_at;
+
+      // Skip if the user was active after this message was sent
+      // (means they already saw it in the app)
+      if(bgLastActiveTs && msg.created_at <= bgLastActiveTs) continue;
+
+      // Double-check seen flag is still false before notifying
+      if(msg.seen) continue;
 
       const isVid = isVideoUrl(msg.image_url);
       const body = isVid ? '🎥 sent a video'
@@ -139,7 +160,7 @@ async function bgPoll(url, key, currentUser){
 
       await self.registration.showNotification(msg.sender, {
         body,
-        icon: `${BASE}/icon.png`,
+        icon:  `${BASE}/icon.png`,
         badge: `${BASE}/icon.png`,
         tag: 'us-message',
         renotify: true,
