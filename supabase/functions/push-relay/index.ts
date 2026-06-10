@@ -77,8 +77,13 @@ Deno.serve(async (req) => {
     if(typeof pushSub === 'string') pushSub = JSON.parse(pushSub); // double-stringified
 
     console.log('Sending push to endpoint:', pushSub?.endpoint?.slice(0,50));
-    await webpush.sendNotification(pushSub, notifPayload);
-    console.log('Push sent successfully to', recipient);
+    try{
+      await webpush.sendNotification(pushSub, notifPayload);
+      console.log('Push sent successfully to', recipient);
+    }catch(pushErr){
+      console.error('webpush error:', pushErr?.statusCode, pushErr?.body, pushErr?.message);
+      return new Response('push error', { status: 200 });
+    }
 
     return new Response('sent', { status: 200 });
 
