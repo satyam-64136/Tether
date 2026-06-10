@@ -281,7 +281,10 @@ html,body{
   background:var(--header-bg);
   backdrop-filter:blur(26px);-webkit-backdrop-filter:blur(26px);
   border-bottom:1px solid var(--border);
-  flex-shrink:0;z-index:10;position:relative;
+  flex-shrink:0;z-index:10;
+  position:fixed;
+  top:0;left:0;right:0;
+  transform:translateZ(0);
 }
 .hdr-av{
   width:38px;height:38px;border-radius:50%;flex-shrink:0;
@@ -318,12 +321,15 @@ html,body{
 }
 .hdr-btn:active{transform:scale(0.88);background:var(--glass3)}
 
-/* MESSAGES */
+/* MESSAGES — height set by visualViewport JS, not flex */
 .msgs{
-  flex:1;overflow-y:auto;
+  position:fixed;
+  left:0;right:0;
+  overflow-y:auto;
   padding:16px 13px 12px;
   display:flex;flex-direction:column;gap:2px;
   -webkit-overflow-scrolling:touch;
+  transform:translateZ(0);
 }
 .msgs::-webkit-scrollbar{display:none}
 
@@ -499,7 +505,7 @@ html,body{
 
 
 /* REPLY BAR */
-#rbar{display:none;align-items:center;gap:10px;padding:10px 16px;background:var(--header-bg);backdrop-filter:blur(22px);border-top:1px solid var(--border);animation:slideup 0.18s ease}
+#rbar{display:none;align-items:center;gap:10px;padding:10px 16px;background:var(--header-bg);backdrop-filter:blur(22px);border-top:1px solid var(--border);animation:slideup 0.18s ease;position:fixed;left:0;right:0;z-index:9}
 #rbar.on{display:flex}
 @keyframes slideup{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
 .rb-in{flex:1;border-left:2.5px solid var(--accent);padding-left:10px}
@@ -507,8 +513,19 @@ html,body{
 .rb-txt{font-size:12px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .rb-x{background:none;border:none;color:var(--text3);font-size:20px;cursor:pointer;padding:6px;min-width:36px;min-height:36px;display:flex;align-items:center;justify-content:center}
 
+/* EDIT BAR — same style as rbar but amber accent */
+#ebar{display:none;align-items:center;gap:10px;padding:10px 16px;background:var(--header-bg);backdrop-filter:blur(22px);border-top:1px solid var(--border);animation:slideup 0.18s ease;position:fixed;left:0;right:0;z-index:9}
+#ebar.on{display:flex}
+.eb-in{flex:1;border-left:2.5px solid #f0a050;padding-left:10px}
+.eb-lbl{font-size:10px;color:#f0a050;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px}
+.eb-txt{font-size:12px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.eb-x{background:none;border:none;color:var(--text3);font-size:20px;cursor:pointer;padding:6px;min-width:36px;min-height:36px;display:flex;align-items:center;justify-content:center}
+
+/* EDITED LABEL */
+.msg-edited{font-size:9px;color:var(--text3);font-style:italic;margin-left:3px}
+
 /* IMG PREVIEW */
-#iprv{display:none;padding:10px 16px 4px;background:var(--header-bg);backdrop-filter:blur(22px)}
+#iprv{display:none;padding:10px 16px 4px;background:var(--header-bg);backdrop-filter:blur(22px);position:fixed;left:0;right:0;z-index:9}
 #iprv.on{display:flex;align-items:center;gap:12px}
 #iprv img{width:54px;height:54px;object-fit:cover;border-radius:11px;border:1px solid var(--border)}
 #iprv button{background:none;border:none;color:var(--text3);font-size:20px;cursor:pointer;padding:6px}
@@ -521,6 +538,10 @@ html,body{
   background:var(--header-bg);
   backdrop-filter:blur(26px);-webkit-backdrop-filter:blur(26px);
   border-top:1px solid var(--border);flex-shrink:0;
+  position:fixed;
+  bottom:0;left:0;right:0;
+  transform:translateZ(0);
+  z-index:9;
 }
 .attbtn{
   width:42px;height:42px;border-radius:50%;flex-shrink:0;
@@ -914,7 +935,29 @@ html,body{
 .ldots span:nth-child(3){animation-delay:0.36s;background:rgba(var(--accent-rgb),0.45)}
 @keyframes ldp{0%,80%,100%{transform:scale(0.55);opacity:0.3}40%{transform:scale(1);opacity:1}}
 
-/* ── PERFORMANCE ── */
+/* ── SCROLL TO BOTTOM BUTTON ── */
+#scroll-down-btn{
+  position:fixed;
+  right:16px;
+  z-index:50;
+  width:38px;height:38px;border-radius:50%;
+  background:var(--glass3);
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  border:1px solid var(--border2);
+  color:var(--text2);
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;
+  box-shadow:0 4px 16px var(--shadow);
+  opacity:0;pointer-events:none;
+  transform:translateY(8px);
+  transition:opacity 0.2s,transform 0.2s;
+}
+#scroll-down-btn.visible{
+  opacity:1;pointer-events:auto;
+  transform:translateY(0);
+}
+#scroll-down-btn:active{transform:scale(0.88)}
+</style>
 .bg-orbs{will-change:transform}
 .bbl-wrap{will-change:transform}
 /* Strip expensive backdrop-filter on very low-end phones (≤360px) */
@@ -1007,6 +1050,16 @@ html,body{
     </button>
   </div>
 
+  <div id="ebar">
+    <div class="eb-in">
+      <div class="eb-lbl">Editing message</div>
+      <div class="eb-txt" id="ebtxt">—</div>
+    </div>
+    <button class="eb-x" onclick="clearEdit()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+
   <div class="inputrow">
     <label class="attbtn" for="ifile">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
@@ -1092,6 +1145,10 @@ html,body{
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>
     Reply
   </div>
+  <div class="cxi" id="ctx-edit" onclick="ctxEdit()" style="display:none">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+    Edit
+  </div>
   <div class="cxi ctx-copy" onclick="ctxCopy()">
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
     Copy
@@ -1173,6 +1230,11 @@ html,body{
   <button class="ib-dismiss" onclick="dismissInstall()">✕</button>
 </div>
 
+<!-- SCROLL TO BOTTOM -->
+<button id="scroll-down-btn" onclick="scrollBot(true)" aria-label="Scroll to latest">
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
+</button>
+
 <div id="toast"></div>
 
 <script>
@@ -1193,6 +1255,51 @@ const THEMES=[
 ];
 
 let sb,CU,OU;
+
+// ── LAYOUT ENGINE — keeps header fixed, msgs fills middle, input sticks to keyboard ──
+function layoutChat(){
+  const hdr=document.querySelector('.hdr');
+  const msgs=document.getElementById('msgs');
+  const inputrow=document.querySelector('.inputrow');
+  const rbar=document.getElementById('rbar');
+  const ebar=document.getElementById('ebar');
+  const iprv=document.getElementById('iprv');
+  if(!hdr||!msgs||!inputrow)return;
+
+  const hdrH=hdr.getBoundingClientRect().height;
+  const inpH=inputrow.getBoundingClientRect().height;
+  const rbarH=rbar&&rbar.classList.contains('on')?rbar.getBoundingClientRect().height:0;
+  const ebarH=ebar&&ebar.classList.contains('on')?ebar.getBoundingClientRect().height:0;
+  const iprvH=iprv&&iprv.classList.contains('on')?iprv.getBoundingClientRect().height:0;
+
+  const vvH=window.visualViewport?window.visualViewport.height:window.innerHeight;
+
+  // inputrow sits at bottom of visual viewport
+  inputrow.style.bottom='0px';
+
+  // iprv, ebar, rbar stack above inputrow (only one of ebar/rbar is ever shown)
+  if(iprv&&iprv.classList.contains('on')) iprv.style.bottom=inpH+'px';
+  if(ebar&&ebar.classList.contains('on')) ebar.style.bottom=(inpH+iprvH)+'px';
+  if(rbar&&rbar.classList.contains('on')) rbar.style.bottom=(inpH+iprvH+ebarH)+'px';
+
+  // msgs fills remaining space
+  msgs.style.top=hdrH+'px';
+  msgs.style.bottom=(inpH+rbarH+ebarH+iprvH)+'px';
+  msgs.style.height='';
+
+  // scroll-to-bottom button sits just above the input stack
+  const scrollBtn=document.getElementById('scroll-down-btn');
+  if(scrollBtn) scrollBtn.style.bottom=(inpH+rbarH+ebarH+iprvH+12)+'px';
+}
+
+// Re-layout when keyboard opens/closes
+if(window.visualViewport){
+  window.visualViewport.addEventListener('resize',layoutChat);
+  window.visualViewport.addEventListener('scroll',layoutChat);
+} else {
+  window.addEventListener('resize',layoutChat);
+}
+
 let msgs=[],replyTo=null,ctxId=null,pendingImg=null;
 let msgCh,typCh2,reconnT,presT;
 let _lastPresData=null,_presRefreshT=null;
@@ -1299,6 +1406,8 @@ function setUser(name){
   document.getElementById('hdrav').textContent=OU[0];
   document.getElementById('hdrname').textContent=OU;
   document.getElementById('chat').classList.remove('off');
+  layoutChat(); // initial layout
+  initMsgsScroll();
   loadMsgs();
   subAll();
   loadSettings();
@@ -1466,13 +1575,80 @@ function ago(iso){
 }
 
 // ── MESSAGES ──
+const PAGE=25;
+let _allLoaded=false; // true when we've fetched all the way to the beginning
+let _loadingOlder=false;
+
 async function loadMsgs(){
-  const{data,error}=await sb.from('messages').select('*').order('created_at',{ascending:true});
+  _allLoaded=false;
+  const{data,error}=await sb.from('messages')
+    .select('*')
+    .order('created_at',{ascending:false}) // newest first
+    .limit(PAGE);
   if(error){toast('DB error');return;}
-  msgs=data||[];
+  // Reverse so oldest-of-batch is at top, newest at bottom
+  msgs=(data||[]).reverse();
+  if(msgs.length<PAGE) _allLoaded=true;
   renderAll();
   if(document.visibilityState==='visible')markSeen();
   scrollBot(false);
+}
+
+async function loadOlderMsgs(){
+  if(_allLoaded||_loadingOlder||!msgs.length)return;
+  _loadingOlder=true;
+  const oldestTs=msgs[0].created_at;
+  const area=document.getElementById('msgs');
+  // Save scroll anchor — distance from top before prepend
+  const prevScrollH=area.scrollHeight;
+  const prevScrollTop=area.scrollTop;
+  const{data,error}=await sb.from('messages')
+    .select('*')
+    .lt('created_at',oldestTs)
+    .order('created_at',{ascending:false})
+    .limit(PAGE);
+  _loadingOlder=false;
+  if(error||!data||!data.length){_allLoaded=true;return;}
+  const older=data.reverse(); // oldest first
+  // Prepend to msgs array
+  msgs.unshift(...older);
+  if(data.length<PAGE) _allLoaded=true;
+  // Prepend DOM elements without losing scroll position
+  prependMsgs(older,area);
+  // Restore scroll: new content height minus old = how much was added on top
+  const added=area.scrollHeight-prevScrollH;
+  area.scrollTop=prevScrollTop+added;
+}
+
+function prependMsgs(batch,area){
+  // Build a fragment with date dividers + bubbles for the batch
+  const frag=document.createDocumentFragment();
+  // Determine the date of the first existing message (to know if we need a divider)
+  const firstExistingEl=area.querySelector('.mw,.datediv');
+  let lastDateSeen=null; // we'll figure it out below
+  batch.forEach((m,i)=>{
+    const ds=new Date(m.created_at).toLocaleDateString('en-IN',{day:'numeric',month:'short'});
+    if(ds!==lastDateSeen){
+      lastDateSeen=ds;
+      const d=document.createElement('div');d.className='datediv';d.textContent=ds;
+      frag.appendChild(d);
+    }
+    frag.appendChild(mkEl(m));
+  });
+  // Insert before the first existing child
+  area.insertBefore(frag,area.firstChild);
+  // Remove duplicate date divider at the seam if the prepended batch ends on same date as first existing message
+  _dedupeSeamDividers(area);
+}
+
+function _dedupeSeamDividers(area){
+  // Walk all datedivs and remove any that have the same text as the immediately following one
+  const dividers=[...area.querySelectorAll('.datediv')];
+  for(let i=0;i<dividers.length-1;i++){
+    if(dividers[i].textContent===dividers[i+1].textContent){
+      dividers[i].remove();
+    }
+  }
 }
 
 function renderAll(){
@@ -1599,6 +1775,10 @@ function mkEl(msg){
   const t=document.createElement('span');t.className='mtime';
   t.textContent=new Date(msg.created_at).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:true});
   meta.appendChild(t);
+  if(msg.edited&&!msg.deleted){
+    const ed=document.createElement('span');ed.className='msg-edited';ed.textContent='edited';
+    meta.appendChild(ed);
+  }
   if(me&&!msg.deleted){
     const tk=document.createElement('span');
     tk.className='ticks'+(msg.seen?' seen':'');
@@ -1827,6 +2007,17 @@ async function send(){
   const inp=document.getElementById('minp');
   const txt=inp.value.trim();
   if(!txt&&!pendingImg)return;
+
+  // EDIT MODE — update existing message
+  if(editingId){
+    if(!txt){toast('Message cannot be empty');return;}
+    inp.value='';inp.style.height='auto';
+    document.getElementById('sndbtn').classList.remove('on');
+    const{error}=await sb.from('messages').update({content:txt,edited:true}).eq('id',editingId);
+    if(error) toast('Edit failed');
+    clearEdit();
+    return;
+  }
   let imgUrl=null,isVid=false;
   if(pendingImg){
     isVid=pendingImg.type.startsWith('video/');
@@ -1900,6 +2091,7 @@ function handleImg(e){
   document.getElementById('iprv').classList.add('on');
   document.getElementById('sndbtn').classList.add('on');
   e.target.value='';
+  layoutChat();
 }
 function clearImg(){
   pendingImg=null;
@@ -1909,6 +2101,7 @@ function clearImg(){
   const vprv=document.getElementById('prvvid');
   if(vprv){vprv.src='';vprv.style.display='none';}
   document.getElementById('sndbtn').classList.toggle('on',document.getElementById('minp').value.trim().length>0);
+  layoutChat();
 }
 
 // ── REPLY ──
@@ -1917,8 +2110,9 @@ function setReply(msg){
   document.getElementById('rbtxt').textContent=msg.content||'📷 Photo';
   document.getElementById('rbar').classList.add('on');
   document.getElementById('minp').focus();
+  layoutChat();
 }
-function clearReply(){replyTo=null;document.getElementById('rbar').classList.remove('on');}
+function clearReply(){replyTo=null;document.getElementById('rbar').classList.remove('on');layoutChat();}
 
 // ── MENU ──
 function openMenu(){document.getElementById('mpanel').classList.add('on');document.getElementById('overlay').classList.add('on');}
@@ -1927,11 +2121,17 @@ function closeMenu(){document.getElementById('mpanel').classList.remove('on');do
 // ── CTX ──
 function openCtx(e,id){
   e.preventDefault();ctxId=id;
+  const msg=msgs.find(m=>m.id===id);
+  // Show Edit only for own non-deleted plain text messages
+  const editEl=document.getElementById('ctx-edit');
+  if(editEl){
+    const canEdit=msg&&msg.sender===CU&&!msg.deleted&&!!msg.content&&!msg.voice&&!msg.image_url;
+    editEl.style.display=canEdit?'flex':'none';
+  }
   const m=document.getElementById('ctx');
   m.classList.add('on');document.getElementById('overlay').classList.add('on');
-  // position near tap, clamp to screen
   const x=Math.min(e.clientX,window.innerWidth-165);
-  const y=Math.min(e.clientY,window.innerHeight-170);
+  const y=Math.min(e.clientY,window.innerHeight-220);
   m.style.left=x+'px';m.style.top=y+'px';
 }
 function closeCtx(){
@@ -1945,6 +2145,32 @@ function closeAll(){
   if(selectMode) cancelSelect();
 }
 function ctxReply(){const m=msgs.find(m=>m.id===ctxId);if(m)setReply(m);closeCtx();}
+
+// ── EDIT MESSAGE ──
+let editingId=null;
+function ctxEdit(){
+  const msg=msgs.find(m=>m.id===ctxId);
+  if(!msg||!msg.content)return;
+  editingId=msg.id;
+  document.getElementById('ebtxt').textContent=msg.content;
+  document.getElementById('ebar').classList.add('on');
+  const inp=document.getElementById('minp');
+  inp.value=msg.content;
+  inp.style.height='auto';
+  inp.style.height=Math.min(inp.scrollHeight,100)+'px';
+  document.getElementById('sndbtn').classList.add('on');
+  inp.focus();
+  layoutChat();
+  closeCtx();
+}
+function clearEdit(){
+  editingId=null;
+  document.getElementById('ebar').classList.remove('on');
+  document.getElementById('minp').value='';
+  document.getElementById('minp').style.height='auto';
+  document.getElementById('sndbtn').classList.remove('on');
+  layoutChat();
+}
 function ctxCopy(){
   const msg=msgs.find(m=>m.id===ctxId);
   if(!msg||msg.deleted){closeCtx();return;}
@@ -2155,7 +2381,31 @@ function openLB(url){document.getElementById('lbimg').src=url;document.getElemen
 function closeLB(){document.getElementById('lb').classList.remove('on');}
 
 // ── SCROLL ──
-function scrollBot(s){const a=document.getElementById('msgs');a.scrollTo({top:a.scrollHeight,behavior:s?'smooth':'auto'});}
+function scrollBot(s){
+  const a=document.getElementById('msgs');
+  a.scrollTo({top:a.scrollHeight,behavior:s?'smooth':'auto'});
+  updateScrollBtn(a);
+}
+
+function updateScrollBtn(area){
+  const btn=document.getElementById('scroll-down-btn');
+  if(!btn)return;
+  const distFromBottom=area.scrollHeight-area.scrollTop-area.clientHeight;
+  btn.classList.toggle('visible',distFromBottom>300);
+}
+
+// Attach scroll listener to msgs area — called once after setUser
+function initMsgsScroll(){
+  const area=document.getElementById('msgs');
+  if(area._scrollBound)return;
+  area._scrollBound=true;
+  area.addEventListener('scroll',()=>{
+    // Load older messages when scrolled near the top
+    if(area.scrollTop<80) loadOlderMsgs();
+    // Show/hide scroll-to-bottom button
+    updateScrollBtn(area);
+  },{passive:true});
+}
 
 // ── TOAST ──
 function toast(t){
