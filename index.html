@@ -1271,6 +1271,8 @@ html,body{
 <script>
 const SU='https://ggfxdeuwifmqulyhchtv.supabase.co';
 const SK='sb_publishable_DMMJ2sFnGlFWogBs30qowg_-N0zk3OI';
+// Paste your VAPID public key here after running generate-vapid.js
+const VAPID_PUBLIC_KEY='BEI8fREq0RFHJAuKfLBddfNzoBHgKT_6E-UVFM8H11mnVLl2jyYYooZffp0VuDSFefY6NL5Y2OLyd4qrHEdtUVg';
 
 const THEMES=[
   {id:'dusty-rose',     name:'Dusty Rose',   bg:'#f9f4f5',ac:'#b86070',light:true},
@@ -1454,17 +1456,8 @@ function setUser(name){
       if(document.visibilityState==='visible'){
         markSeen();
         updatePres();
-        // Re-subscribe with fresh timestamps so SW knows user is back and caught up
-        if('Notification'in window&&Notification.permission==='granted') subscribeToSWPush();
       } else {
         setOffPres();
-        // Tell SW when page went hidden so it can skip messages user already saw
-        if('serviceWorker'in navigator&&navigator.serviceWorker.controller){
-          navigator.serviceWorker.controller.postMessage({
-            type:'PAGE_HIDDEN',
-            ts:new Date().toISOString()
-          });
-        }
       }
     });
   }
@@ -2699,24 +2692,31 @@ async function subscribeToSWPush(){
   if(!('serviceWorker'in navigator)||!CU)return;
   try{
     const reg=await navigator.serviceWorker.ready;
-    const sw=reg.active||reg.waiting||reg.installing;
-    if(!sw){
-      setTimeout(subscribeToSWPush,2000);
-      return;
+    // Request a Web Push subscription using VAPID public key
+    let sub=await reg.pushManager.getSubscription();
+    if(!sub){
+      sub=await reg.pushManager.subscribe({
+        userVisibleOnly:true,
+        applicationServerKey:urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+      });
     }
-    // Pass the latest message timestamp we have so SW never re-notifies old messages
-    // and the current time as lastActiveTs so SW skips messages user already saw
-    const latestMsgTs=msgs.length?msgs[msgs.length-1].created_at:new Date().toISOString();
-    const lastActiveTs=new Date().toISOString();
-    sw.postMessage({
-      type:'WATCH_CHANNEL',
-      supabaseUrl:SU,
-      supabaseKey:SK,
-      currentUser:CU,
-      latestMsgTs,
-      lastActiveTs
-    });
-  }catch(e){}
+    // Save subscription to Supabase so Edge Function can look it up
+    await sb.from('push_subscriptions').upsert({
+      username:CU,
+      subscription:JSON.parse(JSON.stringify(sub)),
+      updated_at:new Date().toISOString()
+    },{onConflict:'username'});
+  }catch(e){
+    console.warn('Push subscription failed:',e);
+  }
+}
+
+// Convert VAPID public key from base64url to Uint8Array
+function urlBase64ToUint8Array(base64String){
+  const padding='='.repeat((4-base64String.length%4)%4);
+  const base64=(base64String+padding).replace(/-/g,'+').replace(/_/g,'/');
+  const raw=atob(base64);
+  return Uint8Array.from([...raw].map(c=>c.charCodeAt(0)));
 }
 
 // ── SW REGISTRATION ──
@@ -2735,15 +2735,7 @@ if('serviceWorker'in navigator){
   }).catch(()=>{});
 
   navigator.serviceWorker.addEventListener('controllerchange',()=>{
-    // On update: reload so new SW takes effect
     if(hadController) window.location.reload();
-    // Re-subscribe background push after SW change
-    if(CU){
-      try{
-        if('Notification'in window&&Notification.permission==='granted')
-          setTimeout(subscribeToSWPush,500);
-      }catch(e){}
-    }
   });
 }
 
