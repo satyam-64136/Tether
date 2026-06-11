@@ -406,6 +406,14 @@ html,body{
   animation:msgpop 0.22s cubic-bezier(.2,1.4,.4,1);
   position:relative;
 }
+/* Older messages loading from top — soft fade in */
+.mw.prepended{
+  animation:msgfadein 0.35s ease forwards;
+}
+@keyframes msgfadein{
+  from{opacity:0;transform:translateY(-6px)}
+  to{opacity:1;transform:translateY(0)}
+}
 /* the bubble wrapper that slides */
 .bbl-wrap{
   position:relative;
@@ -1039,6 +1047,22 @@ html,body{
   to{opacity:1;transform:translateY(0)}
 }
 
+/* Save media button */
+.media-save-btn{
+  position:absolute;bottom:8px;right:8px;
+  width:30px;height:30px;border-radius:50%;
+  background:rgba(0,0,0,0.45);
+  backdrop-filter:blur(6px);
+  border:none;color:white;
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;
+  transition:opacity 0.2s ease;
+  z-index:2;
+  opacity:0;
+}
+.media-save-btn:hover{opacity:1}
+@media(hover:none){.media-save-btn{opacity:1}}
+
 /* ── SCROLL TO BOTTOM BUTTON ── */
 #scroll-down-btn{
   position:fixed;
@@ -1180,7 +1204,7 @@ html,body{
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
     </button>
     <button class="sndbtn" id="sndbtn" onclick="send()">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><path d="M22 2L15 22l-4-9-9-4 20-7z"/></svg>
     </button>
   </div>
 </div>
@@ -1558,6 +1582,10 @@ function setUser(name){
       if(document.visibilityState==='visible'){
         markSeen();
         updatePres();
+        // Clear any pending notifications since user is now looking at the app
+        if(navigator.serviceWorker?.controller){
+          navigator.serviceWorker.controller.postMessage({type:'CLEAR_NOTIF'});
+        }
       } else {
         setOffPres();
       }
@@ -1760,11 +1788,9 @@ async function loadOlderMsgs(){
 }
 
 function prependMsgs(batch,area){
-  // Build a fragment with date dividers + bubbles for the batch
   const frag=document.createDocumentFragment();
-  // Determine the date of the first existing message (to know if we need a divider)
   const firstExistingEl=area.querySelector('.mw,.datediv');
-  let lastDateSeen=null; // we'll figure it out below
+  let lastDateSeen=null;
   batch.forEach((m,i)=>{
     const ds=new Date(m.created_at).toLocaleDateString('en-IN',{day:'numeric',month:'short'});
     if(ds!==lastDateSeen){
@@ -1772,11 +1798,13 @@ function prependMsgs(batch,area){
       const d=document.createElement('div');d.className='datediv';d.textContent=ds;
       frag.appendChild(d);
     }
-    frag.appendChild(mkEl(m));
+    const el=mkEl(m);
+    el.classList.add('prepended');
+    // Stagger animation so messages don't all pop at once
+    el.style.animationDelay=(i*18)+'ms';
+    frag.appendChild(el);
   });
-  // Insert before the first existing child
   area.insertBefore(frag,area.firstChild);
-  // Remove duplicate date divider at the seam if the prepended batch ends on same date as first existing message
   _dedupeSeamDividers(area);
 }
 
@@ -1844,22 +1872,36 @@ function mkEl(msg){
     const dur=durMatch?parseInt(durMatch[1]):0;
     renderVoice(msg.image_url,dur,b);
   } else if((msg.video||isVideoUrl(msg.image_url))&&msg.image_url){
-    // video message
+    const vidWrap=document.createElement('div');vidWrap.style.position='relative';vidWrap.style.display='inline-block';
     const vid=document.createElement('video');
     vid.src=msg.image_url;
     vid.controls=true;vid.playsInline=true;vid.preload='metadata';
     vid.style.cssText='max-width:min(220px,60vw);max-height:300px;border-radius:12px;display:block;background:#000';
     vid.addEventListener('click',e=>e.stopPropagation());
-    b.appendChild(vid);
+    vidWrap.appendChild(vid);
+    const saveBtn=document.createElement('button');
+    saveBtn.className='media-save-btn';
+    saveBtn.innerHTML=`<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`;
+    saveBtn.onclick=ev=>{ev.stopPropagation();saveMedia(msg.image_url,'video');};
+    vidWrap.appendChild(saveBtn);
+    b.appendChild(vidWrap);
     if(msg.content){
       const t=document.createElement('div');t.style.marginTop='7px';
       renderContent(msg.content,t);b.appendChild(t);
     }
   } else if(msg.image_url){
+    const imgWrap=document.createElement('div');imgWrap.style.position='relative';imgWrap.style.display='inline-block';
     const img=document.createElement('img');
     img.src=msg.image_url;img.loading='lazy';
     img.onclick=ev=>{ev.stopPropagation();openLB(msg.image_url);};
-    b.appendChild(img);
+    imgWrap.appendChild(img);
+    // Save to gallery button
+    const saveBtn=document.createElement('button');
+    saveBtn.className='media-save-btn';
+    saveBtn.innerHTML=`<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`;
+    saveBtn.onclick=ev=>{ev.stopPropagation();saveMedia(msg.image_url,'photo');};
+    imgWrap.appendChild(saveBtn);
+    b.appendChild(imgWrap);
     if(msg.content){
       const t=document.createElement('div');t.style.marginTop='7px';
       renderContent(msg.content,t);
@@ -1924,7 +1966,12 @@ function mkEl(msg){
   if(me&&!msg.deleted){
     const tk=document.createElement('span');
     tk.className='ticks'+(msg.seen?' seen':'');
-    tk.textContent=msg.seen?'✓✓':'✓';
+    // Double tick for seen, single for sent — proper SVG icons
+    if(msg.seen){
+      tk.innerHTML=`<svg width="15" height="10" viewBox="0 0 15 10" fill="none"><path d="M1 5l3 3.5L10 1" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 5l3 3.5L14 1" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    } else {
+      tk.innerHTML=`<svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M1 5l3 3.5L9 1" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    }
     meta.appendChild(tk);
   }
   w.appendChild(meta);
@@ -2062,7 +2109,7 @@ function subMsgs(){
         document.getElementById('msgs').appendChild(mkEl(p.new));
         scrollBot(true);
         if(p.new.sender!==CU){
-          if(document.visibilityState==='visible')markSeen();
+          if(document.visibilityState==='visible'){markSeen();playMsgSound();}
           pushNotif(p.new);
         }
       } else if(p.eventType==='UPDATE'){
@@ -2673,7 +2720,47 @@ function initMsgsScroll(){
   },{passive:true});
 }
 
-// ── TOAST ──
+// ── NOTIFICATION SOUND ──
+let _audioCtx=null;
+function playMsgSound(){
+  try{
+    if(!_audioCtx) _audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+    const ctx=_audioCtx;
+    // Soft two-tone chime — romantic and gentle
+    [[880,0,0.08],[1100,0.1,0.07]].forEach(([freq,delay,dur])=>{
+      const osc=ctx.createOscillator();
+      const gain=ctx.createGain();
+      osc.connect(gain);gain.connect(ctx.destination);
+      osc.type='sine';
+      osc.frequency.setValueAtTime(freq,ctx.currentTime+delay);
+      gain.gain.setValueAtTime(0,ctx.currentTime+delay);
+      gain.gain.linearRampToValueAtTime(0.18,ctx.currentTime+delay+0.01);
+      gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+delay+dur+0.18);
+      osc.start(ctx.currentTime+delay);
+      osc.stop(ctx.currentTime+delay+dur+0.2);
+    });
+  }catch(e){}
+}
+// ── SAVE MEDIA TO GALLERY ──
+async function saveMedia(url,type){
+  try{
+    toast('Saving...');
+    const res=await fetch(url);
+    const blob=await res.blob();
+    const ext=type==='video'?'mp4':'jpg';
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download=`tether_${Date.now()}.${ext}`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(()=>URL.revokeObjectURL(a.href),5000);
+    toast(type==='video'?'Video saved ✓':'Photo saved ✓');
+  }catch(e){
+    toast('Save failed — try long pressing the '+type);
+  }
+}
+
 function toast(t){
   const el=document.getElementById('toast');
   el.textContent=t;el.classList.add('on');

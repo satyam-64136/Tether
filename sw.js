@@ -1,4 +1,4 @@
-const CACHE = 'us-v6';
+const CACHE = 'us-v7';
 const BASE = '/Tether';
 const ASSETS = [`${BASE}/`, `${BASE}/index.html`, `${BASE}/manifest.json`];
 
@@ -29,20 +29,21 @@ self.addEventListener('fetch', e => {
 self.addEventListener('push', e => {
   if(!e.data) return;
   let data = {};
-  try { data = e.data.json(); } catch { data = { title:'us.', body: e.data.text() }; }
+  try { data = e.data.json(); } catch { data = { title:'Tether', body: e.data.text() }; }
 
   e.waitUntil(
     clients.matchAll({ type:'window', includeUncontrolled:true }).then(list => {
-      // Don't notify if user is actively looking at the app
       const anyVisible = list.some(c => c.visibilityState === 'visible');
       if(anyVisible) return;
-      return self.registration.showNotification(data.title || 'us.', {
+      return self.registration.showNotification(data.title || 'Tether', {
         body: data.body || '…',
         icon:  `${BASE}/icon.png`,
         badge: `${BASE}/icon.png`,
         tag: 'us-message',
         renotify: true,
-        vibrate: [120, 60, 120],
+        vibrate: [200, 100, 200],
+        silent: false,          // ensure sound plays
+        requireInteraction: false,
         data: { url: data.url || `${BASE}/` }
       });
     })
@@ -53,29 +54,36 @@ self.addEventListener('push', e => {
 self.addEventListener('message', e => {
   if(!e.data) return;
 
-  // SW update
   if(e.data.type === 'SKIP_WAITING'){
     self.skipWaiting();
     return;
   }
 
-  // Page hidden but still open — show notification immediately via SW
   if(e.data.type === 'SHOW_NOTIF'){
     e.waitUntil(
       clients.matchAll({ type:'window', includeUncontrolled:true }).then(list => {
         const anyVisible = list.some(c => c.visibilityState === 'visible');
         if(anyVisible) return;
-        return self.registration.showNotification(e.data.title || 'us.', {
+        return self.registration.showNotification(e.data.title || 'Tether', {
           body: e.data.body || '…',
           icon:  `${BASE}/icon.png`,
           badge: `${BASE}/icon.png`,
           tag: 'us-message',
           renotify: true,
-          vibrate: [120, 60, 120],
+          vibrate: [200, 100, 200],
+          silent: false,
+          requireInteraction: false,
           data: { url: `${BASE}/` }
         });
       })
     );
+  }
+
+  // Clear notification when app is opened and messages are read
+  if(e.data.type === 'CLEAR_NOTIF'){
+    self.registration.getNotifications({ tag:'us-message' }).then(notifs => {
+      notifs.forEach(n => n.close());
+    });
   }
 });
 
