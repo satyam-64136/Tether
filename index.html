@@ -317,9 +317,23 @@ html,body{
   border:1px solid var(--border);
   color:var(--text2);
   transition:all 0.18s;
-  /* big touch target */
 }
 .hdr-btn:active{transform:scale(0.88);background:var(--glass3)}
+
+/* IMY ring button */
+#imybtn{color:var(--accent);border-color:rgba(var(--accent-rgb),0.3)}
+#imybtn.ringing{
+  animation:imyPulse 0.5s ease-in-out infinite;
+  background:rgba(var(--accent-rgb),0.15);
+}
+@keyframes imyPulse{
+  0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(var(--accent-rgb),0.4)}
+  50%{transform:scale(1.1);box-shadow:0 0 0 8px rgba(var(--accent-rgb),0)}
+}
+@keyframes ringPulse{
+  0%,100%{transform:scale(1)}
+  50%{transform:scale(1.2)}
+}
 
 /* MESSAGES — height set by visualViewport JS, not flex */
 .msgs{
@@ -1207,6 +1221,9 @@ html,body{
         <span id="sttxt">—</span>
       </div>
     </div>
+    <div class="hdr-btn" id="imybtn" onclick="sendRing()" title="Ring her">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+    </div>
     <div class="hdr-btn" onclick="openMenu()">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
     </div>
@@ -1272,6 +1289,10 @@ html,body{
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
           Photo / Video
         </label>
+        <label class="att-pop-item" for="audiofile" onclick="closeAttPop()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+          Audio File
+        </label>
         <label class="att-pop-item" for="docfile" onclick="closeAttPop()">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
           Document
@@ -1279,6 +1300,7 @@ html,body{
       </div>
     </div>
     <input type="file" id="ifile" accept="image/*,video/*" style="display:none" onchange="handleImg(event)"/>
+    <input type="file" id="audiofile" accept="audio/*" style="display:none" onchange="handleAudioFile(event)"/>
     <input type="file" id="docfile" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar,.csv" style="display:none" onchange="handleDoc(event)"/>
     <div class="inpwrap">
       <textarea id="minp" placeholder="message..." rows="1" oninput="onInp(this)"></textarea>
@@ -1446,6 +1468,14 @@ html,body{
 <button id="scroll-down-btn" onclick="scrollBot(true)" aria-label="Scroll to latest">
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
 </button>
+
+<!-- INCOMING RING OVERLAY -->
+<div id="ring-overlay" style="display:none;position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,0.7);backdrop-filter:blur(12px);flex-direction:column;align-items:center;justify-content:center;gap:20px">
+  <div style="font-size:64px;animation:ringPulse 0.6s ease-in-out infinite">📳</div>
+  <div style="font-family:'DM Serif Display',serif;font-style:italic;font-size:28px;color:white">thinking of you</div>
+  <div id="ring-from" style="font-size:14px;color:rgba(255,255,255,0.6);letter-spacing:1px"></div>
+  <button onclick="dismissRing()" style="margin-top:16px;padding:12px 32px;border-radius:24px;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:white;font-family:'Geist',sans-serif;font-size:14px;cursor:pointer">dismiss</button>
+</div>
 
 <div id="toast"></div>
 
@@ -1918,6 +1948,13 @@ function renderAll(){
 }
 
 function mkEl(msg){
+  // Ring signals are handled by realtime — don't render as chat bubble
+  if(msg.content==='[imy-ring]'){
+    const w=document.createElement('div');
+    w.dataset.id=msg.id;
+    w.style.display='none';
+    return w;
+  }
   const me=msg.sender===CU;
   const w=document.createElement('div');
   w.className=`mw ${me?'me':'her'}`;
@@ -1950,23 +1987,38 @@ function mkEl(msg){
     b.classList.add('deleted');
     b.textContent='this message was deleted';
   } else if(msg.doc_name&&msg.image_url){
-    // Document card
-    const ext=(msg.doc_name.split('.').pop()||'').toLowerCase();
-    const cats={pdf:'pdf',doc:'doc',docx:'doc',xls:'xls',xlsx:'xls',zip:'zip',rar:'zip',txt:'txt'};
-    const cat=cats[ext]||'other';
-    const labels={pdf:'PDF',doc:'Word',docx:'Word',xls:'Excel',xlsx:'Excel',ppt:'PPT',pptx:'PPT',txt:'Text',zip:'ZIP',rar:'RAR',csv:'CSV'};
-    const card=document.createElement('div');card.className='doc-card';
-    card.innerHTML=`
-      <div class="doc-icon ${cat}">${(ext||'?').toUpperCase().slice(0,3)}</div>
-      <div class="doc-info">
-        <div class="doc-name">${escHtml(msg.doc_name)}</div>
-        <div class="doc-size">${labels[ext]||ext.toUpperCase()||'File'}</div>
-      </div>
-      <div class="doc-dl">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-      </div>`;
-    card.onclick=ev=>{ev.stopPropagation();saveMedia(msg.image_url,msg.doc_name);};
-    b.appendChild(card);
+    // Audio file — render as player
+    if(msg.doc_type&&msg.doc_type.startsWith('audio/')){
+      const aw=document.createElement('div');
+      aw.style.cssText='display:flex;flex-direction:column;gap:6px;min-width:200px';
+      const fn=document.createElement('div');
+      fn.style.cssText='font-size:12px;color:var(--text2);display:flex;align-items:center;gap:6px';
+      fn.innerHTML=`<span>🎵</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px">${escHtml(msg.doc_name)}</span>`;
+      const au=document.createElement('audio');
+      au.src=msg.image_url;au.controls=true;au.preload='metadata';
+      au.style.cssText='width:100%;max-width:240px;height:36px;outline:none';
+      au.addEventListener('click',e=>e.stopPropagation());
+      aw.appendChild(fn);aw.appendChild(au);
+      b.appendChild(aw);
+    } else {
+      // Document card
+      const ext=(msg.doc_name.split('.').pop()||'').toLowerCase();
+      const cats={pdf:'pdf',doc:'doc',docx:'doc',xls:'xls',xlsx:'xls',zip:'zip',rar:'zip',txt:'txt'};
+      const cat=cats[ext]||'other';
+      const labels={pdf:'PDF',doc:'Word',docx:'Word',xls:'Excel',xlsx:'Excel',ppt:'PPT',pptx:'PPT',txt:'Text',zip:'ZIP',rar:'RAR',csv:'CSV'};
+      const card=document.createElement('div');card.className='doc-card';
+      card.innerHTML=`
+        <div class="doc-icon ${cat}">${(ext||'?').toUpperCase().slice(0,3)}</div>
+        <div class="doc-info">
+          <div class="doc-name">${escHtml(msg.doc_name)}</div>
+          <div class="doc-size">${labels[ext]||ext.toUpperCase()||'File'}</div>
+        </div>
+        <div class="doc-dl">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        </div>`;
+      card.onclick=ev=>{ev.stopPropagation();saveMedia(msg.image_url,msg.doc_name);};
+      b.appendChild(card);
+    }
     if(msg.content){
       const t=document.createElement('div');t.style.marginTop='7px';
       renderContent(msg.content,t);b.appendChild(t);
@@ -2199,8 +2251,7 @@ async function deleteSelected(){
 
 // ── REALTIME ──
 function subAll(){
-  subMsgs();subTyping();subSettings();
-  // NO periodic reconnect — causes flicker. Channel handles its own recovery.
+  subMsgs();subTyping();subSettings();subRing();
 }
 
 function subMsgs(){
@@ -2855,6 +2906,140 @@ function formatDur(s){
   return`${m}:${String(sec).padStart(2,'0')}`;
 }
 
+// ── AUDIO FILE SENDING ──
+let pendingAudio=null;
+function handleAudioFile(e){
+  const f=e.target.files[0];if(!f)return;
+  pendingAudio=f;
+  // Show as a doc-style preview
+  document.getElementById('docprvicon').textContent='🎵';
+  document.getElementById('docprvname').textContent=f.name;
+  document.getElementById('docprvtype').textContent='Audio · '+(f.size>1048576?(f.size/1048576).toFixed(1)+'MB':(f.size/1024).toFixed(0)+'KB');
+  document.getElementById('docprv').style.display='flex';
+  document.getElementById('sndbtn').classList.add('on');
+  e.target.value='';
+  layoutChat();
+}
+
+// Override clearDoc to also clear pendingAudio
+const _origClearDoc=clearDoc;
+function clearDoc(){
+  pendingAudio=null;
+  _origClearDoc();
+}
+
+// Patch send() to handle audio files — injected at runtime
+const _origSend=send;
+async function send(){
+  if(pendingAudio){
+    const f=pendingAudio;
+    const ext=f.name.split('.').pop()||'mp3';
+    const path=`audio_${Date.now()}.${ext}`;
+    toast('Uploading audio...');
+    const{error}=await sb.storage.from('images').upload(path,f,{contentType:f.type||'audio/mpeg'});
+    if(error){toast('Audio upload failed: '+error.message);return;}
+    const url=sb.storage.from('images').getPublicUrl(path).data.publicUrl;
+    pendingAudio=null;
+    document.getElementById('docprv').style.display='none';
+    const inp=document.getElementById('minp');
+    const txt=inp.value.trim();
+    inp.value='';inp.style.height='auto';
+    document.getElementById('sndbtn').classList.remove('on');
+    const row={sender:CU,content:txt||null,image_url:url,
+      doc_name:f.name,doc_type:f.type||'audio/mpeg',
+      reply_to:replyTo?.id||null,seen:false,reactions:{}};
+    const{error:ie}=await sb.from('messages').insert(row);
+    if(ie) toast('Send failed: '+ie.message);
+    clearReply();
+    layoutChat();
+    return;
+  }
+  return _origSend();
+}
+
+// ── IMY RING ──
+let _ringCh=null,_ringAudioCtx=null,_ringNodes=[],_ringTimeout=null;
+
+async function sendRing(){
+  const btn=document.getElementById('imybtn');
+  if(btn.classList.contains('ringing'))return; // debounce
+  btn.classList.add('ringing');
+  toast('💌 ring sent');
+  if(navigator.vibrate) navigator.vibrate([100,50,100]);
+  // Insert a ring signal into Supabase
+  await sb.from('messages').insert({
+    sender:CU,content:'[imy-ring]',
+    reply_to:null,seen:false,reactions:{}
+  });
+  setTimeout(()=>btn.classList.remove('ringing'),3000);
+}
+
+// Play a loud ring alarm using Web Audio — bypasses silent mode on Android
+function playRingAlarm(){
+  try{
+    if(_ringAudioCtx) stopRingAlarm();
+    _ringAudioCtx=new(window.AudioContext||window.webkitAudioContext)();
+    const ctx=_ringAudioCtx;
+    // Unlock context
+    ctx.resume();
+    const schedule=()=>{
+      // Two alternating tones — urgent phone-ring pattern
+      [[880,0],[1100,0.25],[880,0.5],[1100,0.75],[880,1.0],[1100,1.25],[880,1.5],[1100,1.75]].forEach(([freq,t])=>{
+        const osc=ctx.createOscillator();
+        const gain=ctx.createGain();
+        osc.connect(gain);gain.connect(ctx.destination);
+        osc.type='square'; // harsher — cuts through silent mode
+        osc.frequency.value=freq;
+        const st=ctx.currentTime+t;
+        gain.gain.setValueAtTime(0,st);
+        gain.gain.linearRampToValueAtTime(0.6,st+0.02);
+        gain.gain.setValueAtTime(0.6,st+0.18);
+        gain.gain.linearRampToValueAtTime(0,st+0.22);
+        osc.start(st);osc.stop(st+0.25);
+        _ringNodes.push(osc);
+      });
+    };
+    schedule();
+    // Vibrate in ring pattern
+    if(navigator.vibrate) navigator.vibrate([300,200,300,200,300,200,300,200,300]);
+  }catch(e){console.warn('Ring audio failed:',e);}
+}
+
+function stopRingAlarm(){
+  _ringNodes.forEach(n=>{try{n.stop();}catch(e){}});
+  _ringNodes=[];
+  if(_ringAudioCtx){try{_ringAudioCtx.close();}catch(e){}}
+  _ringAudioCtx=null;
+  if(navigator.vibrate) navigator.vibrate(0);
+}
+
+function showRingOverlay(from){
+  const el=document.getElementById('ring-overlay');
+  document.getElementById('ring-from').textContent='from '+from;
+  el.style.display='flex';
+  playRingAlarm();
+  // Auto dismiss after 5 seconds
+  clearTimeout(_ringTimeout);
+  _ringTimeout=setTimeout(dismissRing,5000);
+}
+
+function dismissRing(){
+  clearTimeout(_ringTimeout);
+  stopRingAlarm();
+  document.getElementById('ring-overlay').style.display='none';
+}
+
+// Subscribe to ring signals from the other person
+function subRing(){
+  if(_ringCh){try{sb.removeChannel(_ringCh);}catch(e){}}
+  _ringCh=sb.channel('ring-rt')
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'messages'},p=>{
+      if(p.new&&p.new.content==='[imy-ring]'&&p.new.sender!==CU){
+        showRingOverlay(p.new.sender);
+      }
+    }).subscribe();
+}
+
 // ── LIGHTBOX ──
 function openLB(url){document.getElementById('lbimg').src=url;document.getElementById('lb').classList.add('on');}
 function closeLB(){document.getElementById('lb').classList.remove('on');}
@@ -3158,7 +3343,7 @@ async function logout(){
   msgCh=null;typCh2=null;_settingsCh=null;_presCh=null;
   _lastPresData=null;
   // Reset app state
-  msgs=[];replyTo=null;ctxId=null;pendingImg=null;pendingDoc=null;
+  msgs=[];replyTo=null;ctxId=null;pendingImg=null;pendingDoc=null;pendingAudio=null;
   selectMode=false;selectedIds=new Set();
   CU=null;OU=null;
   // Reset UI
