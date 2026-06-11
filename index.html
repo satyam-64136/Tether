@@ -1470,14 +1470,14 @@ html,body{
 </button>
 
 <!-- INCOMING RING OVERLAY -->
-<div id="ring-overlay" style="display:none;position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,0.7);backdrop-filter:blur(12px);flex-direction:column;align-items:center;justify-content:center;gap:20px">
-  <div style="width:140px;height:140px;border-radius:50%;overflow:hidden;flex-shrink:0">
-    <div class="tenor-gif-embed" data-postid="20044611" data-share-method="host" data-aspect-ratio="1" data-width="100%" style="width:140px;height:140px;border-radius:50%;overflow:hidden"><a href="https://tenor.com/view/peach-goma-gif-20044611">Peach Goma Sticker</a></div>
+<div id="ring-overlay" style="display:none;position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,0.55);backdrop-filter:blur(16px);flex-direction:column;align-items:center;justify-content:center;gap:20px">
+  <div style="width:220px;height:220px;flex-shrink:0">
+    <div class="tenor-gif-embed" data-postid="20044611" data-share-method="host" data-aspect-ratio="1" data-width="100%" style="width:220px;height:220px"><a href="https://tenor.com/view/peach-goma-gif-20044611">Peach Goma Sticker</a></div>
     <script type="text/javascript" async src="https://tenor.com/embed.js"></script>
   </div>
-  <div style="font-family:'DM Serif Display',serif;font-style:italic;font-size:28px;color:white">thinking of you</div>
-  <div id="ring-from" style="font-size:14px;color:rgba(255,255,255,0.6);letter-spacing:1px"></div>
-  <button onclick="dismissRing()" style="margin-top:16px;padding:12px 32px;border-radius:24px;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:white;font-family:'Geist',sans-serif;font-size:14px;cursor:pointer">dismiss</button>
+  <div style="font-family:'Playfair Display',serif;font-style:italic;font-size:28px;color:white;text-shadow:0 2px 12px rgba(0,0,0,0.4)">thinking of you</div>
+  <div id="ring-from" style="font-size:13px;color:rgba(255,255,255,0.65);letter-spacing:1px"></div>
+  <button onclick="dismissRing()" style="margin-top:12px;padding:12px 32px;border-radius:24px;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:white;font-family:'Inter',sans-serif;font-size:14px;cursor:pointer;backdrop-filter:blur(8px)">dismiss</button>
 </div>
 
 <div id="toast"></div>
@@ -1511,6 +1511,7 @@ function layoutChat(){
   const rbar=document.getElementById('rbar');
   const ebar=document.getElementById('ebar');
   const iprv=document.getElementById('iprv');
+  const docprv=document.getElementById('docprv');
   if(!hdr||!msgs||!inputrow)return;
 
   const hdrH=hdr.getBoundingClientRect().height;
@@ -1518,25 +1519,27 @@ function layoutChat(){
   const rbarH=rbar&&rbar.classList.contains('on')?rbar.getBoundingClientRect().height:0;
   const ebarH=ebar&&ebar.classList.contains('on')?ebar.getBoundingClientRect().height:0;
   const iprvH=iprv&&iprv.classList.contains('on')?iprv.getBoundingClientRect().height:0;
+  // docprv uses display:flex/none not a class — check computed display
+  const docprvH=docprv&&docprv.style.display!=='none'?docprv.getBoundingClientRect().height:0;
 
   const vvH=window.visualViewport?window.visualViewport.height:window.innerHeight;
 
-  // inputrow sits at bottom of visual viewport
   inputrow.style.bottom='0px';
 
-  // iprv, ebar, rbar stack above inputrow (only one of ebar/rbar is ever shown)
-  if(iprv&&iprv.classList.contains('on')) iprv.style.bottom=inpH+'px';
-  if(ebar&&ebar.classList.contains('on')) ebar.style.bottom=(inpH+iprvH)+'px';
-  if(rbar&&rbar.classList.contains('on')) rbar.style.bottom=(inpH+iprvH+ebarH)+'px';
+  // stack bars above inputrow
+  let stackBottom=inpH;
+  if(docprv&&docprvH>0){docprv.style.bottom=stackBottom+'px';stackBottom+=docprvH;}
+  if(iprv&&iprv.classList.contains('on')){iprv.style.bottom=stackBottom+'px';stackBottom+=iprvH;}
+  if(ebar&&ebar.classList.contains('on')){ebar.style.bottom=stackBottom+'px';stackBottom+=ebarH;}
+  if(rbar&&rbar.classList.contains('on')){rbar.style.bottom=stackBottom+'px';}
 
-  // msgs fills remaining space
+  const totalBars=inpH+rbarH+ebarH+iprvH+docprvH;
   msgs.style.top=hdrH+'px';
-  msgs.style.bottom=(inpH+rbarH+ebarH+iprvH)+'px';
+  msgs.style.bottom=totalBars+'px';
   msgs.style.height='';
 
-  // scroll-to-bottom button sits just above the input stack
   const scrollBtn=document.getElementById('scroll-down-btn');
-  if(scrollBtn) scrollBtn.style.bottom=(inpH+rbarH+ebarH+iprvH+12)+'px';
+  if(scrollBtn) scrollBtn.style.bottom=(totalBars+12)+'px';
 }
 
 // Re-layout when keyboard opens/closes
@@ -1550,6 +1553,12 @@ if(window.visualViewport){
 let msgs=[],replyTo=null,ctxId=null,pendingImg=null,pendingDoc=null;
 let msgCh,typCh2,reconnT,presT;
 let _lastPresData=null,_presRefreshT=null;
+
+// Sanitise strings before injecting into innerHTML
+function escHtml(s){
+  if(!s)return'';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
 
 function isVideoUrl(url){
   if(!url)return false;
@@ -2271,7 +2280,7 @@ async function deleteSelected(){
   if(other>0) toast(`Skipped ${other} message(s) you didn't send`);
   // soft delete all at once
   const{error}=await sb.from('messages')
-    .update({deleted:true,content:null,image_url:null,reactions:{}})
+    .update({deleted:true,content:null,image_url:null})
     .in('id',ids);
   if(error) toast('Delete failed');
   cancelSelect();
@@ -2533,6 +2542,7 @@ function handleDoc(e){
 
 function clearDoc(){
   pendingDoc=null;
+  pendingAudio=null; // also clear audio since they share the same preview UI
   document.getElementById('docprv').style.display='none';
   document.getElementById('sndbtn').classList.toggle('on',document.getElementById('minp').value.trim().length>0||!!pendingImg);
   layoutChat();
@@ -2692,9 +2702,9 @@ function openNativeEmojiKbd(){
   // On some Android a second requestAnimationFrame is needed
   requestAnimationFrame(()=>inp.focus());
 
-  // Emoji-only regex — matches emoji sequences including ZWJ, variation selectors, skin tones
-  // \p{Emoji} alone matches digits too, so we require \p{Emoji_Presentation} or explicit sequences
-  const EMOJI_RE=/\p{Emoji_Presentation}|\p{Extended_Pictographic}(?:\uFE0F)?(?:\u20E3)?(?:[\u{1F3FB}-\u{1F3FF}])?(?:\u200D(?:\p{Emoji_Presentation}|\p{Extended_Pictographic})[\uFE0F\u20E3]?)*/gu;
+  // Strict emoji-only regex — rejects all ASCII letters, digits, punctuation
+  // Only matches characters that render as actual pictographic emoji glyphs
+  const EMOJI_RE=/(?:\p{Extended_Pictographic}(?:\uFE0F)?(?:\u20E3)?(?:[\u{1F3FB}-\u{1F3FF}])?(?:\u200D(?:\p{Extended_Pictographic})\uFE0F?)*)/gu;
 
   // Listen for input — first valid emoji wins, plain text/letters are silently ignored
   const onInput=()=>{
@@ -2760,7 +2770,7 @@ async function addRxn(em){
 async function ctxDel(){
   const msg=msgs.find(m=>m.id===ctxId);
   if(!msg||msg.sender!==CU){toast("Can't delete their message");closeCtx();return;}
-  const{error}=await sb.from('messages').update({deleted:true,content:null,image_url:null,reactions:{}}).eq('id',ctxId);
+  const{error}=await sb.from('messages').update({deleted:true,content:null,image_url:null}).eq('id',ctxId);
   if(error)toast('Delete failed');
   closeCtx();
 }
@@ -2948,13 +2958,6 @@ function handleAudioFile(e){
   document.getElementById('sndbtn').classList.add('on');
   e.target.value='';
   layoutChat();
-}
-
-// Override clearDoc to also clear pendingAudio
-const _origClearDoc=clearDoc;
-function clearDoc(){
-  pendingAudio=null;
-  _origClearDoc();
 }
 
 // Patch send() to handle audio files — injected at runtime
@@ -3365,11 +3368,12 @@ async function logout(){
     if(typCh2) sb.removeChannel(typCh2);
     if(_settingsCh) sb.removeChannel(_settingsCh);
     if(_presCh) sb.removeChannel(_presCh);
+    if(_ringCh) sb.removeChannel(_ringCh);
   }catch(e){}
   // Clear all timers
   clearInterval(presT);
   clearInterval(_presRefreshT);
-  msgCh=null;typCh2=null;_settingsCh=null;_presCh=null;
+  msgCh=null;typCh2=null;_settingsCh=null;_presCh=null;_ringCh=null;
   _lastPresData=null;
   // Reset app state
   msgs=[];replyTo=null;ctxId=null;pendingImg=null;pendingDoc=null;pendingAudio=null;
