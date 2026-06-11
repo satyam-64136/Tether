@@ -1625,6 +1625,31 @@ function boot(){
   const saved=localStorage.getItem('us_user');
   if(saved) setUser(saved);
   else document.getElementById('setup').classList.remove('off');
+
+  // Check if opened via ring push (?ring=1)
+  const params=new URLSearchParams(window.location.search);
+  if(params.get('ring')==='1'){
+    const from=params.get('from')||'someone';
+    // Wait until user is set then show ring
+    const waitForUser=setInterval(()=>{
+      if(CU){
+        clearInterval(waitForUser);
+        showRingOverlay(from);
+      }
+    },200);
+    setTimeout(()=>clearInterval(waitForUser),5000);
+    // Clean URL so refresh doesn't re-ring
+    history.replaceState({},'',window.location.pathname);
+  }
+}
+
+// Listen for DO_RING from SW (app was open when ring arrived)
+if('serviceWorker'in navigator){
+  navigator.serviceWorker.addEventListener('message',e=>{
+    if(e.data?.type==='DO_RING'){
+      showRingOverlay(e.data.from||'someone');
+    }
+  });
 }
 
 // ── THEMES ──

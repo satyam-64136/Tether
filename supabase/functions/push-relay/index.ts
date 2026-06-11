@@ -21,61 +21,49 @@ Deno.serve(async (req) => {
     console.log('Webhook received:', JSON.stringify(payload).slice(0, 200));
 
     const msg = payload.record;
-    if(!msg){
-      console.log('No record in payload');
-      return new Response('no record', { status: 200 });
-    }
+    if(!msg) return new Response('no record', { status: 200 });
+    if(payload.type !== 'INSERT') return new Response('not insert', { status: 200 });
+    if(msg.deleted) return new Response('deleted', { status: 200 });
 
-    // Only handle INSERT events
-    if(payload.type !== 'INSERT'){
-      return new Response('not insert', { status: 200 });
-    }
-
-    // Skip deleted messages
-    if(msg.deleted){
-      return new Response('deleted', { status: 200 });
-    }
-
-    // Recipient is whoever is NOT the sender
     const recipient = msg.sender === 'Satyam' ? 'Snks' : 'Satyam';
     console.log('Sender:', msg.sender, '→ Notifying:', recipient);
 
-    // Look up their push subscription
     const { data: row, error: fetchErr } = await sb
       .from('push_subscriptions')
       .select('subscription')
       .eq('username', recipient)
       .maybeSingle();
 
-    if(fetchErr){
-      console.error('DB fetch error:', fetchErr);
-      return new Response('db error', { status: 200 });
-    }
+    if(fetchErr){ console.error('DB fetch error:', fetchErr); return new Response('db error', { status: 200 }); }
+    if(!row?.subscription){ console.log('No subscription for', recipient); return new Response('no subscription', { status: 200 }); }
 
-    if(!row?.subscription){
-      console.log('No subscription found for', recipient);
-      return new Response('no subscription', { status: 200 });
-    }
-
-    console.log('Subscription found for', recipient, '— sending push');
-
-    // Build notification body
-    const isVideo = /\.(mp4|mov|webm|mkv|avi|m4v)(\?|$)/i.test(msg.image_url || '');
-    const body = msg.doc_name ? `📎 ${msg.doc_name}`
-               : isVideo ? '🎥 sent a video'
-               : msg.image_url ? '📷 sent a photo'
-               : msg.content || '…';
-
-    const notifPayload = JSON.stringify({
-      title: msg.sender,
-      body,
-      url: '/Tether/'
-    });
-
-    // Parse subscription — may be stored as string or object
     let pushSub = row.subscription;
     if(typeof pushSub === 'string') pushSub = JSON.parse(pushSub);
-    if(typeof pushSub === 'string') pushSub = JSON.parse(pushSub); // double-stringified
+    if(typeof pushSub === 'string') pushSub = JSON.parse(pushSub);
+
+    let notifPayload: string;
+
+    // ── RING MESSAGE ──
+    if(msg.content === '[imy-ring]'){
+      console.log('Ring push → ', recipient);
+      notifPayload = JSON.stringify({
+        type: 'ring',
+        from: msg.sender,
+        url: '/Tether/?ring=1&from=' + encodeURIComponent(msg.sender)
+      });
+    } else {
+      // ── NORMAL MESSAGE ──
+      const isVideo = /\.(mp4|mov|webm|mkv|avi|m4v)(\?|$)/i.test(msg.image_url || '');
+      const body = msg.doc_name ? `📎 ${msg.doc_name}`
+                 : isVideo ? '🎥 sent a video'
+                 : msg.image_url ? '📷 sent a photo'
+                 : msg.content || '…';
+      notifPayload = JSON.stringify({
+        title: msg.sender,
+        body,
+        url: '/Tether/'
+      });
+    }
 
     console.log('Sending push to endpoint:', pushSub?.endpoint?.slice(0,50));
     try{
