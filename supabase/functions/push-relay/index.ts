@@ -61,7 +61,8 @@ Deno.serve(async (req) => {
 
     // Build notification body
     const isVideo = /\.(mp4|mov|webm|mkv|avi|m4v)(\?|$)/i.test(msg.image_url || '');
-    const body = isVideo ? '🎥 sent a video'
+    const body = msg.doc_name ? `📎 ${msg.doc_name}`
+               : isVideo ? '🎥 sent a video'
                : msg.image_url ? '📷 sent a photo'
                : msg.content || '…';
 
