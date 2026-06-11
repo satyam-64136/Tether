@@ -532,13 +532,13 @@ html,body{
 
 
 /* REPLY BAR */
-#rbar{display:none;align-items:center;gap:10px;padding:10px 16px;background:var(--header-bg);backdrop-filter:blur(22px);border-top:1px solid var(--border);animation:slideup 0.18s ease;position:fixed;left:0;right:0;z-index:9}
+#rbar{display:none;align-items:center;gap:0;padding:10px 12px 10px 16px;background:var(--header-bg);backdrop-filter:blur(22px);border-top:1px solid var(--border);animation:slideup 0.18s ease;position:fixed;left:0;right:0;z-index:9;box-sizing:border-box;overflow:hidden}
 #rbar.on{display:flex}
 @keyframes slideup{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
-.rb-in{flex:1;border-left:2.5px solid var(--accent);padding-left:10px}
-.rb-lbl{font-size:10px;color:var(--accent);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px}
-.rb-txt{font-size:12px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.rb-x{background:none;border:none;color:var(--text3);font-size:20px;cursor:pointer;padding:6px;min-width:36px;min-height:36px;display:flex;align-items:center;justify-content:center}
+.rb-in{flex:1;min-width:0;border-left:2.5px solid var(--accent);padding-left:10px;overflow:hidden;margin-right:4px}
+.rb-lbl{font-size:10px;color:var(--accent);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px;white-space:nowrap}
+.rb-txt{font-size:12px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;max-width:100%}
+.rb-x{background:none;border:none;color:var(--text3);font-size:20px;cursor:pointer;padding:6px;width:36px;height:36px;flex-shrink:0;display:flex;align-items:center;justify-content:center}
 
 /* EDIT BAR — same style as rbar but amber accent */
 #ebar{display:none;align-items:center;gap:10px;padding:10px 16px;background:var(--header-bg);backdrop-filter:blur(22px);border-top:1px solid var(--border);animation:slideup 0.18s ease;position:fixed;left:0;right:0;z-index:9}
@@ -2541,12 +2541,13 @@ function clearDoc(){
 // ── REPLY ──
 function setReply(msg){
   replyTo=msg;
-  document.getElementById('rbtxt').textContent=msg.content||'📷 Photo';
+  document.getElementById('rbtxt').textContent=msg.content||(msg.image_url?'📷 Photo':'📎 Attachment');
   document.getElementById('rbar').classList.add('on');
   document.getElementById('minp').focus();
-  layoutChat();
+  // rAF ensures rbar is painted and measurable before layoutChat reads its height
+  requestAnimationFrame(()=>requestAnimationFrame(layoutChat));
 }
-function clearReply(){replyTo=null;document.getElementById('rbar').classList.remove('on');layoutChat();}
+function clearReply(){replyTo=null;document.getElementById('rbar').classList.remove('on');requestAnimationFrame(()=>requestAnimationFrame(layoutChat));}
 
 // ── MENU ──
 function openMenu(){document.getElementById('mpanel').classList.add('on');document.getElementById('overlay').classList.add('on');}
