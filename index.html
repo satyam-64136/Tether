@@ -198,12 +198,11 @@ html,body{
 /* ── ANIMATED BG ── */
 .bg-wrap{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
 .bg-base{position:absolute;inset:0;background:var(--bg);transition:background 0.45s}
-.bg-orbs{position:absolute;inset:0;transition:opacity 0.45s}
+.bg-orbs{position:absolute;inset:0;transition:opacity 0.45s;will-change:transform}
 .bg-orbs::before{content:'';position:absolute;inset:0;background:var(--orb-a),var(--orb-b),var(--orb-c)}
-/* gentle float — light themes do subtle scale, dark do translate */
-.bg-orbs{animation:orbFloat 12s ease-in-out infinite}
-.bg-photo.show~* .bg-orbs,.has-wallpaper .bg-orbs{animation-play-state:paused}
-@keyframes orbFloat{0%,100%{transform:scale(1)}50%{transform:scale(1.04) translateY(-12px)}}
+
+.bg-orbs{animation:orbFloat 14s ease-in-out infinite}
+@keyframes orbFloat{0%,100%{transform:translate3d(0,0,0)}50%{transform:translate3d(0,-12px,0)}}
 .bg-photo{position:absolute;inset:0;opacity:0;transition:opacity 0.6s;overflow:hidden;contain:strict;will-change:opacity}
 .bg-photo.show{opacity:1}
 .bg-photo img{width:100%;height:100%;object-fit:cover;object-position:center;display:block;pointer-events:none}
@@ -343,7 +342,8 @@ html,body{
   padding:16px 13px 12px;
   display:flex;flex-direction:column;gap:2px;
   -webkit-overflow-scrolling:touch;
-  transform:translateZ(0);
+  will-change:scroll-position;
+  contain:layout paint; /* isolate paint to this subtree */
 }
 .msgs::-webkit-scrollbar{display:none}
 
@@ -361,7 +361,7 @@ html,body{
 
 .rprev{
   font-size:11.5px;color:var(--text2);
-  background:var(--glass2);backdrop-filter:blur(12px);
+  background:var(--glass2);
   border-left:2.5px solid var(--accent);
   padding:5px 10px;border-radius:9px;margin-bottom:4px;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:230px;
@@ -371,10 +371,10 @@ html,body{
   padding:10px 14px;border-radius:18px;
   font-size:14.5px;line-height:1.55;word-break:break-word;
   cursor:pointer;
-  backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
-  transition:transform 0.14s,opacity 0.14s;
-  /* min touch target */
+  /* No backdrop-filter on bubbles — too expensive at 50+ elements */
+  transition:transform 0.12s,opacity 0.12s;
   min-height:36px;
+  will-change:transform;
 }
 .bbl:active{transform:scale(0.96);opacity:0.82}
 .mw.me .bbl{
@@ -400,7 +400,7 @@ html,body{
 
 .rxrow{display:flex;gap:4px;margin-top:4px;flex-wrap:wrap}
 .rxchip{
-  background:var(--glass2);backdrop-filter:blur(10px);
+  background:var(--glass2);
   border:1px solid var(--border);border-radius:20px;
   padding:3px 9px;font-size:12px;cursor:pointer;
   transition:transform 0.15s cubic-bezier(.2,1.4,.4,1);
@@ -417,9 +417,11 @@ html,body{
 .mw{
   display:flex;flex-direction:column;
   max-width:78%;
-  animation:msgpop 0.22s cubic-bezier(.2,1.4,.4,1);
   position:relative;
+  contain:layout style; /* scope layout to each message */
 }
+/* Only animate NEW incoming messages — not the entire initial load */
+.mw.animate-in{animation:msgpop 0.22s cubic-bezier(.2,1.4,.4,1) both}
 /* Older messages loading from top — soft fade in */
 .mw.prepended{
   animation:msgfadein 0.35s ease forwards;
@@ -1153,24 +1155,20 @@ html,body{
   transform:translateY(0);
 }
 #scroll-down-btn:active{transform:scale(0.88)}
-</style>
-.bg-orbs{will-change:transform}
+
+/* ── PERFORMANCE ── */
+.hdr,.inputrow{will-change:transform;transform:translateZ(0)}
 .bbl-wrap{will-change:transform}
-/* Strip expensive backdrop-filter on very low-end phones (≤360px) */
-@media (max-width:360px){
-  .bbl,.rxchip,.rxchip{backdrop-filter:none;-webkit-backdrop-filter:none}
-  .bg-orbs{display:none}
-}
-/* Respect OS reduce-motion setting */
+/* Reduce-motion */
 @media(prefers-reduced-motion:reduce){
-  .bg-orbs,.orb{animation:none!important}
-  .mw{animation:none!important}
+  .bg-orbs{animation:none!important}
+  .mw.animate-in{animation:none!important}
   *{transition-duration:0.05ms!important}
 }
-/* Prevent layout shift when keyboard opens on iOS */
-.inputrow,.hdr{transform:translateZ(0)}
-/* GPU layer for messages scroll */
-.msgs{-webkit-overflow-scrolling:touch;transform:translateZ(0)}
+/* Ultra low-end: kill bg animation entirely */
+@media(max-width:360px){
+  .bg-orbs{display:none}
+}
 </style>
 </head>
 <body>
@@ -1504,50 +1502,64 @@ const THEMES=[
 let sb,CU,OU;
 
 // ── LAYOUT ENGINE — keeps header fixed, msgs fills middle, input sticks to keyboard ──
+// ── LAYOUT ENGINE — cached refs, batched reads then writes, rAF-throttled ──
+let _lc={};// cached element refs, filled once on first call
+let _lcPending=false;// rAF throttle flag
+
 function layoutChat(){
-  const hdr=document.querySelector('.hdr');
-  const msgs=document.getElementById('msgs');
-  const inputrow=document.querySelector('.inputrow');
-  const rbar=document.getElementById('rbar');
-  const ebar=document.getElementById('ebar');
-  const iprv=document.getElementById('iprv');
-  const docprv=document.getElementById('docprv');
-  if(!hdr||!msgs||!inputrow)return;
-
-  const hdrH=hdr.getBoundingClientRect().height;
-  const inpH=inputrow.getBoundingClientRect().height;
-  const rbarH=rbar&&rbar.classList.contains('on')?rbar.getBoundingClientRect().height:0;
-  const ebarH=ebar&&ebar.classList.contains('on')?ebar.getBoundingClientRect().height:0;
-  const iprvH=iprv&&iprv.classList.contains('on')?iprv.getBoundingClientRect().height:0;
-  // docprv uses display:flex/none not a class — check computed display
-  const docprvH=docprv&&docprv.style.display!=='none'?docprv.getBoundingClientRect().height:0;
-
-  const vvH=window.visualViewport?window.visualViewport.height:window.innerHeight;
-
-  inputrow.style.bottom='0px';
-
-  // stack bars above inputrow
-  let stackBottom=inpH;
-  if(docprv&&docprvH>0){docprv.style.bottom=stackBottom+'px';stackBottom+=docprvH;}
-  if(iprv&&iprv.classList.contains('on')){iprv.style.bottom=stackBottom+'px';stackBottom+=iprvH;}
-  if(ebar&&ebar.classList.contains('on')){ebar.style.bottom=stackBottom+'px';stackBottom+=ebarH;}
-  if(rbar&&rbar.classList.contains('on')){rbar.style.bottom=stackBottom+'px';}
-
-  const totalBars=inpH+rbarH+ebarH+iprvH+docprvH;
-  msgs.style.top=hdrH+'px';
-  msgs.style.bottom=totalBars+'px';
-  msgs.style.height='';
-
-  const scrollBtn=document.getElementById('scroll-down-btn');
-  if(scrollBtn) scrollBtn.style.bottom=(totalBars+12)+'px';
+  if(_lcPending)return;
+  _lcPending=true;
+  requestAnimationFrame(_doLayout);
 }
 
-// Re-layout when keyboard opens/closes
+function _doLayout(){
+  _lcPending=false;
+  // Cache element refs once — querySelector is not free
+  if(!_lc.hdr){
+    _lc.hdr=document.querySelector('.hdr');
+    _lc.msgs=document.getElementById('msgs');
+    _lc.inp=document.querySelector('.inputrow');
+    _lc.rbar=document.getElementById('rbar');
+    _lc.ebar=document.getElementById('ebar');
+    _lc.iprv=document.getElementById('iprv');
+    _lc.docprv=document.getElementById('docprv');
+    _lc.scrollBtn=document.getElementById('scroll-down-btn');
+  }
+  const{hdr,msgs,inp,rbar,ebar,iprv,docprv,scrollBtn}=_lc;
+  if(!hdr||!msgs||!inp)return;
+
+  // ── READ PHASE (no writes) ──
+  const hdrH=hdr.getBoundingClientRect().height;
+  const inpH=inp.getBoundingClientRect().height;
+  const rOn=rbar&&rbar.classList.contains('on');
+  const eOn=ebar&&ebar.classList.contains('on');
+  const iOn=iprv&&iprv.classList.contains('on');
+  const dOn=docprv&&docprv.style.display!=='none';
+  const rbarH=rOn?rbar.getBoundingClientRect().height:0;
+  const ebarH=eOn?ebar.getBoundingClientRect().height:0;
+  const iprvH=iOn?iprv.getBoundingClientRect().height:0;
+  const dprvH=dOn?docprv.getBoundingClientRect().height:0;
+
+  // ── WRITE PHASE (no reads) ──
+  inp.style.bottom='0px';
+  let stack=inpH;
+  if(dOn){docprv.style.bottom=stack+'px';stack+=dprvH;}
+  if(iOn){iprv.style.bottom=stack+'px';stack+=iprvH;}
+  if(eOn){ebar.style.bottom=stack+'px';stack+=ebarH;}
+  if(rOn){rbar.style.bottom=stack+'px';}
+  const total=inpH+rbarH+ebarH+iprvH+dprvH;
+  msgs.style.top=hdrH+'px';
+  msgs.style.bottom=total+'px';
+  msgs.style.height='';
+  if(scrollBtn) scrollBtn.style.bottom=(total+12)+'px';
+}
+
+// Throttle keyboard/resize events — one layout per animation frame max
 if(window.visualViewport){
-  window.visualViewport.addEventListener('resize',layoutChat);
-  window.visualViewport.addEventListener('scroll',layoutChat);
-} else {
-  window.addEventListener('resize',layoutChat);
+  window.visualViewport.addEventListener('resize',layoutChat,{passive:true});
+  window.visualViewport.addEventListener('scroll',layoutChat,{passive:true});
+}else{
+  window.addEventListener('resize',layoutChat,{passive:true});
 }
 
 let msgs=[],replyTo=null,ctxId=null,pendingImg=null,pendingDoc=null;
@@ -1970,21 +1982,26 @@ function _dedupeSeamDividers(area){
 
 function renderAll(){
   const area=document.getElementById('msgs');
-  area.querySelectorAll('.mw,.datediv').forEach(e=>e.remove());
-  document.getElementById('empty').style.display=msgs.length?'none':'flex';
+  const empty=document.getElementById('empty');
+  empty.style.display=msgs.length?'none':'flex';
+  // Build entire list in a fragment — single DOM insertion, one reflow
+  const frag=document.createDocumentFragment();
   let ld=null;
   msgs.forEach(m=>{
     const ds=new Date(m.created_at).toLocaleDateString('en-IN',{day:'numeric',month:'short'});
     if(ds!==ld){
       ld=ds;
       const d=document.createElement('div');d.className='datediv';d.textContent=ds;
-      area.appendChild(d);
+      frag.appendChild(d);
     }
-    area.appendChild(mkEl(m));
+    frag.appendChild(mkEl(m)); // no animation on initial render
   });
+  // Remove old bubbles and insert new ones in one operation
+  area.querySelectorAll('.mw,.datediv').forEach(e=>e.remove());
+  area.appendChild(frag);
 }
 
-function mkEl(msg){
+function mkEl(msg,animate=false){
   // Ring signals are handled by realtime — don't render as chat bubble
   if(msg.content==='[imy-ring]'){
     const w=document.createElement('div');
@@ -1994,7 +2011,7 @@ function mkEl(msg){
   }
   const me=msg.sender===CU;
   const w=document.createElement('div');
-  w.className=`mw ${me?'me':'her'}`;
+  w.className=`mw ${me?'me':'her'}${animate?' animate-in':''}`;
   w.dataset.id=msg.id;
 
   // Reply preview (above bubble)
@@ -2299,7 +2316,7 @@ function subMsgs(){
         if(msgs.find(m=>m.id===p.new.id))return;
         msgs.push(p.new);
         document.getElementById('empty').style.display='none';
-        document.getElementById('msgs').appendChild(mkEl(p.new));
+        document.getElementById('msgs').appendChild(mkEl(p.new,true));
         scrollBot(true);
         if(p.new.sender!==CU){
           if(document.visibilityState==='visible'){markSeen();playMsgSound();}
@@ -3379,8 +3396,9 @@ async function logout(){
   msgs=[];replyTo=null;ctxId=null;pendingImg=null;pendingDoc=null;pendingAudio=null;
   selectMode=false;selectedIds=new Set();
   CU=null;OU=null;
-  // Reset UI
-  document.getElementById('msgs').querySelectorAll('.mw,.datediv').forEach(e=>e.remove());
+  // Reset UI — replaceChildren is faster than forEach remove
+  const msgsEl=document.getElementById('msgs');
+  msgsEl.querySelectorAll('.mw,.datediv').forEach(e=>e.remove());
   document.getElementById('empty').style.display='flex';
   document.getElementById('del-bar').classList.remove('on');
   document.getElementById('msgs').classList.remove('selecting');
