@@ -1918,22 +1918,95 @@ function ago(iso){
 
 // ── MESSAGES ──
 const PAGE=25;
-let _allLoaded=false; // true when we've fetched all the way to the beginning
+let _allLoaded=false;
 let _loadingOlder=false;
+
+// ── MESSAGE CACHE (IndexedDB) ──
+// Shows cached messages instantly on boot, then syncs from server in background
+let _idb=null;
+const IDB_NAME='tether_cache';
+const IDB_VER=1;
+
+function openCache(){
+  return new Promise((res,rej)=>{
+    if(_idb){res(_idb);return;}
+    const req=indexedDB.open(IDB_NAME,IDB_VER);
+    req.onupgradeneeded=e=>{
+      const db=e.target.result;
+      if(!db.objectStoreNames.contains('msgs')){
+        const store=db.createObjectStore('msgs',{keyPath:'id'});
+        store.createIndex('created_at','created_at');
+      }
+    };
+    req.onsuccess=e=>{_idb=e.target.result;res(_idb);};
+    req.onerror=()=>res(null); // cache failure is non-fatal
+  });
+}
+
+async function cacheWrite(messages){
+  try{
+    const db=await openCache();if(!db)return;
+    const tx=db.transaction('msgs','readwrite');
+    const st=tx.objectStore('msgs');
+    messages.forEach(m=>st.put(m));
+  }catch(e){}
+}
+
+async function cacheRead(limit=PAGE){
+  try{
+    const db=await openCache();if(!db)return[];
+    return new Promise(res=>{
+      const tx=db.transaction('msgs','readonly');
+      const idx=tx.objectStore('msgs').index('created_at');
+      const req=idx.getAll();
+      req.onsuccess=()=>{
+        // Sort desc, take latest PAGE, then reverse for display order
+        const all=(req.result||[]).sort((a,b)=>a.created_at<b.created_at?1:-1);
+        res(all.slice(0,limit).reverse());
+      };
+      req.onerror=()=>res([]);
+    });
+  }catch(e){return[];}
+}
+
+async function cacheUpdateOne(msg){
+  try{
+    const db=await openCache();if(!db)return;
+    const tx=db.transaction('msgs','readwrite');
+    tx.objectStore('msgs').put(msg);
+  }catch(e){}
+}
 
 async function loadMsgs(){
   _allLoaded=false;
+
+  // 1. Show cached messages instantly (zero network wait)
+  const cached=await cacheRead(PAGE);
+  if(cached.length>0){
+    msgs=cached;
+    renderAll();
+    scrollBot(false);
+  }
+
+  // 2. Fetch from server in background
   const{data,error}=await sb.from('messages')
     .select('*')
-    .order('created_at',{ascending:false}) // newest first
+    .order('created_at',{ascending:false})
     .limit(PAGE);
-  if(error){toast('DB error');return;}
-  // Reverse so oldest-of-batch is at top, newest at bottom
-  msgs=(data||[]).reverse();
-  if(msgs.length<PAGE) _allLoaded=true;
-  renderAll();
-  if(document.visibilityState==='visible')markSeen();
-  scrollBot(false);
+  if(error){if(!cached.length) toast('DB error');return;}
+  const fresh=(data||[]).reverse();
+  if(fresh.length<PAGE) _allLoaded=true;
+
+  // 3. Update cache with fresh data
+  cacheWrite(fresh);
+
+  // 4. Only re-render if data changed
+  const changed=JSON.stringify(fresh.map(m=>m.id+m.seen+m.reactions+m.deleted+m.edited))
+    !==JSON.stringify(msgs.map(m=>m.id+m.seen+m.reactions+m.deleted+m.edited));
+  msgs=fresh;
+  if(changed||!cached.length) renderAll();
+  if(document.visibilityState==='visible') markSeen();
+  if(!cached.length) scrollBot(false); // already scrolled if cache was shown
 }
 
 async function loadOlderMsgs(){
@@ -2328,6 +2401,7 @@ function subMsgs(){
       if(p.eventType==='INSERT'){
         if(msgs.find(m=>m.id===p.new.id))return;
         msgs.push(p.new);
+        cacheUpdateOne(p.new); // write to cache
         document.getElementById('empty').style.display='none';
         document.getElementById('msgs').appendChild(mkEl(p.new,true));
         scrollBot(true);
@@ -2337,16 +2411,16 @@ function subMsgs(){
         }
       } else if(p.eventType==='UPDATE'){
         const i=msgs.findIndex(m=>m.id===p.new.id);
-        // Merge to preserve fields Supabase may omit in partial payload
         const merged=i!==-1?{...msgs[i],...p.new}:p.new;
         if(i!==-1)msgs[i]=merged;
+        cacheUpdateOne(merged); // write updated msg to cache
         const el=document.querySelector(`.mw[data-id="${p.new.id}"]`);
         if(el)el.replaceWith(mkEl(merged));
       } else if(p.eventType==='DELETE'){
         const i=msgs.findIndex(m=>m.id===p.old.id);
         if(i!==-1){msgs[i]={...msgs[i],deleted:true};}
         const el=document.querySelector(`.mw[data-id="${p.old.id}"]`);
-        if(el&&msgs[i]) el.replaceWith(mkEl(msgs[i]));
+        if(el&&msgs[i]){el.replaceWith(mkEl(msgs[i]));cacheUpdateOne(msgs[i]);}
       }
     })
     .subscribe(async status=>{
@@ -2435,16 +2509,18 @@ async function send(){
 
   if(pendingDoc){
     const f=pendingDoc;
-    const ext=f.name.split('.').pop()||'bin';
     const path=`doc_${Date.now()}_${f.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`;
     toast('Uploading document...');
-    const{error:upErr}=await sb.storage.from('docs').upload(path,f,{contentType:f.type||'application/octet-stream'});
+    // Try docs bucket first, fall back to images bucket if docs doesn't exist yet
+    let{error:upErr}=await sb.storage.from('docs').upload(path,f,{contentType:f.type||'application/octet-stream'});
+    let bucket='docs';
     if(upErr){
-      // Try creating bucket if it doesn't exist
-      toast('Upload failed: '+upErr.message);
-      return;
+      // Fallback to images bucket (works without extra SQL setup)
+      const res=await sb.storage.from('images').upload(path,f,{contentType:f.type||'application/octet-stream'});
+      if(res.error){toast('Upload failed: '+(res.error.message||'unknown'));return;}
+      bucket='images';
     }
-    imgUrl=sb.storage.from('docs').getPublicUrl(path).data.publicUrl;
+    imgUrl=sb.storage.from(bucket).getPublicUrl(path).data.publicUrl;
     docName=f.name;
     docType=f.type||'application/octet-stream';
     clearDoc();
@@ -3225,11 +3301,9 @@ window.addEventListener('beforeinstallprompt',e=>{
 });
 window.addEventListener('appinstalled',()=>{
   deferredInstall=null;
-  localStorage.setItem('us_install_dismissed','1');
   const b=document.getElementById('install-banner');
   if(b) b.classList.remove('on');
-  const sec=document.getElementById('install-section');
-  if(sec) sec.style.display='none';
+  // Don't hide install-section — user may want to install on another device
   toast('Installed ✓ open from your home screen');
 });
 function doInstall(){
@@ -3379,32 +3453,34 @@ function checkInstallState(){
   const banner=document.getElementById('install-banner');
 
   if(isStandalone){
-    // Already running as app — hide install section and banner
+    // Already running AS the installed app — hide install UI (pointless inside the app)
     if(sec) sec.style.display='none';
     if(banner) banner.classList.remove('on');
     return;
   }
 
+  // Running in browser — ALWAYS show install section regardless of
+  // whether it was installed before, so she can install on a new phone
+  if(sec) sec.style.display='block';
+
   const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
   const isSafari=/^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-
   if(isIOS&&isSafari){
-    // iOS Safari — no beforeinstallprompt, show manual steps
-    if(sec) sec.style.display='block';
     if(subTxt) subTxt.textContent='tap Share ⎙ → Add to Home Screen → Add';
-    if(btn){ btn.textContent='How to install'; btn.onclick=()=>{
-      const ios=document.getElementById('ios-install');
-      if(ios){ios.classList.add('on');closeMenu();}
-    };}
+    if(btn){ btn.textContent='How to install'; btn.onclick=()=>toast('Tap Share ⎙ at the bottom, then Add to Home Screen');}
     return;
   }
-  // Android/Chrome — shown when beforeinstallprompt fires
-  // If already dismissed, still show it (user can always install from menu)
-  if(deferredInstall){
-    if(sec) sec.style.display='block';
-  } else {
-    // beforeinstallprompt hasn't fired yet (already installed or not supported)
-    if(sec) sec.style.display='none';
+  // Android/Chrome: show Install button, enabled when deferredInstall fires
+  if(btn){
+    if(deferredInstall){
+      btn.textContent='Install App';
+      btn.disabled=false;
+      btn.style.opacity='1';
+    } else {
+      btn.textContent='Install App';
+      btn.disabled=false; // keep enabled — Chrome will handle if already installed
+      btn.style.opacity='1';
+    }
   }
 }
 
@@ -3431,6 +3507,8 @@ async function logout(){
   _lastPresData=null;
   // Reset app state
   msgs=[];replyTo=null;ctxId=null;pendingImg=null;pendingDoc=null;pendingAudio=null;
+  // Clear message cache so next user/device gets fresh data
+  try{if(_idb){const tx=_idb.transaction('msgs','readwrite');tx.objectStore('msgs').clear();}}catch(e){}
   selectMode=false;selectedIds=new Set();
   CU=null;OU=null;
   // Reset UI — replaceChildren is faster than forEach remove
