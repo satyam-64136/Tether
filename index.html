@@ -1740,10 +1740,12 @@ function setUser(name){
   document.getElementById('hdrav').textContent=OU[0];
   document.getElementById('hdrname').textContent=OU;
   document.getElementById('chat').classList.remove('off');
-  layoutChat(); // initial layout
+  layoutChat();
   initMsgsScroll();
-  loadMsgs();
+  // Subscribe FIRST so no message slips through the gap between
+  // cache display and server fetch completing
   subAll();
+  loadMsgs();
   loadSettings();
   startPresence();
   // Safe perm check — CU is now set so subscribeToSWPush works correctly
@@ -1757,12 +1759,19 @@ function setUser(name){
       if(document.visibilityState==='visible'){
         markSeen();
         updatePres();
-        // Clear any pending notifications since user is now looking at the app
+        // Always catch up on messages when app comes to foreground —
+        // this is what fixes "have to close and reopen to see new messages"
+        catchupMsgs();
         if(navigator.serviceWorker?.controller){
           navigator.serviceWorker.controller.postMessage({type:'CLEAR_NOTIF'});
         }
       } else {
         setOffPres();
+        if(navigator.serviceWorker?.controller){
+          navigator.serviceWorker.controller.postMessage({
+            type:'PAGE_HIDDEN',ts:new Date().toISOString()
+          });
+        }
       }
     });
   }
@@ -2435,7 +2444,7 @@ function subMsgs(){
 // Fetch new messages AND sync any updates (deletes, reactions) missed while disconnected
 async function catchupMsgs(){
   const lastTs=msgs.length?msgs[msgs.length-1].created_at:new Date(0).toISOString();
-  // 1. Get new inserts
+  // 1. Get new inserts since last known message
   const{data:newMsgs}=await sb.from('messages').select('*')
     .gt('created_at',lastTs)
     .order('created_at',{ascending:true});
@@ -2444,12 +2453,14 @@ async function catchupMsgs(){
     newMsgs.forEach(m=>{
       if(msgs.find(x=>x.id===m.id))return;
       msgs.push(m);
+      cacheUpdateOne(m); // persist to cache
       document.getElementById('empty').style.display='none';
-      area.appendChild(mkEl(m));
+      area.appendChild(mkEl(m,true));
     });
     scrollBot(true);
+    if(document.visibilityState==='visible') markSeen();
   }
-  // 2. Re-sync existing messages that may have changed (deleted, reacted, seen)
+  // 2. Re-sync existing visible messages that may have changed
   if(!msgs.length)return;
   const ids=msgs.map(m=>m.id);
   const{data:refreshed}=await sb.from('messages').select('*').in('id',ids);
@@ -2459,9 +2470,11 @@ async function catchupMsgs(){
     if(i===-1)return;
     const old=msgs[i];
     const changed=old.deleted!==fresh.deleted||old.seen!==fresh.seen||
-      JSON.stringify(old.reactions)!==JSON.stringify(fresh.reactions);
+      JSON.stringify(old.reactions)!==JSON.stringify(fresh.reactions)||
+      old.edited!==fresh.edited||old.content!==fresh.content;
     if(changed){
       msgs[i]={...old,...fresh};
+      cacheUpdateOne(msgs[i]);
       const el=document.querySelector(`.mw[data-id="${fresh.id}"]`);
       if(el)el.replaceWith(mkEl(msgs[i]));
     }
