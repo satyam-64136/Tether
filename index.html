@@ -534,7 +534,7 @@ html,body{
 
 
 /* REPLY BAR */
-#rbar{display:none;align-items:center;gap:0;padding:10px 12px 10px 16px;background:var(--header-bg);backdrop-filter:blur(22px);border-top:1px solid var(--border);animation:slideup 0.18s ease;position:fixed;left:0;right:0;z-index:9;box-sizing:border-box;overflow:hidden}
+#rbar{display:none;align-items:center;gap:0;padding:10px 12px 10px 16px;background:var(--header-bg);border-top:1px solid var(--border);animation:slideup 0.18s ease;position:fixed;left:0;right:0;z-index:9;box-sizing:border-box;overflow:hidden}
 #rbar.on{display:flex}
 @keyframes slideup{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
 .rb-in{flex:1;min-width:0;border-left:2.5px solid var(--accent);padding-left:10px;overflow:hidden;margin-right:4px}
@@ -543,7 +543,7 @@ html,body{
 .rb-x{background:none;border:none;color:var(--text3);font-size:20px;cursor:pointer;padding:6px;width:36px;height:36px;flex-shrink:0;display:flex;align-items:center;justify-content:center}
 
 /* EDIT BAR — same style as rbar but amber accent */
-#ebar{display:none;align-items:center;gap:10px;padding:10px 16px;background:var(--header-bg);backdrop-filter:blur(22px);border-top:1px solid var(--border);animation:slideup 0.18s ease;position:fixed;left:0;right:0;z-index:9}
+#ebar{display:none;align-items:center;gap:10px;padding:10px 16px;background:var(--header-bg);border-top:1px solid var(--border);animation:slideup 0.18s ease;position:fixed;left:0;right:0;z-index:9}
 #ebar.on{display:flex}
 .eb-in{flex:1;border-left:2.5px solid #f0a050;padding-left:10px}
 .eb-lbl{font-size:10px;color:#f0a050;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px}
@@ -554,7 +554,7 @@ html,body{
 .msg-edited{font-size:9px;color:var(--text3);font-style:italic;margin-left:3px}
 
 /* IMG PREVIEW */
-#iprv{display:none;padding:10px 16px 4px;background:var(--header-bg);backdrop-filter:blur(22px);position:fixed;left:0;right:0;z-index:9}
+#iprv{display:none;padding:10px 16px 4px;background:var(--header-bg);position:fixed;left:0;right:0;z-index:9}
 #iprv.on{display:flex;align-items:center;gap:12px}
 #iprv img{width:54px;height:54px;object-fit:cover;border-radius:11px;border:1px solid var(--border)}
 #iprv button{background:none;border:none;color:var(--text3);font-size:20px;cursor:pointer;padding:6px}
@@ -568,9 +568,9 @@ html,body{
   backdrop-filter:blur(26px);-webkit-backdrop-filter:blur(26px);
   border-top:1px solid var(--border);flex-shrink:0;
   position:fixed;
-  bottom:0;left:0;right:0;
-  transform:translateZ(0);
+  left:0;right:0;
   z-index:9;
+  transform:translateZ(0);
 }
 .attbtn{
   width:42px;height:42px;border-radius:50%;flex-shrink:0;
@@ -671,12 +671,13 @@ html,body{
   position:fixed;top:0;right:0;
   width:min(300px,88vw);height:100%;
   background:var(--menu-bg);
-  backdrop-filter:blur(28px);-webkit-backdrop-filter:blur(28px);
+  /* No backdrop-filter — element slides in with transform, blur+transform = GPU overdraw */
   border-left:1px solid var(--border);
   z-index:500;display:flex;flex-direction:column;
-  transform:translateX(105%);transition:transform 0.28s cubic-bezier(.4,0,.2,1);
-  box-shadow:-6px 0 40px var(--shadow);
+  transform:translateX(105%);transition:transform 0.26s cubic-bezier(.4,0,.2,1);
+  box-shadow:-4px 0 32px var(--shadow);
   padding-top:env(safe-area-inset-top,0px);
+  will-change:transform;
 }
 #mpanel.on{transform:translateX(0)}
 
@@ -1514,7 +1515,7 @@ function layoutChat(){
 
 function _doLayout(){
   _lcPending=false;
-  // Cache element refs once — querySelector is not free
+  // Cache element refs once
   if(!_lc.hdr){
     _lc.hdr=document.querySelector('.hdr');
     _lc.msgs=document.getElementById('msgs');
@@ -1527,6 +1528,11 @@ function _doLayout(){
   }
   const{hdr,msgs,inp,rbar,ebar,iprv,docprv,scrollBtn}=_lc;
   if(!hdr||!msgs||!inp)return;
+
+  // On Android, visualViewport.offsetTop shifts when keyboard opens.
+  // Pin the header and inputrow to the visual viewport explicitly.
+  const vvTop=window.visualViewport?window.visualViewport.offsetTop:0;
+  const vvH=window.visualViewport?window.visualViewport.height:window.innerHeight;
 
   // ── READ PHASE (no writes) ──
   const hdrH=hdr.getBoundingClientRect().height;
@@ -1541,17 +1547,24 @@ function _doLayout(){
   const dprvH=dOn?docprv.getBoundingClientRect().height:0;
 
   // ── WRITE PHASE (no reads) ──
-  inp.style.bottom='0px';
-  let stack=inpH;
-  if(dOn){docprv.style.bottom=stack+'px';stack+=dprvH;}
-  if(iOn){iprv.style.bottom=stack+'px';stack+=iprvH;}
-  if(eOn){ebar.style.bottom=stack+'px';stack+=ebarH;}
-  if(rOn){rbar.style.bottom=stack+'px';}
+  // Pin header to top of visual viewport (stays visible when keyboard opens)
+  hdr.style.top=vvTop+'px';
+  // Pin inputrow to bottom of visual viewport
+  inp.style.top=(vvTop+vvH-inpH)+'px';
+  inp.style.bottom='';
+
+  // Stack bars above inputrow within visual viewport
+  let stack=vvTop+vvH-inpH;
+  if(dOn){docprv.style.top=(stack-dprvH)+'px';stack-=dprvH;}
+  if(iOn){iprv.style.top=(stack-iprvH)+'px';stack-=iprvH;}
+  if(eOn){ebar.style.top=(stack-ebarH)+'px';stack-=ebarH;}
+  if(rOn){rbar.style.top=(stack-rbarH)+'px';}
+
   const total=inpH+rbarH+ebarH+iprvH+dprvH;
-  msgs.style.top=hdrH+'px';
-  msgs.style.bottom=total+'px';
-  msgs.style.height='';
-  if(scrollBtn) scrollBtn.style.bottom=(total+12)+'px';
+  msgs.style.top=(vvTop+hdrH)+'px';
+  msgs.style.bottom='';
+  msgs.style.height=(vvH-hdrH-total)+'px';
+  if(scrollBtn){scrollBtn.style.top='';scrollBtn.style.bottom='';scrollBtn.style.top=(vvTop+vvH-total-inpH-50)+'px';}
 }
 
 // Throttle keyboard/resize events — one layout per animation frame max
@@ -2470,12 +2483,23 @@ async function markSeen(){
 }
 
 // ── INPUT ──
+let _inpResizeRaf=false;
+let _typThrottle=0;
 function onInp(el){
-  el.style.height='auto';
-  el.style.height=Math.min(el.scrollHeight,100)+'px';
+  // Debounce textarea resize via rAF — avoid layout thrash on every keystroke
+  if(!_inpResizeRaf){
+    _inpResizeRaf=true;
+    requestAnimationFrame(()=>{
+      _inpResizeRaf=false;
+      el.style.height='auto';
+      el.style.height=Math.min(el.scrollHeight,100)+'px';
+      layoutChat();
+    });
+  }
   document.getElementById('sndbtn').classList.toggle('on',el.value.trim().length>0||!!pendingImg||!!pendingDoc);
-  clearTimeout(typTmr);typTmr=setTimeout(()=>{},1500);
-  broadcastTyp();
+  // Throttle typing broadcast — max once per 1s, not every keystroke
+  const now=Date.now();
+  if(now-_typThrottle>1000){_typThrottle=now;broadcastTyp();}
 }
 // Enter key adds newline normally — send only via button
 
@@ -3095,16 +3119,23 @@ function closeLB(){document.getElementById('lb').classList.remove('on');}
 
 // ── SCROLL ──
 function scrollBot(s){
-  const a=document.getElementById('msgs');
+  const a=_lc.msgs||document.getElementById('msgs');
   a.scrollTo({top:a.scrollHeight,behavior:s?'smooth':'auto'});
-  updateScrollBtn(a);
+  const btn=_lc.scrollBtn||document.getElementById('scroll-down-btn');
+  if(btn) btn.classList.remove('visible');
 }
 
+let _scrollBtnRaf=false;
 function updateScrollBtn(area){
-  const btn=document.getElementById('scroll-down-btn');
-  if(!btn)return;
-  const distFromBottom=area.scrollHeight-area.scrollTop-area.clientHeight;
-  btn.classList.toggle('visible',distFromBottom>300);
+  if(_scrollBtnRaf)return;
+  _scrollBtnRaf=true;
+  requestAnimationFrame(()=>{
+    _scrollBtnRaf=false;
+    const btn=_lc.scrollBtn||document.getElementById('scroll-down-btn');
+    if(!btn)return;
+    const dist=area.scrollHeight-area.scrollTop-area.clientHeight;
+    btn.classList.toggle('visible',dist>300);
+  });
 }
 
 // Attach scroll listener to msgs area — called once after setUser
@@ -3112,10 +3143,16 @@ function initMsgsScroll(){
   const area=document.getElementById('msgs');
   if(area._scrollBound)return;
   area._scrollBound=true;
+  let _olderRaf=false;
   area.addEventListener('scroll',()=>{
-    // Load older messages when scrolled near the top
-    if(area.scrollTop<80) loadOlderMsgs();
-    // Show/hide scroll-to-bottom button
+    // Throttle loadOlderMsgs check
+    if(!_olderRaf){
+      _olderRaf=true;
+      requestAnimationFrame(()=>{
+        _olderRaf=false;
+        if(area.scrollTop<80) loadOlderMsgs();
+      });
+    }
     updateScrollBtn(area);
   },{passive:true});
 }
