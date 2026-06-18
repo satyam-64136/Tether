@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>us. — tether</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400;1,500&family=Geist+Mono:wght@300&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --ink:     #ede5dc;
+      --ink-mid: rgba(237,229,220,0.52);
+      --ink-dim: rgba(237,229,220,0.26);
+      --bg:      #080609;
+      --rose:    #c9907a;
+    }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: 'Playfair Display', Georgia, serif;
+    }
+
+    canvas#c {
+      position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    }
+
+    .grain {
+      position: fixed; inset: 0; z-index: 1; pointer-events: none;
+      opacity: 0.03;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      background-size: 180px;
+    }
+
+    /* softer vignette — only edges, not center */
+    .vignette {
+      position: fixed; inset: 0; z-index: 2; pointer-events: none;
+      background: radial-gradient(ellipse 90% 85% at 50% 50%,
+        transparent 35%,
+        rgba(8,6,9,0.45) 75%,
+        rgba(8,6,9,0.92) 100%
+      );
+    }
+
+    /* ── page shell ── */
+    main {
+      position: relative; z-index: 10;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem clamp(2rem, 8vw, 6rem);
+      overflow: hidden;
+    }
+
+    /* ── content card — left-aligned ── */
+    .card {
+      max-width: 480px;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      text-align: left;
+      transform-origin: top left;
+    }
+
+    /* eyebrow */
+    .eyebrow {
+      font-family: 'Geist Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.38em;
+      text-transform: uppercase;
+      color: var(--rose);
+      opacity: 0;
+      animation: rise 1.2s ease 0.2s forwards;
+    }
+
+    /* heart */
+    .heart-wrap {
+      margin-top: 1rem;
+      opacity: 0;
+      animation: rise 1.2s ease 0.6s forwards;
+    }
+    .heart-wrap svg { width: 24px; height: 24px; overflow: visible; }
+    .heart-path {
+      fill: none;
+      stroke: var(--rose);
+      stroke-width: 1.2;
+      opacity: 0.55;
+      animation: hb 4s ease 2s forwards;
+    }
+    @keyframes hb {
+      0%   { opacity: 0.55; transform: scale(1);    transform-origin: 14px 14px; }
+      12%  { opacity: 0.85; transform: scale(1.14); transform-origin: 14px 14px; }
+      28%  { opacity: 0.55; transform: scale(1);    transform-origin: 14px 14px; }
+      42%  { opacity: 0.70; transform: scale(1.07); transform-origin: 14px 14px; }
+      60%  { opacity: 0.55; transform: scale(1);    transform-origin: 14px 14px; }
+      100% { opacity: 0.16; transform: scale(0.9);  transform-origin: 14px 14px; }
+    }
+
+    /* headline */
+    .headline {
+      margin-top: 0.7rem;
+      font-size: clamp(1.6rem, 4vw, 2.6rem);
+      font-weight: 400;
+      font-style: italic;
+      line-height: 1.1;
+      color: var(--ink);
+      opacity: 0;
+      animation: rise 1.3s ease 1.0s forwards;
+    }
+
+    /* divider */
+    .div-line {
+      margin-top: 1rem;
+      width: 0;
+      height: 1px;
+      background: linear-gradient(to right, rgba(201,144,122,0.5), rgba(201,144,122,0));
+      animation: expand 1s ease 1.6s forwards;
+    }
+    @keyframes expand { to { width: 80px; } }
+
+    /* prose block */
+    .prose {
+      margin-top: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    .ln {
+      overflow: hidden;
+    }
+    .ln span {
+      display: block;
+      opacity: 0;
+      transform: translateY(16px);
+    }
+    .gap { height: 0.55rem; }
+
+    /* stagger */
+    /* gaps don't have spans so nth-child mismatch is fine — use delay vars instead */
+    .ln span { animation: up 1s ease var(--d, 1.7s) forwards; }
+
+    .t-body {
+      font-size: clamp(0.9rem, 1.8vw, 1.05rem);
+      font-weight: 400;
+      line-height: 1.7;
+      color: var(--ink);
+    }
+    .t-dim {
+      font-size: clamp(0.9rem, 1.8vw, 1.05rem);
+      font-weight: 400;
+      line-height: 1.7;
+      color: var(--ink-mid);
+    }
+    .t-italic {
+      font-size: clamp(0.88rem, 1.6vw, 1rem);
+      font-style: italic;
+      font-weight: 400;
+      line-height: 1.7;
+      color: var(--ink-mid);
+    }
+    .t-ghost {
+      font-size: clamp(0.88rem, 1.6vw, 1rem);
+      font-style: italic;
+      font-weight: 400;
+      line-height: 1.7;
+      color: rgba(237,229,220,0.55);
+    }
+
+    /* thread */
+    .thread {
+      margin-top: 1rem;
+      opacity: 0;
+      animation: rise 1.2s ease 3.5s forwards;
+    }
+
+    /* closing */
+    .closing {
+      margin-top: 0.7rem;
+      font-family: 'Geist Mono', monospace;
+      font-size: 9.5px;
+      letter-spacing: 0.32em;
+      color: var(--ink-dim);
+      opacity: 0;
+      animation: rise 1.2s ease 3.8s forwards;
+    }
+
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes up {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation: none !important; opacity: 1 !important; transform: none !important; }
+    }
+  </style>
+</head>
+<body>
+
+<canvas id="c"></canvas>
+<div class="grain"></div>
+<div class="vignette"></div>
+
+<main>
+  <div class="card">
+
+    <p class="eyebrow">us. &nbsp;·&nbsp; tether</p>
+
+    <div class="heart-wrap" aria-hidden="true">
+      <svg viewBox="0 0 28 26" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path class="heart-path" d="M14 23 C14 23 2 15.5 2 8.5 C2 5 4.5 2.5 7.5 2.5 C10 2.5 12 4 14 6.5 C16 4 18 2.5 20.5 2.5 C23.5 2.5 26 5 26 8.5 C26 15.5 14 23 14 23Z"/>
+      </svg>
+    </div>
+
+    <h1 class="headline">tether has ended.</h1>
+
+    <div class="div-line"></div>
+
+    <div class="prose">
+
+      <div class="ln" style="--d:1.7s"><span class="t-body">This space was built for two people.</span></div>
+
+      <div class="gap"></div>
+
+      <div class="ln" style="--d:1.95s"><span class="t-dim">For every message, every photo, every late-night conversation,</span></div>
+      <div class="ln" style="--d:2.1s"><span class="t-dim">and every moment that once lived here.</span></div>
+
+      <div class="gap"></div>
+
+      <div class="ln" style="--d:2.35s"><span class="t-italic">A tether exists to connect two distant points.</span></div>
+      <div class="ln" style="--d:2.5s"><span class="t-italic">Sometimes it holds. Sometimes it stretches.</span></div>
+      <div class="ln" style="--d:2.65s"><span class="t-italic">Sometimes it quietly lets go.</span></div>
+
+      <div class="gap"></div>
+
+      <div class="ln" style="--d:2.9s"><span class="t-ghost">This one has served its purpose.</span></div>
+      <div class="ln" style="--d:3.1s"><span class="t-ghost">What remains are the memories it carried.</span></div>
+
+    </div>
+
+    <div class="thread" aria-hidden="true">
+      <svg width="200" height="28" viewBox="0 0 200 28" fill="none">
+        <defs>
+          <linearGradient id="tl" x1="0" y1="0" x2="200" y2="0" gradientUnits="userSpaceOnUse">
+            <stop offset="0%"   stop-color="rgba(201,144,122,0.55)"/>
+            <stop offset="42%"  stop-color="rgba(201,144,122,0.45)"/>
+            <stop offset="50%"  stop-color="rgba(201,144,122,0)"/>
+          </linearGradient>
+          <linearGradient id="fr" x1="200" y1="0" x2="100" y2="0" gradientUnits="userSpaceOnUse">
+            <stop offset="0%"  stop-color="rgba(201,144,122,0)"/>
+            <stop offset="100%" stop-color="rgba(201,144,122,0)"/>
+          </linearGradient>
+        </defs>
+        <!-- one thread, left-anchored, fraying to nothing rightward -->
+        <path d="M0 14 Q50 11 90 14"  stroke="url(#tl)" stroke-width="0.75" stroke-linecap="round"/>
+        <path d="M90 14 Q100 9  114 18" stroke="rgba(201,144,122,0.3)" stroke-width="0.55" stroke-linecap="round"/>
+        <path d="M90 14 Q102 18 112 10" stroke="rgba(201,144,122,0.22)" stroke-width="0.45" stroke-linecap="round"/>
+        <path d="M90 14 Q98 14 108 14"  stroke="rgba(201,144,122,0.15)" stroke-width="0.35" stroke-linecap="round"/>
+        <circle cx="90" cy="14" r="1.1" fill="rgba(201,144,122,0.3)"/>
+      </svg>
+    </div>
+
+    <p class="closing">— project tether</p>
+
+  </div>
+</main>
+
+<script>
+  const canvas = document.getElementById('c');
+  const ctx    = canvas.getContext('2d');
+  let W, H, t  = 0;
+
+  function resize() {
+    W = canvas.width  = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  const orbs = [
+    { x:0.15, y:0.35, r:0.55, rgb:'155,85,75',   a:0.08,  dx:0.000042, dy:0.000033 },
+    { x:0.82, y:0.62, r:0.48, rgb:'105,70,135',  a:0.065, dx:-0.000036,dy:0.000048 },
+    { x:0.48, y:0.12, r:0.34, rgb:'180,115,95',  a:0.045, dx:0.000052, dy:-0.000040 },
+    { x:0.28, y:0.85, r:0.30, rgb:'135,75,108',  a:0.038, dx:-0.000038,dy:-0.000028 },
+  ];
+
+  (function draw() {
+    t++;
+    ctx.clearRect(0,0,W,H);
+    ctx.fillStyle='#080609';
+    ctx.fillRect(0,0,W,H);
+
+    orbs.forEach(o => {
+      o.x += o.dx; o.y += o.dy;
+      if (o.x<-0.2||o.x>1.2) o.dx*=-1;
+      if (o.y<-0.2||o.y>1.2) o.dy*=-1;
+      const ox = Math.sin(t*0.005+o.r*2.8)*0.044;
+      const oy = Math.cos(t*0.007+o.r*1.9)*0.037;
+      const cx = (o.x+ox)*W, cy = (o.y+oy)*H;
+      const r  = o.r*Math.max(W,H);
+      const g  = ctx.createRadialGradient(cx,cy,0,cx,cy,r);
+      g.addColorStop(0,  `rgba(${o.rgb},${o.a})`);
+      g.addColorStop(0.5,`rgba(${o.rgb},${o.a*0.38})`);
+      g.addColorStop(1,  'transparent');
+      ctx.fillStyle=g;
+      ctx.beginPath();
+      ctx.arc(cx,cy,r,0,Math.PI*2);
+      ctx.fill();
+    });
+    requestAnimationFrame(draw);
+  })();
+
+  /* ── auto-scale card to always fit viewport ── */
+  const card = document.querySelector('.card');
+  function scaleCard() {
+    card.style.transform = '';
+    const vh = window.innerHeight;
+    const vw = window.innerWidth;
+    const ch = card.offsetHeight;
+    const cw = card.offsetWidth;
+    const scaleH = (vh - 64) / ch;
+    const scaleW = (vw - 64) / cw;
+    const scale  = Math.min(scaleH, scaleW, 1);
+    card.style.transform = `scale(${scale})`;
+  }
+  window.addEventListener('resize', scaleCard);
+  document.fonts.ready.then(scaleCard);
+  setTimeout(scaleCard, 300);
+</script>
+
+</body>
+</html>
