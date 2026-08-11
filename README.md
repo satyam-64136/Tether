@@ -23,11 +23,6 @@ Open the link, tap "Add to Home Screen", and it installs as a full-screen app wi
 
 > Built solo as a personal project. Every feature was designed, engineered, and debugged from scratch.
 
----
-
-## Live Demo
-
-**[satyam-64136.github.io/Tether](https://satyam-64136.github.io/Tether/)**
 
 ---
 
