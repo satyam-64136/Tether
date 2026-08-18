@@ -269,6 +269,29 @@ html,body{
 .uarr{margin-left:auto;font-size:20px;color:var(--text3);transition:transform 0.2s,color 0.2s;flex-shrink:0}
 .ucard:hover .uarr{transform:translateX(4px);color:var(--accent)}
 
+/* ═══════════════════ LOCK / PIN ═══════════════════ */
+#lock{align-items:center;justify-content:center}
+.lock-inner{display:flex;flex-direction:column;align-items:center;gap:30px;padding:40px 28px;width:100%;max-width:340px}
+.lock-av{width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-family:'DM Serif Display',serif;font-size:22px;background:rgba(var(--accent-rgb),0.12);
+  color:var(--accent);border:1.5px solid rgba(var(--accent-rgb),0.22)}
+.lock-hi{font-size:15px;color:var(--text2);text-align:center}
+.lock-hi b{color:var(--text);font-weight:500}
+.lock-dots{display:flex;gap:14px}
+.lock-dot{width:13px;height:13px;border-radius:50%;border:1.5px solid var(--border2);background:transparent;transition:background 0.15s,transform 0.15s}
+.lock-dot.filled{background:var(--accent);border-color:var(--accent);transform:scale(1.1)}
+.lock-dots.shake{animation:lockShake 0.4s}
+@keyframes lockShake{10%,90%{transform:translateX(-2px)}20%,80%{transform:translateX(4px)}30%,50%,70%{transform:translateX(-8px)}40%,60%{transform:translateX(8px)}}
+.lock-err{font-size:12px;color:var(--accent);min-height:16px;text-align:center}
+.lock-pad{display:grid;grid-template-columns:repeat(3,64px);gap:14px;justify-content:center}
+.lkey{width:64px;height:64px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:20px;font-weight:400;color:var(--text);background:var(--glass);
+  border:1px solid var(--border);cursor:pointer;user-select:none;
+  transition:transform 0.12s,background 0.12s}
+.lkey:active{transform:scale(0.9);background:var(--glass2)}
+.lkey.ghost{background:transparent;border:none;box-shadow:none}
+.lock-sub{font-size:12px;color:var(--text3);text-align:center;line-height:1.5}
+
 /* ═══════════════════ CHAT ═══════════════════ */
 #chat{background:transparent}
 
@@ -1209,6 +1232,33 @@ html,body{
   </div>
 </div>
 
+<!-- LOCK / PIN -->
+<div id="lock" class="screen off">
+  <div class="lock-inner">
+    <div class="lock-av" id="lockav"></div>
+    <div class="lock-hi">Welcome back, <b id="lockname"></b></div>
+    <div class="lock-dots" id="lockdots">
+      <span class="lock-dot"></span><span class="lock-dot"></span><span class="lock-dot"></span><span class="lock-dot"></span>
+    </div>
+    <div class="lock-err" id="lockerr"></div>
+    <div class="lock-pad" id="lockpad">
+      <div class="lkey" onclick="lockKey('1')">1</div>
+      <div class="lkey" onclick="lockKey('2')">2</div>
+      <div class="lkey" onclick="lockKey('3')">3</div>
+      <div class="lkey" onclick="lockKey('4')">4</div>
+      <div class="lkey" onclick="lockKey('5')">5</div>
+      <div class="lkey" onclick="lockKey('6')">6</div>
+      <div class="lkey" onclick="lockKey('7')">7</div>
+      <div class="lkey" onclick="lockKey('8')">8</div>
+      <div class="lkey" onclick="lockKey('9')">9</div>
+      <div class="lkey ghost"></div>
+      <div class="lkey" onclick="lockKey('0')">0</div>
+      <div class="lkey ghost" onclick="lockBackspace()">⌫</div>
+    </div>
+    <div class="lock-sub">Forgot your PIN? Message Satyam to reset it.<br/><span id="locksmall"></span></div>
+  </div>
+</div>
+
 <!-- CHAT -->
 <div id="chat" class="screen off">
   <div class="hdr">
@@ -1500,7 +1550,7 @@ const THEMES=[
   {id:'aurora',         name:'Aurora',       bg:'#070c14',ac:'#5ec8bc',light:false},
 ];
 
-let sb,CU,OU;
+let sb,CU,OU,MY_UID=null;
 
 // ── LAYOUT ENGINE — keeps header fixed, msgs fills middle, input sticks to keyboard ──
 // ── LAYOUT ENGINE — cached refs, batched reads then writes, rAF-throttled ──
@@ -1594,9 +1644,19 @@ function isVideoUrl(url){
 (function(){
   const s=document.createElement('script');
   s.src='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js';
-  s.onload=()=>{
-    try{sb=supabase.createClient(SU,SK);}
-    catch(e){showFatal('Failed to connect. Check your internet.');}
+  s.onload=async()=>{
+    try{
+      sb=supabase.createClient(SU,SK);
+      const{data:{session}}=await sb.auth.getSession();
+      if(session){
+        MY_UID=session.user.id;
+      }else{
+        const{data,error:authErr}=await sb.auth.signInAnonymously();
+        if(authErr) throw authErr;
+        MY_UID=data.user.id;
+      }
+    }
+    catch(e){showFatal('Failed to connect: '+(e&&e.message?e.message:'unknown error'));return;}
     // ── SPLASH QUOTES ──
 (function(){
   const quotes=[
@@ -1660,8 +1720,17 @@ function boot(){
   hideLdr();
   checkInstallState();
   const saved=localStorage.getItem('us_user');
-  if(saved) setUser(saved);
-  else document.getElementById('setup').classList.remove('off');
+  if(saved){
+    if(localStorage.getItem('us_trusted_'+saved)==='1'){
+      sb.rpc('check_session',{p_user:saved}).then(({data,error})=>{
+        if(!error&&data===true) setUser(saved);
+        else{
+          localStorage.removeItem('us_trusted_'+saved);
+          showLock(saved);
+        }
+      }).catch(()=>showLock(saved));
+    } else showLock(saved);
+  } else document.getElementById('setup').classList.remove('off');
 
   // Check if opened via ring push (?ring=1)
   const params=new URLSearchParams(window.location.search);
@@ -1730,9 +1799,71 @@ function applyTheme(id,sync){setTheme(id,sync);}
 
 // ── USER ──
 function pick(name){
-  localStorage.setItem('us_user',name);
   document.getElementById('setup').classList.add('off');
-  setTimeout(()=>setUser(name),30);
+  setTimeout(()=>showLock(name),30);
+}
+
+// ── LOCK / PIN ──
+let LK_PIN='',LK_NAME='';
+const LK_LEN=4;
+
+function showLock(name){
+  LK_NAME=name;LK_PIN='';
+  document.getElementById('lockname').textContent=name;
+  document.getElementById('lockav').textContent=name[0];
+  document.getElementById('lockerr').textContent='';
+  document.getElementById('locksmall').textContent='';
+  renderLockDots();
+  document.getElementById('setup').classList.add('off');
+  document.getElementById('chat').classList.add('off');
+  document.getElementById('lock').classList.remove('off');
+}
+
+function renderLockDots(){
+  document.querySelectorAll('#lockdots .lock-dot').forEach((d,i)=>d.classList.toggle('filled',i<LK_PIN.length));
+}
+
+function lockKey(d){
+  if(LK_PIN.length>=LK_LEN)return;
+  LK_PIN+=d;
+  renderLockDots();
+  if(LK_PIN.length===LK_LEN) verifyLockPin();
+}
+
+function lockBackspace(){
+  LK_PIN=LK_PIN.slice(0,-1);
+  renderLockDots();
+  document.getElementById('lockerr').textContent='';
+}
+
+async function verifyLockPin(){
+  const pad=document.getElementById('lockpad');
+  pad.style.pointerEvents='none';
+  try{
+    const{data,error}=await sb.rpc('verify_pin',{p_user:LK_NAME,p_pin:LK_PIN});
+    if(error) throw error;
+    if(data==='true'){
+      localStorage.setItem('us_trusted_'+LK_NAME,'1');
+      localStorage.setItem('us_user',LK_NAME);
+      document.getElementById('lock').classList.add('off');
+      setTimeout(()=>setUser(LK_NAME),30);
+    }else if(data==='locked'){
+      lockFail('Too many tries. Wait a bit and try again.');
+    }else{
+      lockFail('Wrong PIN. Try again.');
+    }
+  }catch(e){
+    lockFail('Could not verify. Check your connection.');
+  }
+  pad.style.pointerEvents='';
+}
+
+function lockFail(msg){
+  document.getElementById('lockerr').textContent=msg;
+  const dots=document.getElementById('lockdots');
+  dots.classList.remove('shake');void dots.offsetWidth;dots.classList.add('shake');
+  LK_PIN='';
+  setTimeout(renderLockDots,120);
 }
 
 function setUser(name){
@@ -1745,6 +1876,7 @@ function setUser(name){
   // Subscribe FIRST so no message slips through the gap between
   // cache display and server fetch completing
   subAll();
+  subSession();
   loadMsgs();
   loadSettings();
   startPresence();
@@ -1878,6 +2010,39 @@ async function setOffPres(){
   await sb.from('presence').upsert({username:CU,last_seen:new Date().toISOString(),online:false},{onConflict:'username'});
 }
 let _presCh=null;
+// ── SESSION (single-device enforcement) ──
+let _sessCh=null;
+function subSession(){
+  if(_sessCh){try{sb.removeChannel(_sessCh);}catch(e){}}
+  _sessCh=sb.channel('sess-'+CU)
+    .on('postgres_changes',{event:'*',schema:'public',table:'sessions',filter:`user_name=eq.${CU}`},p=>{
+      const row=p.new;
+      if(row&&row.auth_uid&&row.auth_uid!==MY_UID) kickOut();
+    }).subscribe();
+}
+
+function kickOut(){
+  if(_sessCh){try{sb.removeChannel(_sessCh);}catch(e){}_sessCh=null;}
+  const name=CU;
+  localStorage.removeItem('us_trusted_'+name);
+  showKickOverlay(name);
+}
+
+function showKickOverlay(name){
+  const ov=document.createElement('div');
+  ov.style.cssText='position:fixed;inset:0;z-index:999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:var(--bg);padding:32px;text-align:center';
+  ov.innerHTML=`<div style="font-size:28px">🔒</div><div style="font-size:14px;color:var(--text2);max-width:260px;line-height:1.5">This account was opened on another device, so you've been signed out here.</div>`;
+  document.body.appendChild(ov);
+  setTimeout(()=>{
+    ov.remove();
+    // Reset app state and drop back to the lock screen for this name
+    document.getElementById('chat').classList.add('off');
+    localStorage.setItem('us_user',name);
+    CU=null;OU=null;
+    showLock(name);
+  },1800);
+}
+
 function subPres(){
   if(_presCh){try{sb.removeChannel(_presCh);}catch(e){}}
   _presCh=sb.channel('pres-rt')
@@ -3512,17 +3677,19 @@ async function logout(){
     if(_settingsCh) sb.removeChannel(_settingsCh);
     if(_presCh) sb.removeChannel(_presCh);
     if(_ringCh) sb.removeChannel(_ringCh);
+    if(_sessCh) sb.removeChannel(_sessCh);
   }catch(e){}
   // Clear all timers
   clearInterval(presT);
   clearInterval(_presRefreshT);
-  msgCh=null;typCh2=null;_settingsCh=null;_presCh=null;_ringCh=null;
+  msgCh=null;typCh2=null;_settingsCh=null;_presCh=null;_ringCh=null;_sessCh=null;
   _lastPresData=null;
   // Reset app state
   msgs=[];replyTo=null;ctxId=null;pendingImg=null;pendingDoc=null;pendingAudio=null;
   // Clear message cache so next user/device gets fresh data
   try{if(_idb){const tx=_idb.transaction('msgs','readwrite');tx.objectStore('msgs').clear();}}catch(e){}
   selectMode=false;selectedIds=new Set();
+  if(CU) localStorage.removeItem('us_trusted_'+CU);
   CU=null;OU=null;
   // Reset UI — replaceChildren is faster than forEach remove
   const msgsEl=document.getElementById('msgs');
