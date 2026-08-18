@@ -1853,7 +1853,8 @@ async function verifyLockPin(){
       lockFail('Wrong PIN. Try again.');
     }
   }catch(e){
-    lockFail('Could not verify. Check your connection.');
+    console.error('verify_pin failed:',e);
+    lockFail('Error: '+(e&&e.message?e.message:'could not reach server'));
   }
   pad.style.pointerEvents='';
 }
