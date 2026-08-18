@@ -3105,16 +3105,37 @@ function renderContent(txt,bubble){
 function attachLinkPreview(bubble,url){
   const card=document.createElement('div');
   card.className='link-card';
-  card.innerHTML=`<div class="link-card-placeholder"><span class="lp-icon">🔗</span><span class="lp-url">${url}</span></div>`;
+  const ph=document.createElement('div');
+  ph.className='link-card-placeholder';
+  ph.innerHTML=`<span class="lp-icon">🔗</span>`;
+  const phUrl=document.createElement('span');
+  phUrl.className='lp-url';
+  phUrl.textContent=url;
+  ph.appendChild(phUrl);
+  card.appendChild(ph);
   card.onclick=e=>{e.stopPropagation();window.open(url,'_blank');};
   bubble.appendChild(card);
   // Try to fetch OG data via a free proxy
   fetchOG(url).then(og=>{
     if(!og)return;
-    let inner='';
-    if(og.image) inner+=`<img class="link-card-img" src="${og.image}" alt="" loading="lazy" onerror="this.style.display='none'"/>`;
-    inner+=`<div class="link-card-body"><div class="link-card-title">${og.title||url}</div><div class="link-card-url">${new URL(url).hostname}</div></div>`;
-    card.innerHTML=inner;
+    card.replaceChildren();
+    // og.image/og.title come from a third-party page we don't control —
+    // build the DOM with textContent/attribute setters only, never innerHTML,
+    // so nothing in them can ever be parsed as markup.
+    if(og.image&&/^https:\/\//i.test(og.image)){
+      const img=document.createElement('img');
+      img.className='link-card-img';
+      img.src=og.image;img.alt='';img.loading='lazy';
+      img.onerror=()=>{img.style.display='none';};
+      card.appendChild(img);
+    }
+    const body=document.createElement('div');body.className='link-card-body';
+    const title=document.createElement('div');title.className='link-card-title';
+    title.textContent=og.title||url;
+    const host=document.createElement('div');host.className='link-card-url';
+    try{host.textContent=new URL(url).hostname;}catch{host.textContent=url;}
+    body.appendChild(title);body.appendChild(host);
+    card.appendChild(body);
     card.onclick=e=>{e.stopPropagation();window.open(url,'_blank');};
   }).catch(()=>{});
 }
