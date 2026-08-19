@@ -398,8 +398,33 @@ html,body{
   transition:transform 0.12s,opacity 0.12s;
   min-height:36px;
   will-change:transform;
+  position:relative;
 }
 .bbl:active{transform:scale(0.96);opacity:0.82}
+
+/* ═══════════ SEND STATE: uploading / failed ═══════════ */
+.mw.uploading .bbl>*:not(.upload-overlay){opacity:0.45}
+.upload-overlay{
+  position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  border-radius:inherit;animation:uploadfadein 0.15s ease;
+}
+@keyframes uploadfadein{from{opacity:0}to{opacity:1}}
+.upload-ring{
+  position:relative;width:36px;height:36px;border-radius:50%;flex-shrink:0;
+  background:conic-gradient(#fff var(--pct,0%),rgba(255,255,255,0.28) 0);
+  display:flex;align-items:center;justify-content:center;
+}
+.upload-ring::after{
+  content:'';position:absolute;width:28px;height:28px;border-radius:50%;background:rgba(20,14,17,0.6);
+}
+.upload-ring span{position:relative;z-index:1;color:#fff;font-size:9px;font-weight:600;letter-spacing:0.2px}
+.upload-overlay.failed{background:rgba(180,30,30,0.22);cursor:pointer}
+.upload-retry{display:flex;flex-direction:column;align-items:center;gap:3px;color:#fff}
+.upload-retry .rt-icon{
+  width:30px;height:30px;border-radius:50%;background:rgba(180,30,30,0.65);
+  display:flex;align-items:center;justify-content:center;font-size:16px;
+}
+.upload-retry span{font-size:10px;font-weight:500}
 .mw.me .bbl{
   background:var(--me-bubble);border:1px solid var(--me-border);
   border-bottom-right-radius:5px;
@@ -542,10 +567,13 @@ html,body{
   display:flex;align-items:center;justify-content:center;
   font-size:18px;cursor:pointer;
   background:var(--glass2);border:1px solid var(--border);
-  color:var(--text2);transition:all 0.18s;
+  color:var(--text2);
+  transition:transform 0.15s cubic-bezier(.34,1.56,.64,1),background 0.15s,border-color 0.15s,color 0.15s;
   position:relative;
 }
+.recbtn:active{transform:scale(0.86)}
 .recbtn:active,.recbtn.recording{background:rgba(220,50,50,0.15);border-color:rgba(220,50,50,0.4);color:#dc3232}
+.recbtn.recording{transform:scale(1.1)}
 .recbtn.recording::after{
   content:'';position:absolute;inset:-3px;border-radius:50%;
   border:2px solid rgba(220,50,50,0.5);
@@ -601,8 +629,10 @@ html,body{
   display:flex;align-items:center;justify-content:center;
   font-size:18px;cursor:pointer;
   background:var(--glass2);border:1px solid var(--border);
-  color:var(--text2);transition:all 0.18s;
+  color:var(--text2);
+  transition:transform 0.15s cubic-bezier(.34,1.56,.64,1),background 0.15s,border-color 0.15s;
 }
+.attbtn:active{transform:scale(0.86);background:var(--glass3)}
 .att-pop-item{
   display:flex;align-items:center;gap:10px;
   padding:10px 14px;border-radius:11px;
@@ -1334,7 +1364,9 @@ html,body{
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
       </button>
       <!-- Popover -->
-      <div id="attpop" style="display:none;position:absolute;bottom:52px;left:0;background:var(--menu-bg);backdrop-filter:blur(20px);border:1px solid var(--border);border-radius:16px;padding:8px;box-shadow:0 8px 32px var(--shadow);flex-direction:column;gap:4px;min-width:150px;z-index:100">
+      <div id="attpop" style="position:absolute;bottom:52px;left:0;background:var(--menu-bg);backdrop-filter:blur(20px);border:1px solid var(--border);border-radius:16px;padding:8px;box-shadow:0 8px 32px var(--shadow);flex-direction:column;gap:4px;min-width:150px;z-index:100;
+        display:flex;opacity:0;transform:scale(0.9) translateY(8px);transform-origin:bottom left;pointer-events:none;
+        transition:opacity 0.16s cubic-bezier(.2,1,.3,1),transform 0.16s cubic-bezier(.2,1,.3,1)">
         <label class="att-pop-item" for="ifile" onclick="closeAttPop()">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
           Photo / Video
@@ -2385,7 +2417,22 @@ function mkEl(msg,animate=false){
     renderContent(msg.content,b);
   }
 
-  if(!msg.deleted){
+  // Upload progress / failed-send overlay
+  if(msg._uploading||msg._failed){
+    w.classList.add(msg._uploading?'uploading':'upload-failed');
+    const overlay=document.createElement('div');
+    overlay.className='upload-overlay'+(msg._failed?' failed':'');
+    if(msg._failed){
+      overlay.innerHTML=`<div class="upload-retry"><div class="rt-icon">↻</div><span>Tap to retry</span></div>`;
+      overlay.onclick=ev=>{ev.stopPropagation();retryUpload(msg.id);};
+    }else{
+      const pct=Math.round((msg._progress||0)*100);
+      overlay.innerHTML=`<div class="upload-ring" style="--pct:${pct}%"><span>${pct}%</span></div>`;
+    }
+    b.appendChild(overlay);
+  }
+
+  if(!msg.deleted&&!msg._uploading){
     b.addEventListener('click',ev=>{
       if(selectMode){toggleSelect(msg.id);return;}
       openCtx(ev,msg.id);
@@ -2396,18 +2443,20 @@ function mkEl(msg,animate=false){
 
   // Long press = enter multi-select (only if not swiping)
   let lpTimer;
-  bw.addEventListener('touchstart',e=>{
-    lpTimer=setTimeout(()=>{
-      if(!selectMode) enterSelectMode(msg.id);
-      else toggleSelect(msg.id);
-    },520);
-  },{passive:true});
-  // Cancel long press if finger moves (user is swiping)
-  bw.addEventListener('touchmove',e=>{
-    clearTimeout(lpTimer);
-  },{passive:true});
-  bw.addEventListener('touchend',()=>clearTimeout(lpTimer),{passive:true});
-  bw.addEventListener('touchcancel',()=>clearTimeout(lpTimer),{passive:true});
+  if(!msg._uploading){
+    bw.addEventListener('touchstart',e=>{
+      lpTimer=setTimeout(()=>{
+        if(!selectMode) enterSelectMode(msg.id);
+        else toggleSelect(msg.id);
+      },520);
+    },{passive:true});
+    // Cancel long press if finger moves (user is swiping)
+    bw.addEventListener('touchmove',e=>{
+      clearTimeout(lpTimer);
+    },{passive:true});
+    bw.addEventListener('touchend',()=>clearTimeout(lpTimer),{passive:true});
+    bw.addEventListener('touchcancel',()=>clearTimeout(lpTimer),{passive:true});
+  }
 
   bw.appendChild(b);
   w.appendChild(bw);
@@ -2451,7 +2500,7 @@ function mkEl(msg,animate=false){
   w.appendChild(meta);
 
   // Swipe to reply
-  if(!msg.deleted) addSwipe(bw,arrow,msg);
+  if(!msg.deleted&&!msg._uploading) addSwipe(bw,arrow,msg);
   return w;
 }
 
@@ -2691,6 +2740,70 @@ function broadcastTyp(){
 
 // ── SEND ──
 let typTmr;
+// ── OPTIMISTIC SEND: real upload progress, instant local echo, retry on failure ──
+function uploadWithProgress(bucket,path,file,onProgress){
+  return new Promise((resolve,reject)=>{
+    sb.auth.getSession().then(({data:{session}})=>{
+      const token=session?.access_token||SK;
+      const xhr=new XMLHttpRequest();
+      xhr.open('POST',`${SU}/storage/v1/object/${bucket}/${encodeURIComponent(path)}`,true);
+      xhr.setRequestHeader('Authorization','Bearer '+token);
+      xhr.setRequestHeader('apikey',SK);
+      xhr.setRequestHeader('Content-Type',(file.type)||'application/octet-stream');
+      xhr.upload.onprogress=e=>{
+        if(e.lengthComputable&&onProgress) onProgress(e.loaded/e.total);
+      };
+      xhr.onload=()=>{
+        if(xhr.status>=200&&xhr.status<300) resolve();
+        else reject(new Error('Upload failed ('+xhr.status+')'));
+      };
+      xhr.onerror=()=>reject(new Error('Network error during upload'));
+      xhr.send(file);
+    }).catch(reject);
+  });
+}
+
+function updateUploadProgress(id,pct){
+  const m=msgs.find(x=>x.id===id);
+  if(m) m._progress=pct;
+  const ring=document.querySelector(`.mw[data-id="${id}"] .upload-ring`);
+  if(ring){
+    const p=Math.round(pct*100);
+    ring.style.setProperty('--pct',p+'%');
+    const span=ring.querySelector('span');
+    if(span) span.textContent=p+'%';
+  }
+}
+
+function finalizeSentMsg(tempId,realRow){
+  const idx=msgs.findIndex(m=>m.id===tempId);
+  let tempBlobUrl=null;
+  if(idx!==-1){
+    if(msgs[idx].image_url&&msgs[idx].image_url.startsWith('blob:')) tempBlobUrl=msgs[idx].image_url;
+    msgs.splice(idx,1);
+  }
+  if(!msgs.find(m=>m.id===realRow.id)) msgs.push(realRow);
+  cacheUpdateOne(realRow);
+  const el=document.querySelector(`.mw[data-id="${tempId}"]`);
+  const newEl=mkEl(realRow);
+  if(el) el.replaceWith(newEl);
+  else document.getElementById('msgs').appendChild(newEl);
+  if(tempBlobUrl) setTimeout(()=>URL.revokeObjectURL(tempBlobUrl),1000);
+}
+
+function markSendFailed(tempId,retryFn){
+  const m=msgs.find(x=>x.id===tempId);
+  if(!m)return;
+  m._uploading=false;m._failed=true;m._retryFn=retryFn;
+  const el=document.querySelector(`.mw[data-id="${tempId}"]`);
+  if(el) el.replaceWith(mkEl(m));
+}
+
+function retryUpload(id){
+  const m=msgs.find(x=>x.id===id);
+  if(m&&m._retryFn) m._retryFn();
+}
+
 async function send(){
   const inp=document.getElementById('minp');
   const txt=inp.value.trim();
@@ -2707,48 +2820,73 @@ async function send(){
     return;
   }
 
-  let imgUrl=null,isVid=false,docName=null,docType=null;
+  const file=pendingDoc||pendingImg;
+  const isDoc=!!pendingDoc;
+  const isVid=!isDoc&&!!pendingImg&&pendingImg.type.startsWith('video/');
+  const replyToId=replyTo?.id||null;
 
-  if(pendingDoc){
-    const f=pendingDoc;
-    const path=`doc_${Date.now()}_${f.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`;
-    toast('Uploading document...');
-    // Try docs bucket first, fall back to images bucket if docs doesn't exist yet
-    let{error:upErr}=await sb.storage.from('docs').upload(path,f,{contentType:f.type||'application/octet-stream'});
-    let bucket='docs';
-    if(upErr){
-      // Fallback to images bucket (works without extra SQL setup)
-      const res=await sb.storage.from('images').upload(path,f,{contentType:f.type||'application/octet-stream'});
-      if(res.error){toast('Upload failed: '+(res.error.message||'unknown'));return;}
-      bucket='images';
-    }
-    imgUrl=sb.storage.from(bucket).getPublicUrl(path).data.publicUrl;
-    docName=f.name;
-    docType=f.type||'application/octet-stream';
-    clearDoc();
-  } else if(pendingImg){
-    isVid=pendingImg.type.startsWith('video/');
-    const ext=pendingImg.name.split('.').pop()||(isVid?'mp4':'jpg');
-    const path=`chat_${Date.now()}.${ext}`;
-    toast(isVid?'Uploading video...':'Uploading image...');
-    const{error:upErr}=await sb.storage.from('images').upload(path,pendingImg,{contentType:pendingImg.type});
-    if(upErr){toast(isVid?'Video upload failed':'Image upload failed');return;}
-    imgUrl=sb.storage.from('images').getPublicUrl(path).data.publicUrl;
-    clearImg();
-  }
-
+  // Clear compose UI immediately — the message takes over from here
   inp.value='';inp.style.height='auto';
   document.getElementById('sndbtn').classList.remove('on');
-  const row={sender:CU,content:txt||null,image_url:imgUrl,reply_to:replyTo?.id||null,seen:false,reactions:{}};
-  if(isVid) row.video=true;
-  if(docName) row.doc_name=docName;
-  if(docType) row.doc_type=docType;
-  const{error}=await sb.from('messages').insert(row);
-  if(error){
-    console.error('Send failed:',error);
-    toast('Send failed: '+(error.message||'unknown error'));
-  }
+  if(isDoc) clearDoc(); else if(pendingImg) clearImg();
   clearReply();
+
+  const tempId='tmp_'+Date.now()+'_'+Math.random().toString(36).slice(2);
+  const tempMsg={
+    id:tempId,sender:CU,content:txt||null,
+    image_url:file?URL.createObjectURL(file):null,
+    reply_to:replyToId,seen:false,reactions:{},
+    created_at:new Date().toISOString(),
+    _uploading:!!file,_progress:0
+  };
+  if(isVid) tempMsg.video=true;
+  if(isDoc){tempMsg.doc_name=file.name;tempMsg.doc_type=file.type||'application/octet-stream';}
+
+  msgs.push(tempMsg);
+  document.getElementById('empty').style.display='none';
+  document.getElementById('msgs').appendChild(mkEl(tempMsg,true));
+  scrollBot(true);
+
+  async function attempt(){
+    const m=msgs.find(x=>x.id===tempId);
+    if(m&&file){
+      m._uploading=true;m._failed=false;m._progress=0;
+      const el=document.querySelector(`.mw[data-id="${tempId}"]`);
+      if(el) el.replaceWith(mkEl(m));
+    }
+    try{
+      let imgUrl=null,docName=null,docType=null;
+      if(isDoc){
+        const path=`doc_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`;
+        let bucket='docs';
+        try{
+          await uploadWithProgress('docs',path,file,p=>updateUploadProgress(tempId,p));
+        }catch(e){
+          // Fallback to images bucket (works without extra SQL setup)
+          bucket='images';
+          await uploadWithProgress('images',path,file,p=>updateUploadProgress(tempId,p));
+        }
+        imgUrl=sb.storage.from(bucket).getPublicUrl(path).data.publicUrl;
+        docName=file.name;docType=file.type||'application/octet-stream';
+      }else if(file){
+        const ext=file.name.split('.').pop()||(isVid?'mp4':'jpg');
+        const path=`chat_${Date.now()}.${ext}`;
+        await uploadWithProgress('images',path,file,p=>updateUploadProgress(tempId,p));
+        imgUrl=sb.storage.from('images').getPublicUrl(path).data.publicUrl;
+      }
+      const row={sender:CU,content:txt||null,image_url:imgUrl,reply_to:replyToId,seen:false,reactions:{}};
+      if(isVid) row.video=true;
+      if(docName) row.doc_name=docName;
+      if(docType) row.doc_type=docType;
+      const{data,error}=await sb.from('messages').insert(row).select().single();
+      if(error) throw error;
+      finalizeSentMsg(tempId,data);
+    }catch(err){
+      console.error('Send failed:',err);
+      markSendFailed(tempId,attempt);
+    }
+  }
+  attempt();
 }
 
 let _seenT=null;
@@ -2826,17 +2964,22 @@ function clearImg(){
 
 function toggleAttPop(){
   const pop=document.getElementById('attpop');
-  const isOpen=pop.style.display==='flex';
-  pop.style.display=isOpen?'none':'flex';
-  if(!isOpen){
-    // Close on next outside tap
-    setTimeout(()=>{
-      document.addEventListener('click',closeAttPop,{once:true});
-    },0);
-  }
+  const isOpen=pop.classList.contains('on');
+  if(isOpen){closeAttPop();return;}
+  pop.classList.add('on');
+  pop.style.opacity='1';
+  pop.style.transform='scale(1) translateY(0)';
+  pop.style.pointerEvents='auto';
+  setTimeout(()=>{
+    document.addEventListener('click',closeAttPop,{once:true});
+  },0);
 }
 function closeAttPop(){
-  document.getElementById('attpop').style.display='none';
+  const pop=document.getElementById('attpop');
+  pop.classList.remove('on');
+  pop.style.opacity='0';
+  pop.style.transform='scale(0.9) translateY(8px)';
+  pop.style.pointerEvents='none';
 }
 
 function getDocMeta(file){
@@ -3219,17 +3362,46 @@ function getSupportedMime(){
 }
 
 async function sendVoice(blob,dur){
-  toast('Sending voice...');
-  const ext=blob.type.includes('ogg')?'ogg':blob.type.includes('mp4')?'m4a':'webm';
-  const path=`voice_${Date.now()}.${ext}`;
-  const{error}=await sb.storage.from('images').upload(path,blob,{contentType:blob.type});
-  if(error){toast('Voice upload failed');return;}
-  const url=sb.storage.from('images').getPublicUrl(path).data.publicUrl;
-  await sb.from('messages').insert({
-    sender:CU,content:`[voice:${dur}]`,image_url:url,
-    reply_to:replyTo?.id||null,seen:false,reactions:{},voice:true
-  });
+  const replyToId=replyTo?.id||null;
   clearReply();
+
+  const tempId='tmp_'+Date.now()+'_'+Math.random().toString(36).slice(2);
+  const tempMsg={
+    id:tempId,sender:CU,content:`[voice:${dur}]`,
+    image_url:URL.createObjectURL(blob),
+    reply_to:replyToId,seen:false,reactions:{},voice:true,
+    created_at:new Date().toISOString(),
+    _uploading:true,_progress:0
+  };
+  msgs.push(tempMsg);
+  document.getElementById('empty').style.display='none';
+  document.getElementById('msgs').appendChild(mkEl(tempMsg,true));
+  scrollBot(true);
+
+  async function attempt(){
+    const m=msgs.find(x=>x.id===tempId);
+    if(m){
+      m._uploading=true;m._failed=false;m._progress=0;
+      const el=document.querySelector(`.mw[data-id="${tempId}"]`);
+      if(el) el.replaceWith(mkEl(m));
+    }
+    try{
+      const ext=blob.type.includes('ogg')?'ogg':blob.type.includes('mp4')?'m4a':'webm';
+      const path=`voice_${Date.now()}.${ext}`;
+      await uploadWithProgress('images',path,blob,p=>updateUploadProgress(tempId,p));
+      const url=sb.storage.from('images').getPublicUrl(path).data.publicUrl;
+      const{data,error}=await sb.from('messages').insert({
+        sender:CU,content:`[voice:${dur}]`,image_url:url,
+        reply_to:replyToId,seen:false,reactions:{},voice:true
+      }).select().single();
+      if(error) throw error;
+      finalizeSentMsg(tempId,data);
+    }catch(err){
+      console.error('Voice send failed:',err);
+      markSendFailed(tempId,attempt);
+    }
+  }
+  attempt();
 }
 
 // Render voice message inside bubble
@@ -3239,45 +3411,119 @@ function renderVoice(url,dur,bubble){
   const btn=document.createElement('button');btn.className='voice-play';btn.textContent='▶';
   const canvas=document.createElement('canvas');
   canvas.width=120;canvas.height=28;
+  canvas.style.touchAction='none';
   const wf=document.createElement('div');wf.className='voice-waveform';wf.appendChild(canvas);
   const durEl=document.createElement('span');durEl.className='voice-dur';
   durEl.textContent=formatDur(dur);
   wrap.append(btn,wf,durEl);
   bubble.appendChild(wrap);
 
-  // Draw static waveform bars (decorative)
-  drawWaveform(canvas);
+  // Stable bar heights per message (seeded from the url) so re-renders don't reshuffle them
+  const bars=genWaveformBars(url);
+  let progress=0; // 0..1
+  drawWaveform(canvas,bars,progress);
 
-  let audio=null,playing=false,interval=null;
+  let audio=null,playing=false,rafId=null,realDur=dur,dragging=false;
+
+  function ensureAudio(){
+    if(audio)return audio;
+    audio=new Audio(url);
+    audio.preload='metadata';
+    audio.addEventListener('loadedmetadata',()=>{
+      if(isFinite(audio.duration)&&audio.duration>0) realDur=audio.duration;
+    });
+    audio.addEventListener('ended',()=>{
+      playing=false;btn.textContent='▶';
+      progress=0;drawWaveform(canvas,bars,progress);
+      durEl.textContent=formatDur(dur);
+      if(rafId){cancelAnimationFrame(rafId);rafId=null;}
+    });
+    return audio;
+  }
+
+  function tick(){
+    if(!playing||!audio)return;
+    if(!dragging){
+      progress=realDur>0?Math.min(1,audio.currentTime/realDur):0;
+      drawWaveform(canvas,bars,progress);
+      durEl.textContent=formatDur(Math.max(0,Math.round(realDur-audio.currentTime)));
+    }
+    rafId=requestAnimationFrame(tick);
+  }
+
+  function play(){
+    ensureAudio();
+    audio.play();
+    playing=true;btn.textContent='⏸';
+    rafId=requestAnimationFrame(tick);
+  }
+  function pause(){
+    if(audio) audio.pause(); // keep currentTime — don't reset to 0
+    playing=false;btn.textContent='▶';
+    if(rafId){cancelAnimationFrame(rafId);rafId=null;}
+  }
+
   btn.onclick=e=>{
     e.stopPropagation();
-    if(!audio){audio=new Audio(url);audio.onended=()=>{playing=false;btn.textContent='▶';clearInterval(interval);durEl.textContent=formatDur(dur);};}
-    if(playing){audio.pause();audio.currentTime=0;playing=false;btn.textContent='▶';clearInterval(interval);durEl.textContent=formatDur(dur);}
-    else{audio.play();playing=true;btn.textContent='⏹';
-      interval=setInterval(()=>{
-        const rem=dur-Math.floor(audio.currentTime);
-        durEl.textContent=formatDur(Math.max(0,rem));
-      },500);
-    }
+    if(playing) pause(); else play();
   };
+
+  // ── Tap/drag anywhere on the waveform to seek, like Instagram voice notes ──
+  function seekFromEvent(e){
+    const rect=canvas.getBoundingClientRect();
+    const x=(e.clientX!==undefined?e.clientX:e.touches?.[0]?.clientX)-rect.left;
+    const ratio=Math.max(0,Math.min(1,x/rect.width));
+    progress=ratio;
+    drawWaveform(canvas,bars,progress);
+    ensureAudio();
+    if(realDur>0) audio.currentTime=ratio*realDur;
+    durEl.textContent=formatDur(Math.max(0,Math.round(realDur-ratio*realDur)));
+  }
+  wf.addEventListener('pointerdown',e=>{
+    e.stopPropagation();
+    dragging=true;
+    wf.setPointerCapture(e.pointerId);
+    seekFromEvent(e);
+  });
+  wf.addEventListener('pointermove',e=>{
+    if(!dragging)return;
+    seekFromEvent(e);
+  });
+  const endDrag=e=>{
+    if(!dragging)return;
+    dragging=false;
+    if(playing&&audio&&audio.paused) audio.play();
+  };
+  wf.addEventListener('pointerup',endDrag);
+  wf.addEventListener('pointercancel',endDrag);
 }
 
-function drawWaveform(canvas){
+// Deterministic bar heights so the waveform doesn't reshuffle on re-render
+function genWaveformBars(seedStr){
+  let seed=0;
+  for(let i=0;i<seedStr.length;i++) seed=(seed*31+seedStr.charCodeAt(i))>>>0;
+  const rand=()=>{seed=(seed*1103515245+12345)>>>0;return(seed>>>8)/0xFFFFFF;};
+  const bars=[];
+  for(let i=0;i<28;i++) bars.push(4+rand()*20);
+  return bars;
+}
+
+function drawWaveform(canvas,bars,progress){
   const ctx=canvas.getContext('2d');
   const w=canvas.width,h=canvas.height;
-  // Read actual computed accent color — CSS vars don't work in canvas
   const accentRgb=getComputedStyle(document.body).getPropertyValue('--accent-rgb').trim()||'184,96,112';
-  const bars=28,bw=3,gap=1;
+  const bw=3,gap=1;
   ctx.clearRect(0,0,w,h);
-  for(let i=0;i<bars;i++){
-    const bh=4+Math.random()*(h-8);
+  const playedX=progress*w;
+  bars.forEach((bh,i)=>{
     const x=i*(bw+gap),y=(h-bh)/2;
-    ctx.fillStyle=`rgba(${accentRgb},0.55)`;
+    const barCenter=x+bw/2;
+    ctx.fillStyle=barCenter<=playedX?`rgba(${accentRgb},0.95)`:`rgba(${accentRgb},0.35)`;
     ctx.beginPath();
     if(ctx.roundRect) ctx.roundRect(x,y,bw,bh,2);
     else ctx.rect(x,y,bw,bh);
     ctx.fill();
-  }
+  });
 }
 
 function formatDur(s){
@@ -3305,25 +3551,54 @@ const _origSend=send;
 const _patchedSend=async function(){
   if(pendingAudio){
     const f=pendingAudio;
-    const ext=f.name.split('.').pop()||'mp3';
-    const path=`audio_${Date.now()}.${ext}`;
-    toast('Uploading audio...');
-    const{error}=await sb.storage.from('images').upload(path,f,{contentType:f.type||'audio/mpeg'});
-    if(error){toast('Audio upload failed: '+error.message);return;}
-    const url=sb.storage.from('images').getPublicUrl(path).data.publicUrl;
     pendingAudio=null;
     document.getElementById('docprv').style.display='none';
     const inp=document.getElementById('minp');
     const txt=inp.value.trim();
+    const replyToId=replyTo?.id||null;
     inp.value='';inp.style.height='auto';
     document.getElementById('sndbtn').classList.remove('on');
-    const row={sender:CU,content:txt||null,image_url:url,
-      doc_name:f.name,doc_type:f.type||'audio/mpeg',
-      reply_to:replyTo?.id||null,seen:false,reactions:{}};
-    const{error:ie}=await sb.from('messages').insert(row);
-    if(ie) toast('Send failed: '+ie.message);
     clearReply();
     layoutChat();
+
+    const tempId='tmp_'+Date.now()+'_'+Math.random().toString(36).slice(2);
+    const tempMsg={
+      id:tempId,sender:CU,content:txt||null,
+      image_url:URL.createObjectURL(f),
+      doc_name:f.name,doc_type:f.type||'audio/mpeg',
+      reply_to:replyToId,seen:false,reactions:{},
+      created_at:new Date().toISOString(),
+      _uploading:true,_progress:0
+    };
+    msgs.push(tempMsg);
+    document.getElementById('empty').style.display='none';
+    document.getElementById('msgs').appendChild(mkEl(tempMsg,true));
+    scrollBot(true);
+
+    async function attempt(){
+      const m=msgs.find(x=>x.id===tempId);
+      if(m){
+        m._uploading=true;m._failed=false;m._progress=0;
+        const el=document.querySelector(`.mw[data-id="${tempId}"]`);
+        if(el) el.replaceWith(mkEl(m));
+      }
+      try{
+        const ext=f.name.split('.').pop()||'mp3';
+        const path=`audio_${Date.now()}.${ext}`;
+        await uploadWithProgress('images',path,f,p=>updateUploadProgress(tempId,p));
+        const url=sb.storage.from('images').getPublicUrl(path).data.publicUrl;
+        const row={sender:CU,content:txt||null,image_url:url,
+          doc_name:f.name,doc_type:f.type||'audio/mpeg',
+          reply_to:replyToId,seen:false,reactions:{}};
+        const{data,error}=await sb.from('messages').insert(row).select().single();
+        if(error) throw error;
+        finalizeSentMsg(tempId,data);
+      }catch(err){
+        console.error('Audio send failed:',err);
+        markSendFailed(tempId,attempt);
+      }
+    }
+    attempt();
     return;
   }
   return _origSend();
