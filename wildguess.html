@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"/>
+<title>WildGuess 🦊</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg1:#ffe3f1; --bg2:#e9dfff; --bg3:#dff3ff;
+  --card:rgba(255,255,255,0.72); --card2:rgba(255,255,255,0.92);
+  --text:#463655; --text2:#8577a0; --text3:#ab9fc4;
+  --pink:#ff6fa8; --violet:#9b7fff; --yellow:#ffd166; --mint:#5fe1c1;
+  --grad:linear-gradient(135deg,#ff9dc4,#b79cff);
+  --grad-yellow:linear-gradient(135deg,#ffd166,#ff9dc4);
+  --border:rgba(255,255,255,0.9);
+  --good:#3fcf6e; --bad:#ff6b6b;
+  --shadow:0 18px 45px rgba(155,127,255,0.22);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;touch-action:manipulation}
+body{
+  background:linear-gradient(160deg,var(--bg1) 0%,var(--bg2) 55%,var(--bg3) 100%);
+  background-attachment:fixed;
+  color:var(--text);font-family:'Quicksand',sans-serif;font-weight:500;
+  min-height:100vh;min-height:-webkit-fill-available;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:20px;overflow-x:hidden;position:relative;
+}
+/* soft floating blobs for decoration */
+body::before,body::after{
+  content:'';position:fixed;border-radius:50%;filter:blur(50px);opacity:0.55;z-index:0;pointer-events:none;
+}
+body::before{width:220px;height:220px;background:var(--pink);top:-60px;left:-60px;animation:floatA 9s ease-in-out infinite}
+body::after{width:260px;height:260px;background:var(--violet);bottom:-80px;right:-60px;animation:floatB 11s ease-in-out infinite}
+@keyframes floatA{0%,100%{transform:translate(0,0)}50%{transform:translate(20px,30px)}}
+@keyframes floatB{0%,100%{transform:translate(0,0)}50%{transform:translate(-25px,-20px)}}
+
+h1,h2,.disp{font-family:'Fredoka',sans-serif}
+.wrap{width:100%;max-width:420px;display:flex;flex-direction:column;gap:16px;position:relative;z-index:1}
+.screen{display:none;flex-direction:column;gap:16px;animation:fadeUp 0.4s cubic-bezier(.2,1,.3,1)}
+.screen.on{display:flex}
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px) scale(0.98)}to{opacity:1;transform:none}}
+
+.brand{display:flex;align-items:center;gap:8px;justify-content:center;margin-bottom:2px}
+.brand .ic{font-size:30px;filter:drop-shadow(0 4px 10px rgba(255,111,168,0.4))}
+.brand h1{font-size:26px;font-weight:700;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+
+.card{
+  background:var(--card);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+  border:1.5px solid var(--border);border-radius:26px;
+  padding:22px;display:flex;flex-direction:column;gap:14px;
+  box-shadow:var(--shadow);
+}
+.card.tight{padding:16px}
+label{font-size:12px;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px;font-weight:700}
+input[type=text]{
+  width:100%;padding:14px 16px;border-radius:16px;border:1.5px solid rgba(155,127,255,0.25);
+  background:var(--card2);color:var(--text);font-size:16px;font-family:'Quicksand',sans-serif;font-weight:600;
+  outline:none;transition:border-color 0.15s,transform 0.15s;
+}
+input[type=text]::placeholder{color:var(--text3);font-weight:500}
+input[type=text]:focus{border-color:var(--pink)}
+input[type=text]:active{transform:scale(0.99)}
+
+.btn{
+  border:none;border-radius:16px;padding:15px 18px;font-size:15px;font-weight:700;
+  font-family:'Fredoka',sans-serif;cursor:pointer;color:#fff;background:var(--grad);
+  transition:transform 0.15s cubic-bezier(.34,1.56,.64,1),opacity 0.15s,box-shadow 0.15s;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  box-shadow:0 8px 20px rgba(255,111,168,0.35);
+}
+.btn:active{transform:scale(0.94)}
+.btn:disabled{opacity:0.45;pointer-events:none;box-shadow:none}
+.btn.ghost{background:var(--card2);color:var(--text);border:1.5px solid rgba(155,127,255,0.25);box-shadow:none}
+.btn.sm{padding:10px 15px;font-size:13px;border-radius:13px}
+
+.status-row{display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--text2)}
+.pill{display:inline-flex;align-items:center;gap:5px;background:var(--card2);border-radius:100px;padding:6px 12px;font-size:11.5px;font-weight:700;color:var(--text)}
+.pill .dot{width:6px;height:6px;border-radius:50%;background:var(--good)}
+.hidden-badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;color:var(--pink);background:rgba(255,111,168,0.12);padding:5px 10px;border-radius:100px}
+
+/* whoami sticker */
+.whoami{
+  align-self:center;display:inline-flex;align-items:center;gap:6px;
+  background:var(--grad);color:#fff;font-family:'Fredoka',sans-serif;font-weight:600;font-size:12.5px;
+  padding:6px 14px;border-radius:100px;box-shadow:0 6px 16px rgba(255,111,168,0.3);
+}
+
+.score-hero{display:flex;align-items:center;justify-content:center;gap:22px;padding:6px 0}
+.score-big{font-family:'Fredoka',sans-serif;font-size:44px;font-weight:700;line-height:1;color:var(--text)}
+.score-lbl{font-size:10.5px;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px;margin-top:4px;text-align:center;font-weight:700}
+.score-ctrl{display:flex;flex-direction:column;gap:8px}
+.circ{
+  width:36px;height:36px;border-radius:50%;border:none;background:var(--card2);
+  color:var(--violet);font-size:18px;font-weight:800;display:flex;align-items:center;justify-content:center;
+  cursor:pointer;transition:transform 0.15s cubic-bezier(.34,1.56,.64,1),background 0.15s,color 0.15s;
+  box-shadow:0 4px 10px rgba(155,127,255,0.18);
+}
+.circ:active{transform:scale(0.82);background:var(--grad);color:#fff}
+.bonus-note{font-size:11px;color:var(--text3);text-align:center;line-height:1.4}
+
+.round-track{display:flex;gap:6px;justify-content:center}
+.round-track .rp{width:28px;height:7px;border-radius:100px;background:var(--card2)}
+.round-track .rp.won-you{background:var(--grad)}
+.round-track .rp.won-them{background:linear-gradient(135deg,var(--violet),#7d6bd6)}
+
+.qcounter{display:flex;align-items:center;justify-content:space-between;background:var(--card2);border-radius:18px;padding:14px 16px}
+.qcounter .qn{font-family:'Fredoka',sans-serif;font-size:28px;font-weight:700;color:var(--pink)}
+.qcounter .qlbl{font-size:11.5px;color:var(--text2);font-weight:700}
+
+.hint{font-size:12px;color:var(--text2);text-align:center;line-height:1.5;padding:0 6px}
+.animal-tag{
+  display:inline-flex;align-items:center;gap:6px;background:var(--card2);border-radius:100px;
+  padding:7px 14px;font-size:12.5px;color:var(--text);font-weight:700;align-self:center;
+}
+
+.reveal-pair{display:flex;gap:10px}
+.reveal-card{flex:1;background:var(--card2);border-radius:18px;padding:16px;text-align:center;display:flex;flex-direction:column;gap:6px}
+.reveal-card.winner{background:var(--grad);color:#fff;transform:scale(1.03)}
+.reveal-card.winner .reveal-name,.reveal-card.winner .reveal-q{color:rgba(255,255,255,0.85)}
+.reveal-animal{font-size:19px;font-weight:700;font-family:'Fredoka',sans-serif}
+.reveal-name{font-size:11.5px;color:var(--text2);font-weight:700}
+.reveal-q{font-size:11px;color:var(--text3)}
+
+.trophy{font-size:56px;text-align:center;animation:trophyPop 0.6s cubic-bezier(.34,1.56,.64,1)}
+@keyframes trophyPop{from{transform:scale(0)}to{transform:scale(1)}}
+.final-name{font-family:'Fredoka',sans-serif;font-size:26px;font-weight:700;text-align:center;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+
+.err{color:var(--bad);font-size:12.5px;text-align:center;min-height:16px;font-weight:600}
+.dots{display:flex;gap:5px;justify-content:center}
+.dots span{width:7px;height:7px;border-radius:50%;background:var(--pink);animation:dotpulse 1.2s ease infinite}
+.dots span:nth-child(2){animation-delay:0.15s}
+.dots span:nth-child(3){animation-delay:0.3s}
+@keyframes dotpulse{0%,100%{opacity:0.3;transform:scale(0.8)}50%{opacity:1;transform:scale(1.15)}}
+
+.toast{
+  position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);
+  background:var(--card2);border:1.5px solid rgba(155,127,255,0.2);padding:12px 20px;border-radius:100px;
+  font-size:13px;font-weight:600;opacity:0;transition:opacity 0.2s,transform 0.2s;pointer-events:none;z-index:50;
+  box-shadow:var(--shadow);
+}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand"><span class="ic">🦊</span><h1>WildGuess</h1></div>
+
+  <!-- LOADING / ERROR -->
+  <div class="screen on" id="s-loading">
+    <div class="card" style="text-align:center">
+      <div class="dots"><span></span><span></span><span></span></div>
+      <div class="hint" id="loadingMsg">Getting things ready...</div>
+    </div>
+  </div>
+
+  <!-- CHOOSING -->
+  <div class="screen" id="s-choosing">
+    <div class="whoami" id="whoamiChip">🦊 You're playing as ...</div>
+    <div class="card">
+      <div class="status-row">
+        <span class="pill"><span class="dot"></span> Round <span id="chRound">1</span></span>
+        <span class="hidden-badge">🔒 Secret from them</span>
+      </div>
+      <label>Pick your secret animal or bird</label>
+      <input type="text" id="animalInput" placeholder="e.g. Peacock 🦚" maxlength="30"/>
+      <button class="btn" id="lockBtn" onclick="lockAnimal()">🔐 Lock it in</button>
+      <div class="hint" id="choosingHint"></div>
+    </div>
+  </div>
+
+  <!-- PLAYING -->
+  <div class="screen" id="s-playing">
+    <div class="whoami" id="whoamiChip2">🦊 Playing as ...</div>
+
+    <div class="card tight">
+      <div class="status-row">
+        <span class="pill"><span class="dot"></span> Round <span id="plRound">1</span></span>
+        <span id="connStatus" class="pill"><span class="dot"></span> Connected</span>
+      </div>
+      <div class="round-track" id="roundTrack"></div>
+    </div>
+
+    <div class="card tight">
+      <div class="animal-tag">🐾 Your animal: <span id="myAnimalTag">—</span></div>
+    </div>
+
+    <div class="card">
+      <div class="qcounter">
+        <div>
+          <div class="qn" id="myQCount">0</div>
+          <div class="qlbl">Questions you've asked</div>
+        </div>
+        <button class="btn sm" onclick="incQuestion()">+ Question ❓</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="score-hero">
+        <div class="score-ctrl">
+          <button class="circ" onclick="adjBonus(1)">+</button>
+          <button class="circ" onclick="adjBonus(-1)">−</button>
+        </div>
+        <div style="text-align:center">
+          <div class="score-big" id="bonusDisp">0</div>
+          <div class="score-lbl">✨ Bonus Points</div>
+        </div>
+        <div style="width:36px"></div>
+      </div>
+      <div class="bonus-note">Award each other points for a good question or a sneaky answer — just for fun, doesn't affect who wins 💕</div>
+    </div>
+
+    <div class="card">
+      <label>Think you know it? Type your guess</label>
+      <input type="text" id="guessInput" placeholder="Your guess..." maxlength="30" onkeydown="if(event.key==='Enter')submitGuess()"/>
+      <button class="btn" onclick="submitGuess()">🎯 Submit Guess</button>
+      <div class="err" id="guessErr"></div>
+    </div>
+
+    <div class="hint">🎙 Ask questions on your call — WildGuess only tracks the game.</div>
+  </div>
+
+  <!-- ROUND OVER -->
+  <div class="screen" id="s-roundover">
+    <div class="card" style="text-align:center">
+      <div id="roundWinnerBanner" style="font-family:'Fredoka',sans-serif;font-size:19px;font-weight:700"></div>
+      <div class="reveal-pair" id="revealPair"></div>
+      <div class="round-track" id="roundTrack2"></div>
+      <button class="btn" id="nextRoundBtn" onclick="goNextRound()">Next Round →</button>
+    </div>
+  </div>
+
+  <!-- MATCH OVER -->
+  <div class="screen" id="s-matchover">
+    <div class="card" style="text-align:center">
+      <div class="trophy">🏆</div>
+      <div class="final-name" id="finalWinnerName"></div>
+      <div class="hint" id="finalStats"></div>
+      <button class="btn" onclick="startNewMatch()">🔄 Play Again</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+const SU='https://ggfxdeuwifmqulyhchtv.supabase.co';
+const SK='sb_publishable_DMMJ2sFnGlFWogBs30qowg_-N0zk3OI';
+let sb, MY_UID=null, MY_NAME=null, OPP_NAME=null;
+let match=null, mySecret=null, oppSecret=null;
+let matchCh=null, secretsCh=null;
+
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('on');
+  clearTimeout(toast._t);
+  toast._t=setTimeout(()=>t.classList.remove('on'),2200);
+}
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on'));
+  document.getElementById(id).classList.add('on');
+}
+function showLoadingError(msg){
+  document.getElementById('loadingMsg').innerHTML=msg;
+  document.querySelector('#s-loading .dots').style.display='none';
+  showScreen('s-loading');
+}
+
+// ── BOOT ──
+(async function boot(){
+  sb=supabase.createClient(SU,SK);
+  try{
+    const{data:{session}}=await sb.auth.getSession();
+    if(session){MY_UID=session.user.id;}
+    else{
+      const{data,error}=await sb.auth.signInAnonymously();
+      if(error) throw error;
+      MY_UID=data.user.id;
+    }
+
+    // Auto-identify: who is this device currently logged in as, in Tether chat?
+    const{data:sess,error:sessErr}=await sb.from('sessions').select('user_name').eq('auth_uid',MY_UID).maybeSingle();
+    if(sessErr) throw sessErr;
+    if(!sess){
+      showLoadingError("Open and log into Tether chat on this device first 💬<br/>then come back here.");
+      return;
+    }
+    MY_NAME=sess.user_name;
+    OPP_NAME=MY_NAME==='Satyam'?'Snks':'Satyam';
+    document.getElementById('whoamiChip').textContent=`🦊 You're playing as ${MY_NAME}`;
+    document.getElementById('whoamiChip2').textContent=`🦊 Playing as ${MY_NAME}`;
+
+    const{data:m,error:mErr}=await sb.from('wg_match').select('*').eq('id',1).maybeSingle();
+    if(mErr) throw mErr;
+    match=m;
+    await loadMySecret();
+    if(match.status==='round_over'||match.status==='match_over') await loadOppSecretIfRevealed();
+    subscribeAll();
+    routeScreen();
+  }catch(e){
+    console.error(e);
+    showLoadingError('Something went wrong: '+(e.message||'unknown error'));
+  }
+})();
+
+// ── REALTIME ──
+function subscribeAll(){
+  if(matchCh){try{sb.removeChannel(matchCh);}catch(e){}}
+  if(secretsCh){try{sb.removeChannel(secretsCh);}catch(e){}}
+
+  matchCh=sb.channel('wg-match')
+    .on('postgres_changes',{event:'UPDATE',schema:'public',table:'wg_match',filter:'id=eq.1'},p=>{
+      match=p.new;
+      loadOppSecretIfRevealed();
+      routeScreen();
+    })
+    .subscribe(status=>{
+      const el=document.getElementById('connStatus');
+      if(el) el.innerHTML=`<span class="dot"></span> ${status==='SUBSCRIBED'?'Connected':'Reconnecting...'}`;
+    });
+
+  secretsCh=sb.channel('wg-secrets')
+    .on('postgres_changes',{event:'*',schema:'public',table:'wg_secrets'},p=>{
+      const row=p.new;
+      if(!row||row.round_number!==match.round_number)return;
+      if(row.player_name===MY_NAME){mySecret=row;}
+      else if(row.revealed){oppSecret=row;}
+      renderPlaying();
+    })
+    .subscribe();
+}
+
+async function loadMySecret(){
+  const{data}=await sb.from('wg_secrets').select('*')
+    .eq('round_number',match.round_number).eq('player_name',MY_NAME).maybeSingle();
+  mySecret=data;
+}
+async function loadOppSecretIfRevealed(){
+  const{data}=await sb.from('wg_secrets').select('*')
+    .eq('round_number',match.round_number).eq('player_name',OPP_NAME).maybeSingle();
+  if(data&&data.revealed) oppSecret=data;
+}
+
+// ── SCREEN ROUTING ──
+function routeScreen(){
+  if(!match)return;
+  if(match.status==='choosing'){
+    document.getElementById('chRound').textContent=match.round_number;
+    if(mySecret&&mySecret.locked){
+      document.getElementById('choosingHint').textContent="Locked in — waiting for them to lock in too... 👀";
+      document.getElementById('lockBtn').disabled=true;
+    }else{
+      document.getElementById('choosingHint').textContent='';
+      document.getElementById('lockBtn').disabled=false;
+      document.getElementById('animalInput').value='';
+    }
+    showScreen('s-choosing');
+  }else if(match.status==='playing'){
+    renderPlaying();
+    showScreen('s-playing');
+  }else if(match.status==='round_over'){
+    renderRoundOver();
+    showScreen('s-roundover');
+  }else if(match.status==='match_over'){
+    renderMatchOver();
+    showScreen('s-matchover');
+  }
+}
+
+function renderPlaying(){
+  if(!match||match.status!=='playing')return;
+  document.getElementById('plRound').textContent=match.round_number;
+  document.getElementById('bonusDisp').textContent=match.bonus_points;
+  document.getElementById('myAnimalTag').textContent=mySecret?.animal||'—';
+  document.getElementById('myQCount').textContent=mySecret?.question_count||0;
+  renderRoundTrack('roundTrack');
+}
+function renderRoundTrack(elId){
+  const el=document.getElementById(elId);
+  if(!el)return;
+  const myWins=MY_NAME==='Satyam'?match.round_wins_satyam:match.round_wins_snks;
+  const theirWins=MY_NAME==='Satyam'?match.round_wins_snks:match.round_wins_satyam;
+  let html='';
+  for(let i=0;i<2;i++) html+=`<div class="rp ${i<myWins?'won-you':''}"></div>`;
+  html+='<div style="width:8px"></div>';
+  for(let i=0;i<2;i++) html+=`<div class="rp ${i<theirWins?'won-them':''}"></div>`;
+  el.innerHTML=html;
+}
+
+async function renderRoundOver(){
+  const{data:rows}=await sb.from('wg_secrets').select('*').eq('round_number',match.round_number);
+  if(!rows||rows.length<2)return;
+  const mine=rows.find(r=>r.player_name===MY_NAME);
+  const theirs=rows.find(r=>r.player_name===OPP_NAME);
+  const iWon=match.round_winner===MY_NAME;
+  document.getElementById('roundWinnerBanner').innerHTML=iWon
+    ?'🎉 You won this round!':`😅 ${OPP_NAME} got it this round`;
+  document.getElementById('revealPair').innerHTML=`
+    <div class="reveal-card ${iWon?'winner':''}">
+      <div class="reveal-animal">${escHtmlWG(mine?.animal||'?')}</div>
+      <div class="reveal-name">You</div>
+      <div class="reveal-q">${mine?.question_count||0} questions asked</div>
+    </div>
+    <div class="reveal-card ${!iWon?'winner':''}">
+      <div class="reveal-animal">${escHtmlWG(theirs?.animal||'?')}</div>
+      <div class="reveal-name">${OPP_NAME}</div>
+      <div class="reveal-q">${theirs?.question_count||0} questions asked</div>
+    </div>`;
+  renderRoundTrack('roundTrack2');
+}
+
+function renderMatchOver(){
+  const myWins=MY_NAME==='Satyam'?match.round_wins_satyam:match.round_wins_snks;
+  const theirWins=MY_NAME==='Satyam'?match.round_wins_snks:match.round_wins_satyam;
+  const iWon=myWins>theirWins;
+  document.getElementById('finalWinnerName').textContent=iWon?'You win the match! 🎊':`${OPP_NAME} wins the match! 🎊`;
+  document.getElementById('finalStats').textContent=`Final score: ${myWins} — ${theirWins}  ·  ✨ ${match.bonus_points} bonus points earned together`;
+}
+
+// ── ACTIONS ──
+async function lockAnimal(){
+  const val=document.getElementById('animalInput').value.trim();
+  if(!val){toast('Type an animal or bird first 🐣');return;}
+  document.getElementById('lockBtn').disabled=true;
+  const{error}=await sb.rpc('wg_lock_animal',{p_round:match.round_number,p_animal:val});
+  if(error){toast('Failed: '+error.message);document.getElementById('lockBtn').disabled=false;return;}
+  await loadMySecret();
+  document.getElementById('choosingHint').textContent="Locked in — waiting for them to lock in too... 👀";
+}
+
+async function incQuestion(){
+  document.getElementById('myQCount').textContent=(mySecret?.question_count||0)+1;
+  if(mySecret) mySecret.question_count=(mySecret.question_count||0)+1;
+  const{error}=await sb.rpc('wg_inc_question',{p_round:match.round_number});
+  if(error) toast('Could not sync — check connection');
+}
+
+async function adjBonus(delta){
+  const newVal=Math.max(0,(match.bonus_points||0)+delta);
+  document.getElementById('bonusDisp').textContent=newVal;
+  match.bonus_points=newVal;
+  const{error}=await sb.rpc('wg_adj_bonus',{p_delta:delta});
+  if(error) toast('Could not sync — check connection');
+}
+
+async function submitGuess(){
+  const val=document.getElementById('guessInput').value.trim();
+  if(!val)return;
+  document.getElementById('guessErr').textContent='';
+  const{data,error}=await sb.rpc('wg_submit_guess',{p_round:match.round_number,p_guess:val});
+  if(error){document.getElementById('guessErr').textContent='Could not submit — try again';return;}
+  document.getElementById('guessInput').value='';
+  if(data.won){
+    toast('🎉 Correct! You won the round!');
+  }else if(data.correct){
+    toast(`Correct, but ${OPP_NAME} guessed first!`);
+  }else{
+    document.getElementById('guessErr').textContent='Not quite — keep asking! 🤔';
+  }
+}
+
+async function goNextRound(){
+  document.getElementById('nextRoundBtn').disabled=true;
+  const{error}=await sb.rpc('wg_next_round');
+  if(error){toast('Failed: '+error.message);document.getElementById('nextRoundBtn').disabled=false;return;}
+  const{data:m}=await sb.from('wg_match').select('*').eq('id',1).single();
+  match=m;oppSecret=null;
+  await loadMySecret();
+  routeScreen();
+  document.getElementById('nextRoundBtn').disabled=false;
+}
+
+async function startNewMatch(){
+  const{error}=await sb.rpc('wg_new_match');
+  if(error){toast('Failed: '+error.message);return;}
+  const{data:m}=await sb.from('wg_match').select('*').eq('id',1).single();
+  match=m;mySecret=null;oppSecret=null;
+  routeScreen();
+}
+
+function escHtmlWG(s){
+  const d=document.createElement('div');d.textContent=s;return d.innerHTML;
+}
+</script>
+</body>
+</html>
