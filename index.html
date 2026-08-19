@@ -14,13 +14,13 @@
 <link rel="icon" href="icon.png" type="image/png"/>
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Geist:wght@300;400;500;600&display=swap" rel="stylesheet"/>
 <style>
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 
 /* FULLSCREEN — hide browser chrome when installed as PWA or in standalone */
-html{height:100%;height:-webkit-fill-available}
+html{height:100%;height:-webkit-fill-available;touch-action:manipulation}
 body{
   min-height:100vh;min-height:-webkit-fill-available;
-  position:fixed;width:100%;overflow:hidden;
+  position:fixed;width:100%;overflow:hidden;touch-action:manipulation;
 }
 
 /* ══════════════════════════════
@@ -458,6 +458,7 @@ html,body{
   position:relative;
   transition:transform 0.18s cubic-bezier(.2,1.4,.4,1);
   will-change:transform;
+  touch-action:pan-y;
 }
 /* reply arrow that fades in on swipe */
 .swipe-arrow{
@@ -2026,6 +2027,7 @@ function kickOut(){
   if(_sessCh){try{sb.removeChannel(_sessCh);}catch(e){}_sessCh=null;}
   const name=CU;
   localStorage.removeItem('us_trusted_'+name);
+  unsubscribeSWPush(name);
   showKickOverlay(name);
 }
 
@@ -2455,7 +2457,25 @@ function mkEl(msg,animate=false){
 
 function addSwipe(bw,arrow,msg){
   let startX=0,startY=0,dx=0,swiping=false,fired=false,dir=0;
+  let rafId=null,pendingDx=null;
   const THRESHOLD=58;
+
+  function flush(){
+    rafId=null;
+    if(pendingDx===null)return;
+    const d=pendingDx;pendingDx=null;
+    bw.style.transform=`translateX(${d}px)`;
+    if(dir===1){
+      const progress=Math.min(d/THRESHOLD,1);
+      arrow.style.opacity=String(Math.max(0,progress));
+    }else{
+      arrow.style.opacity='0';
+    }
+  }
+  function schedule(d){
+    pendingDx=d;
+    if(rafId===null) rafId=requestAnimationFrame(flush);
+  }
 
   bw.addEventListener('touchstart',e=>{
     startX=e.touches[0].clientX;
@@ -2467,20 +2487,21 @@ function addSwipe(bw,arrow,msg){
     if(!swiping)return;
     dx=e.touches[0].clientX-startX;
     const dy=Math.abs(e.touches[0].clientY-startY);
-    if(dy>Math.abs(dx)){swiping=false;bw.style.transform='';arrow.style.opacity='';return;}
+    if(dy>Math.abs(dx)){
+      swiping=false;
+      if(rafId!==null){cancelAnimationFrame(rafId);rafId=null;}
+      pendingDx=null;
+      bw.style.transform='';arrow.style.opacity='';
+      return;
+    }
 
     if(dir===0) dir=dx>0?1:-1;
     const clamped=Math.max(-THRESHOLD*1.2,Math.min(dx,THRESHOLD*1.2));
-    bw.style.transform=`translateX(${clamped}px)`;
+    schedule(clamped);
 
     if(dir===1){
-      // right swipe = reply arrow
-      const progress=Math.min(dx/THRESHOLD,1);
-      arrow.style.opacity=String(Math.max(0,progress));
       if(dx>=THRESHOLD&&!fired){fired=true;if(navigator.vibrate)navigator.vibrate(18);}
     } else {
-      // left swipe = action tray fades in from right
-      arrow.style.opacity='0';
       if(dx<=-THRESHOLD&&!fired){fired=true;if(navigator.vibrate)navigator.vibrate(18);}
     }
   },{passive:true});
@@ -2488,6 +2509,8 @@ function addSwipe(bw,arrow,msg){
   const endSwipe=()=>{
     if(!swiping)return;
     swiping=false;
+    if(rafId!==null){cancelAnimationFrame(rafId);rafId=null;}
+    pendingDx=null;
     bw.style.transition='transform 0.2s cubic-bezier(.2,1.4,.4,1)';
     bw.style.transform='';
     arrow.classList.remove('show');
@@ -3614,6 +3637,21 @@ async function subscribeToSWPush(){
   }
 }
 
+// Tear down push delivery for whoever was logged in on this device —
+// called on logout and when this device gets kicked by another login
+async function unsubscribeSWPush(forUser){
+  try{
+    if(forUser){
+      try{await sb.from('push_subscriptions').delete().eq('username',forUser);}catch(e){}
+    }
+    if('serviceWorker'in navigator){
+      const reg=await navigator.serviceWorker.ready;
+      const sub=await reg.pushManager.getSubscription();
+      if(sub) await sub.unsubscribe();
+    }
+  }catch(e){console.warn('Push unsubscribe failed:',e);}
+}
+
 // Convert VAPID public key from base64url to Uint8Array
 function urlBase64ToUint8Array(base64String){
   const padding='='.repeat((4-base64String.length%4)%4);
@@ -3688,6 +3726,7 @@ function checkInstallState(){
 async function logout(){
   if(!confirm('Switch user? You\'ll be asked to pick again.')) return;
   await setOffPres();
+  await unsubscribeSWPush(CU);
   // Tell SW to stop background polling
   if('serviceWorker'in navigator&&navigator.serviceWorker.controller){
     navigator.serviceWorker.controller.postMessage({type:'STOP_WATCH'});
