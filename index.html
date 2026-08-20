@@ -2436,7 +2436,7 @@ function mkEl(msg,animate=false){
     if(orig){
       const rp=document.createElement('div');
       rp.className='rprev';
-      rp.textContent=orig.deleted?'🚫 deleted message':(orig.content||( orig.video?'🎥 Video':'📷 Photo'));
+      rp.textContent=orig.deleted?'🚫 deleted message':(orig.content||(orig.video?'🎥 Video':'📷 Photo'));
       w.appendChild(rp);
     }
   }

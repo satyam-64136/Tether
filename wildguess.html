@@ -11,7 +11,7 @@
   --bg1:#ffe3f1; --bg2:#e9dfff; --bg3:#dff3ff;
   --card:rgba(255,255,255,0.72); --card2:rgba(255,255,255,0.92);
   --text:#463655; --text2:#8577a0; --text3:#ab9fc4;
-  --pink:#ff6fa8; --violet:#9b7fff;
+  --pink:#ff6fa8; --violet:#9b7fff; --good:#3fcf6e;
   --grad:linear-gradient(135deg,#ff9dc4,#b79cff);
   --border:rgba(255,255,255,0.9);
   --bad:#ff6b6b;
@@ -24,7 +24,7 @@ body{
   background-attachment:fixed;
   color:var(--text);font-family:'Quicksand',sans-serif;font-weight:500;
   min-height:100vh;min-height:-webkit-fill-available;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  display:flex;flex-direction:column;align-items:center;
   padding:20px;overflow-x:hidden;position:relative;
 }
 body::before,body::after{
@@ -36,7 +36,7 @@ body::after{width:260px;height:260px;background:var(--violet);bottom:-80px;right
 @keyframes floatB{0%,100%{transform:translate(0,0)}50%{transform:translate(-25px,-20px)}}
 
 h1,h2,.disp{font-family:'Fredoka',sans-serif}
-.wrap{width:100%;max-width:420px;display:flex;flex-direction:column;gap:16px;position:relative;z-index:1}
+.wrap{width:100%;max-width:420px;display:flex;flex-direction:column;gap:16px;position:relative;z-index:1;margin:auto 0;padding:12px 0 30px}
 .topbar{display:flex;align-items:center;justify-content:space-between}
 .backlink{
   font-size:12.5px;font-weight:700;color:var(--text2);text-decoration:none;
@@ -53,7 +53,7 @@ h1,h2,.disp{font-family:'Fredoka',sans-serif}
 .card{
   background:var(--card);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
   border:1.5px solid var(--border);border-radius:26px;
-  padding:22px;display:flex;flex-direction:column;gap:14px;
+  padding:20px;display:flex;flex-direction:column;gap:14px;
   box-shadow:var(--shadow);
 }
 label{font-size:12px;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px;font-weight:700}
@@ -65,6 +65,7 @@ input[type=text]{
 input[type=text]::placeholder{color:var(--text3);font-weight:500}
 input[type=text]:focus{border-color:var(--pink)}
 input[type=text]:active{transform:scale(0.99)}
+input[type=text]:disabled{opacity:0.55}
 
 .btn{
   border:none;border-radius:16px;padding:15px 18px;font-size:15px;font-weight:700;
@@ -75,10 +76,12 @@ input[type=text]:active{transform:scale(0.99)}
 }
 .btn:active{transform:scale(0.94)}
 .btn:disabled{opacity:0.45;pointer-events:none;box-shadow:none}
+.btn.sm{padding:12px 16px;font-size:14px;flex-shrink:0}
 
 .status-row{display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--text2)}
 .pill{display:inline-flex;align-items:center;gap:5px;background:var(--card2);border-radius:100px;padding:6px 12px;font-size:11.5px;font-weight:700;color:var(--text)}
-.pill .dot{width:6px;height:6px;border-radius:50%;background:#3fcf6e}
+.pill .dot{width:6px;height:6px;border-radius:50%;background:var(--good)}
+.pill.warn .dot{background:#ffb84d}
 .hidden-badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;color:var(--pink);background:rgba(255,111,168,0.12);padding:5px 10px;border-radius:100px}
 
 .whoami{
@@ -102,6 +105,36 @@ input[type=text]:active{transform:scale(0.99)}
 .gc-name{font-size:12px;font-weight:700;color:var(--text2)}
 .gc-divider{width:1.5px;background:rgba(155,127,255,0.25);margin:4px 0}
 
+/* ── question / answer log ── */
+.q-ask-row{display:flex;gap:8px}
+.q-ask-row input{flex:1}
+#qHistory{
+  display:flex;flex-direction:column;gap:8px;max-height:240px;overflow-y:auto;
+  padding:2px 2px 4px;
+}
+.q-item{
+  background:var(--card2);border-radius:14px;padding:10px 12px;
+  display:flex;flex-direction:column;gap:8px;
+}
+.q-text{font-size:13px;color:var(--text);line-height:1.4}
+.q-text b{color:var(--pink)}
+.q-toggle{display:flex;gap:8px}
+.q-toggle button{
+  flex:1;border:none;border-radius:10px;padding:9px;font-family:'Fredoka',sans-serif;font-weight:600;
+  font-size:12.5px;cursor:pointer;transition:transform 0.12s;
+}
+.q-toggle button:active{transform:scale(0.92)}
+.q-toggle .q-yes{background:rgba(63,207,110,0.18);color:#2a9e52}
+.q-toggle .q-no{background:rgba(255,107,107,0.18);color:#d64545}
+.q-answer{
+  align-self:flex-start;font-family:'Fredoka',sans-serif;font-weight:600;font-size:12.5px;
+  padding:5px 12px;border-radius:100px;
+}
+.q-answer.yes{background:rgba(63,207,110,0.18);color:#2a9e52}
+.q-answer.no{background:rgba(255,107,107,0.18);color:#d64545}
+.q-pending{font-size:11.5px;color:var(--text3);font-style:italic}
+.q-empty{font-size:12.5px;color:var(--text3);text-align:center;padding:14px 8px}
+
 .reveal-pair{display:flex;align-items:stretch}
 .reveal-card{flex:1;padding:16px 10px;text-align:center;display:flex;flex-direction:column;gap:6px;justify-content:center}
 .reveal-card.winner .reveal-animal{color:var(--pink)}
@@ -124,7 +157,7 @@ input[type=text]:active{transform:scale(0.99)}
   position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);
   background:var(--card2);border:1.5px solid rgba(155,127,255,0.2);padding:12px 20px;border-radius:100px;
   font-size:13px;font-weight:600;opacity:0;transition:opacity 0.2s,transform 0.2s;pointer-events:none;z-index:50;
-  box-shadow:var(--shadow);
+  box-shadow:var(--shadow);max-width:88vw;text-align:center;
 }
 .toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
 </style>
@@ -184,13 +217,20 @@ input[type=text]:active{transform:scale(0.99)}
     </div>
 
     <div class="card">
+      <div class="gc-title">💬 Ask a yes/no question</div>
+      <div class="q-ask-row">
+        <input type="text" id="qInput" placeholder="e.g. Does it fly?" maxlength="100" onkeydown="if(event.key==='Enter')askQuestion()"/>
+        <button class="btn sm" onclick="askQuestion()">Ask</button>
+      </div>
+      <div id="qHistory"></div>
+    </div>
+
+    <div class="card">
       <label>Think you know it? Type your guess</label>
       <input type="text" id="guessInput" placeholder="Your guess..." maxlength="30" onkeydown="if(event.key==='Enter')submitGuess()"/>
       <button class="btn" onclick="submitGuess()">🎯 Submit Guess</button>
       <div class="err" id="guessErr"></div>
     </div>
-
-    <div class="hint">🎙 Ask questions on your call — WildGuess only tracks the game.</div>
   </div>
 
   <!-- OVER -->
@@ -226,13 +266,15 @@ const SK='sb_publishable_DMMJ2sFnGlFWogBs30qowg_-N0zk3OI';
 let sb, MY_UID=null, MY_NAME=null, OPP_NAME=null;
 let match=null, mySecret=null, oppSecret=null;
 let guessCounts={Satyam:0,Snks:0};
-let matchCh=null, secretsCh=null, countsCh=null;
+let questions=[];
+let matchCh=null, secretsCh=null, countsCh=null, questionsCh=null;
+let _lastRoutedStatus=null; // used to only reset inputs on a GENUINE screen transition, never mid-typing
 
 function toast(msg){
   const t=document.getElementById('toast');
   t.textContent=msg;t.classList.add('on');
   clearTimeout(toast._t);
-  toast._t=setTimeout(()=>t.classList.remove('on'),2200);
+  toast._t=setTimeout(()=>t.classList.remove('on'),2400);
 }
 function showScreen(id){
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on'));
@@ -242,6 +284,18 @@ function showLoadingError(msg){
   document.getElementById('loadingMsg').innerHTML=msg;
   document.querySelector('#s-loading .dots').style.display='none';
   showScreen('s-loading');
+}
+function escHtmlWG(s){
+  const d=document.createElement('div');d.textContent=s??'';return d.innerHTML;
+}
+// Every server call gets a hard timeout so a dropped connection can never
+// leave a button/input stuck disabled forever — this is what fixes the
+// "frozen, had to reopen the app" symptom.
+function withTimeout(promise,ms=12000){
+  return Promise.race([
+    promise,
+    new Promise((_,reject)=>setTimeout(()=>reject(new Error('Timed out — check your connection')),ms))
+  ]);
 }
 
 // ── BOOT ──
@@ -267,14 +321,18 @@ async function boot(){
     document.getElementById('whoamiChip2').textContent=`🦊 Playing as ${MY_NAME}`;
     document.getElementById('revealThemName').textContent=OPP_NAME;
 
-    const{data:m,error:mErr}=await sb.from('wg_match').select('*').eq('id',1).maybeSingle();
-    if(mErr) throw mErr;
-    match=m;
-    await loadMySecret();
-    if(match.status==='over') await loadOppSecretIfRevealed();
-    await loadGuessCounts();
+    await resync();
     subscribeAll();
-    routeScreen();
+
+    // Reliability net: even if realtime silently drops (very common on mobile
+    // when the app backgrounds), this guarantees we're never out of sync with
+    // the server for more than a few seconds.
+    setInterval(resync,4000);
+    document.addEventListener('visibilitychange',()=>{
+      if(!document.hidden){ resync(); subscribeAll(); }
+    });
+    window.addEventListener('online',()=>{ resync(); subscribeAll(); });
+    window.addEventListener('pageshow',()=>{ resync(); subscribeAll(); });
   }catch(e){
     console.error(e);
     showLoadingError('Something went wrong: '+(e.message||'unknown error'));
@@ -286,38 +344,27 @@ async function boot(){
   boot();
 })();
 
-// ── REALTIME ──
+// ── REALTIME (best-effort, instant when it works; resync() above covers the gaps) ──
 function subscribeAll(){
   if(matchCh){try{sb.removeChannel(matchCh);}catch(e){}}
   if(secretsCh){try{sb.removeChannel(secretsCh);}catch(e){}}
   if(countsCh){try{sb.removeChannel(countsCh);}catch(e){}}
+  if(questionsCh){try{sb.removeChannel(questionsCh);}catch(e){}}
 
-  matchCh=sb.channel('wg-match')
-    .on('postgres_changes',{event:'UPDATE',schema:'public',table:'wg_match',filter:'id=eq.1'},async p=>{
-      match=p.new;
-      // Always resync from the server on any match transition — this is what
-      // makes "Play Again" work instantly on BOTH screens without a manual reload.
-      await loadMySecret();
-      if(match.status==='over') await loadOppSecretIfRevealed();
-      else oppSecret=null;
-      routeScreen();
-    })
+  matchCh=sb.channel('wg-match-'+Date.now())
+    .on('postgres_changes',{event:'UPDATE',schema:'public',table:'wg_match',filter:'id=eq.1'},()=>resync())
     .subscribe(status=>{
       const el=document.getElementById('connStatus');
-      if(el) el.innerHTML=`<span class="dot"></span> ${status==='SUBSCRIBED'?'Connected':'Reconnecting...'}`;
+      if(!el)return;
+      if(status==='SUBSCRIBED') el.innerHTML=`<span class="dot"></span> Connected`;
+      else{ el.className='pill warn'; el.innerHTML=`<span class="dot"></span> Reconnecting...`; }
     });
 
-  secretsCh=sb.channel('wg-secrets')
-    .on('postgres_changes',{event:'*',schema:'public',table:'wg_secrets'},p=>{
-      const row=p.new;
-      if(!row)return;
-      if(row.player_name===MY_NAME){mySecret=row;}
-      else if(row.revealed){oppSecret=row;}
-      renderPlaying();
-    })
+  secretsCh=sb.channel('wg-secrets-'+Date.now())
+    .on('postgres_changes',{event:'*',schema:'public',table:'wg_secrets'},()=>resync())
     .subscribe();
 
-  countsCh=sb.channel('wg-counts')
+  countsCh=sb.channel('wg-counts-'+Date.now())
     .on('postgres_changes',{event:'UPDATE',schema:'public',table:'wg_guess_counts'},p=>{
       const row=p.new;
       if(!row)return;
@@ -325,6 +372,30 @@ function subscribeAll(){
       renderGuessCounts(row.player_name);
     })
     .subscribe();
+
+  questionsCh=sb.channel('wg-questions-'+Date.now())
+    .on('postgres_changes',{event:'*',schema:'public',table:'wg_questions'},()=>loadQuestions())
+    .subscribe();
+}
+
+// ── Central resync: the single source of truth pulled fresh from the server.
+//    Called on boot, on every realtime match ping, every 4s regardless, and
+//    whenever the app comes back to the foreground. ──
+async function resync(){
+  try{
+    const{data:m,error:mErr}=await sb.from('wg_match').select('*').eq('id',1).maybeSingle();
+    if(mErr) throw mErr;
+    if(!m)return;
+    match=m;
+    await loadMySecret();
+    if(match.status==='over') await loadOppSecretIfRevealed();
+    else oppSecret=null;
+    await loadGuessCounts();
+    if(match.status==='playing') await loadQuestions();
+    routeScreen();
+  }catch(e){
+    console.warn('resync failed (will retry):',e);
+  }
 }
 
 async function loadMySecret(){
@@ -337,9 +408,7 @@ async function loadOppSecretIfRevealed(){
 }
 async function loadGuessCounts(){
   const{data}=await sb.from('wg_guess_counts').select('*');
-  if(data){
-    data.forEach(r=>guessCounts[r.player_name]=r.count);
-  }
+  if(data) data.forEach(r=>guessCounts[r.player_name]=r.count);
   renderGuessCounts();
 }
 function renderGuessCounts(bumpedName){
@@ -356,29 +425,112 @@ function renderGuessCounts(bumpedName){
   }
 }
 
+// ── QUESTIONS ──
+async function loadQuestions(){
+  const{data,error}=await sb.from('wg_questions').select('*').order('created_at',{ascending:true});
+  if(!error) questions=data||[];
+  renderQuestions();
+}
+function renderQuestions(){
+  const el=document.getElementById('qHistory');
+  if(!el)return;
+  if(!questions.length){
+    el.innerHTML='<div class="q-empty">No questions asked yet — start guessing! 🕵️</div>';
+    return;
+  }
+  el.replaceChildren();
+  questions.forEach(q=>{
+    const item=document.createElement('div');
+    item.className='q-item';
+    const isMine=q.asked_by===MY_NAME;
+    const textDiv=document.createElement('div');
+    textDiv.className='q-text';
+    textDiv.innerHTML=`<b>${escHtmlWG(q.asked_by)} asked:</b> ${escHtmlWG(q.question)}`;
+    item.appendChild(textDiv);
+    if(q.answer){
+      const badge=document.createElement('div');
+      badge.className='q-answer '+q.answer;
+      badge.textContent=q.answer==='yes'?'✅ Yes':'❌ No';
+      item.appendChild(badge);
+    }else if(!isMine){
+      const toggle=document.createElement('div');
+      toggle.className='q-toggle';
+      const yesBtn=document.createElement('button');
+      yesBtn.className='q-yes';yesBtn.textContent='✅ Yes';
+      yesBtn.onclick=()=>answerQuestion(q.id,'yes');
+      const noBtn=document.createElement('button');
+      noBtn.className='q-no';noBtn.textContent='❌ No';
+      noBtn.onclick=()=>answerQuestion(q.id,'no');
+      toggle.append(yesBtn,noBtn);
+      item.appendChild(toggle);
+    }else{
+      const pending=document.createElement('div');
+      pending.className='q-pending';pending.textContent='⏳ Waiting for their answer...';
+      item.appendChild(pending);
+    }
+    el.appendChild(item);
+  });
+  el.scrollTop=el.scrollHeight;
+}
+async function askQuestion(){
+  const input=document.getElementById('qInput');
+  const val=input.value.trim();
+  if(!val)return;
+  input.value='';
+  try{
+    const{error}=await withTimeout(sb.rpc('wg_ask_question',{p_question:val}));
+    if(error) throw error;
+    await loadQuestions();
+  }catch(e){
+    console.error('ask question failed:',e);
+    toast('Could not send — try again');
+    input.value=val; // give it back so nothing is lost
+  }
+}
+async function answerQuestion(id,answer){
+  const q=questions.find(x=>x.id===id);
+  if(q){q.answer=answer;q.answered_at=new Date().toISOString();renderQuestions();} // optimistic
+  try{
+    const{error}=await withTimeout(sb.rpc('wg_answer_question',{p_id:id,p_answer:answer}));
+    if(error) throw error;
+  }catch(e){
+    console.error('answer question failed:',e);
+    toast('Could not send answer — try again');
+    await loadQuestions(); // undo optimistic update by resyncing from server
+  }
+}
+
 // ── SCREEN ROUTING ──
 function routeScreen(){
   if(!match)return;
+  const enteringChoosing = match.status==='choosing' && _lastRoutedStatus!=='choosing';
+
   if(match.status==='choosing'){
+    const animalInput=document.getElementById('animalInput');
     if(mySecret&&mySecret.locked){
       document.getElementById('choosingHint').textContent="Locked in — waiting for them to lock in too... 👀";
       document.getElementById('lockBtn').disabled=true;
-      document.getElementById('animalInput').disabled=true;
+      animalInput.disabled=true;
     }else{
       document.getElementById('choosingHint').textContent='';
       document.getElementById('lockBtn').disabled=false;
-      document.getElementById('animalInput').disabled=false;
-      document.getElementById('animalInput').value='';
+      animalInput.disabled=false;
+      // CRITICAL: only clear the field on a genuine fresh entry into this screen,
+      // never on a routine resync — this was the bug causing "can't type", where
+      // periodic re-renders were wiping out whatever was mid-typed.
+      if(enteringChoosing) animalInput.value='';
     }
     showScreen('s-choosing');
   }else if(match.status==='playing'){
     renderPlaying();
     renderGuessCounts();
+    renderQuestions();
     showScreen('s-playing');
   }else if(match.status==='over'){
     renderOver();
     showScreen('s-over');
   }
+  _lastRoutedStatus=match.status;
 }
 
 function renderPlaying(){
@@ -400,36 +552,43 @@ function renderOver(){
 async function lockAnimal(){
   const val=document.getElementById('animalInput').value.trim();
   if(!val){toast('Type an animal or bird first 🐣');return;}
-  document.getElementById('lockBtn').disabled=true;
-  const{error}=await sb.rpc('wg_lock_animal',{p_animal:val});
-  if(error){toast('Failed: '+error.message);document.getElementById('lockBtn').disabled=false;return;}
-  await loadMySecret();
-  document.getElementById('animalInput').disabled=true;
-  document.getElementById('choosingHint').textContent="Locked in — waiting for them to lock in too... 👀";
+  const lockBtn=document.getElementById('lockBtn');
+  lockBtn.disabled=true;
+  try{
+    const{error}=await withTimeout(sb.rpc('wg_lock_animal',{p_animal:val}));
+    if(error) throw error;
+    await loadMySecret();
+    document.getElementById('animalInput').disabled=true;
+    document.getElementById('choosingHint').textContent="Locked in — waiting for them to lock in too... 👀";
+  }catch(e){
+    toast('Failed: '+(e.message||'try again'));
+    lockBtn.disabled=false; // never leave it stuck disabled on failure
+  }
 }
 
 async function submitGuess(){
-  const val=document.getElementById('guessInput').value.trim();
+  const input=document.getElementById('guessInput');
+  const val=input.value.trim();
   if(!val)return;
   document.getElementById('guessErr').textContent='';
-  // Optimistic local bump so it feels instant even before the server round-trip
-  guessCounts[MY_NAME]=(guessCounts[MY_NAME]||0)+1;
+  guessCounts[MY_NAME]=(guessCounts[MY_NAME]||0)+1; // optimistic bump
   renderGuessCounts(MY_NAME);
-  const{data,error}=await sb.rpc('wg_submit_guess',{p_guess:val});
-  if(error){
-    console.error('wg_submit_guess error:',error);
+  try{
+    const{data,error}=await withTimeout(sb.rpc('wg_submit_guess',{p_guess:val}));
+    if(error) throw error;
+    input.value='';
+    if(data.won){
+      toast('🎉 Correct! You got it!');
+    }else if(data.correct){
+      toast(`Correct, but ${OPP_NAME} guessed first!`);
+    }else{
+      document.getElementById('guessErr').textContent='Not quite — keep asking! 🤔';
+    }
+  }catch(e){
+    console.error('submitGuess error:',e);
     guessCounts[MY_NAME]=Math.max(0,(guessCounts[MY_NAME]||1)-1); // undo optimistic bump
     renderGuessCounts(MY_NAME);
-    document.getElementById('guessErr').textContent='Error: '+(error.message||'unknown')+(error.hint?' — '+error.hint:'');
-    return;
-  }
-  document.getElementById('guessInput').value='';
-  if(data.won){
-    toast('🎉 Correct! You got it!');
-  }else if(data.correct){
-    toast(`Correct, but ${OPP_NAME} guessed first!`);
-  }else{
-    document.getElementById('guessErr').textContent='Not quite — keep asking! 🤔';
+    document.getElementById('guessErr').textContent='Error: '+(e.message||'unknown');
   }
 }
 
@@ -437,18 +596,15 @@ async function startNewMatch(){
   const btn=document.querySelector('#s-over .btn');
   if(btn) btn.disabled=true;
   try{
-    const{error}=await sb.rpc('wg_new_match');
+    const{error}=await withTimeout(sb.rpc('wg_new_match'));
     if(error) throw error;
-    const{data:m,error:mErr}=await sb.from('wg_match').select('*').eq('id',1).single();
-    if(mErr) throw mErr;
-    match=m;
     mySecret=null;
     oppSecret=null;
     guessCounts={Satyam:0,Snks:0};
-    renderGuessCounts();
+    questions=[];
     document.getElementById('guessInput').value='';
     document.getElementById('guessErr').textContent='';
-    routeScreen(); // no page reload needed — state is fully reset in memory
+    await resync(); // pulls the fresh reset state and routes to the choosing screen
   }catch(e){
     toast('Failed: '+(e.message||'try again'));
   }
