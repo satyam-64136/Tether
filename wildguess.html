@@ -353,7 +353,11 @@ async function submitGuess(){
   if(!val)return;
   document.getElementById('guessErr').textContent='';
   const{data,error}=await sb.rpc('wg_submit_guess',{p_guess:val});
-  if(error){document.getElementById('guessErr').textContent='Could not submit — try again';return;}
+  if(error){
+    console.error('wg_submit_guess error:',error);
+    document.getElementById('guessErr').textContent='Error: '+(error.message||'unknown')+(error.hint?' — '+error.hint:'');
+    return;
+  }
   document.getElementById('guessInput').value='';
   if(data.won){
     toast('🎉 Correct! You got it!');
