@@ -93,6 +93,15 @@ input[type=text]:active{transform:scale(0.99)}
   padding:7px 14px;font-size:12.5px;color:var(--text);font-weight:700;align-self:center;
 }
 
+/* ── live guess counter scoreboard ── */
+.gc-title{font-size:11.5px;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px;font-weight:700;text-align:center}
+.gc-row{display:flex;align-items:stretch}
+.gc-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px 8px}
+.gc-num{font-family:'Fredoka',sans-serif;font-size:34px;font-weight:700;color:var(--text);line-height:1;transition:transform 0.15s cubic-bezier(.34,1.56,.64,1)}
+.gc-num.bump{transform:scale(1.25)}
+.gc-name{font-size:12px;font-weight:700;color:var(--text2)}
+.gc-divider{width:1.5px;background:rgba(155,127,255,0.25);margin:4px 0}
+
 .reveal-pair{display:flex;align-items:stretch}
 .reveal-card{flex:1;padding:16px 10px;text-align:center;display:flex;flex-direction:column;gap:6px;justify-content:center}
 .reveal-card.winner .reveal-animal{color:var(--pink)}
@@ -160,6 +169,21 @@ input[type=text]:active{transform:scale(0.99)}
     </div>
 
     <div class="card">
+      <div class="gc-title">🎯 Guesses so far</div>
+      <div class="gc-row">
+        <div class="gc-col">
+          <div class="gc-num" id="gcSatyam">0</div>
+          <div class="gc-name">Satyam</div>
+        </div>
+        <div class="gc-divider"></div>
+        <div class="gc-col">
+          <div class="gc-num" id="gcSnks">0</div>
+          <div class="gc-name">Snks</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
       <label>Think you know it? Type your guess</label>
       <input type="text" id="guessInput" placeholder="Your guess..." maxlength="30" onkeydown="if(event.key==='Enter')submitGuess()"/>
       <button class="btn" onclick="submitGuess()">🎯 Submit Guess</button>
@@ -187,6 +211,7 @@ input[type=text]:active{transform:scale(0.99)}
           </div>
         </div>
       </div>
+      <div class="hint" id="finalGuessStats"></div>
       <button class="btn" onclick="startNewMatch()">🔄 Play Again</button>
     </div>
   </div>
@@ -200,7 +225,8 @@ const SU='https://ggfxdeuwifmqulyhchtv.supabase.co';
 const SK='sb_publishable_DMMJ2sFnGlFWogBs30qowg_-N0zk3OI';
 let sb, MY_UID=null, MY_NAME=null, OPP_NAME=null;
 let match=null, mySecret=null, oppSecret=null;
-let matchCh=null, secretsCh=null;
+let guessCounts={Satyam:0,Snks:0};
+let matchCh=null, secretsCh=null, countsCh=null;
 
 function toast(msg){
   const t=document.getElementById('toast');
@@ -246,6 +272,7 @@ async function boot(){
     match=m;
     await loadMySecret();
     if(match.status==='over') await loadOppSecretIfRevealed();
+    await loadGuessCounts();
     subscribeAll();
     routeScreen();
   }catch(e){
@@ -263,6 +290,7 @@ async function boot(){
 function subscribeAll(){
   if(matchCh){try{sb.removeChannel(matchCh);}catch(e){}}
   if(secretsCh){try{sb.removeChannel(secretsCh);}catch(e){}}
+  if(countsCh){try{sb.removeChannel(countsCh);}catch(e){}}
 
   matchCh=sb.channel('wg-match')
     .on('postgres_changes',{event:'UPDATE',schema:'public',table:'wg_match',filter:'id=eq.1'},async p=>{
@@ -288,6 +316,15 @@ function subscribeAll(){
       renderPlaying();
     })
     .subscribe();
+
+  countsCh=sb.channel('wg-counts')
+    .on('postgres_changes',{event:'UPDATE',schema:'public',table:'wg_guess_counts'},p=>{
+      const row=p.new;
+      if(!row)return;
+      guessCounts[row.player_name]=row.count;
+      renderGuessCounts(row.player_name);
+    })
+    .subscribe();
 }
 
 async function loadMySecret(){
@@ -297,6 +334,26 @@ async function loadMySecret(){
 async function loadOppSecretIfRevealed(){
   const{data}=await sb.from('wg_secrets').select('*').eq('player_name',OPP_NAME).maybeSingle();
   if(data&&data.revealed) oppSecret=data;
+}
+async function loadGuessCounts(){
+  const{data}=await sb.from('wg_guess_counts').select('*');
+  if(data){
+    data.forEach(r=>guessCounts[r.player_name]=r.count);
+  }
+  renderGuessCounts();
+}
+function renderGuessCounts(bumpedName){
+  const sEl=document.getElementById('gcSatyam');
+  const nEl=document.getElementById('gcSnks');
+  if(sEl) sEl.textContent=guessCounts.Satyam||0;
+  if(nEl) nEl.textContent=guessCounts.Snks||0;
+  if(bumpedName){
+    const el=bumpedName==='Satyam'?sEl:nEl;
+    if(el){
+      el.classList.remove('bump');void el.offsetWidth;el.classList.add('bump');
+      setTimeout(()=>el.classList.remove('bump'),200);
+    }
+  }
 }
 
 // ── SCREEN ROUTING ──
@@ -316,6 +373,7 @@ function routeScreen(){
     showScreen('s-choosing');
   }else if(match.status==='playing'){
     renderPlaying();
+    renderGuessCounts();
     showScreen('s-playing');
   }else if(match.status==='over'){
     renderOver();
@@ -334,6 +392,8 @@ function renderOver(){
   document.getElementById('finalWinnerName').textContent=iWon?'You guessed it! 🎉':`${OPP_NAME} got it! 🎉`;
   document.getElementById('revealMeAnimal').textContent=mySecret?.animal||'—';
   document.getElementById('revealThemAnimal').textContent=oppSecret?.animal||'—';
+  document.getElementById('finalGuessStats').textContent=
+    `You: ${guessCounts[MY_NAME]||0} guesses  ·  ${OPP_NAME}: ${guessCounts[OPP_NAME]||0} guesses`;
 }
 
 // ── ACTIONS ──
@@ -352,9 +412,14 @@ async function submitGuess(){
   const val=document.getElementById('guessInput').value.trim();
   if(!val)return;
   document.getElementById('guessErr').textContent='';
+  // Optimistic local bump so it feels instant even before the server round-trip
+  guessCounts[MY_NAME]=(guessCounts[MY_NAME]||0)+1;
+  renderGuessCounts(MY_NAME);
   const{data,error}=await sb.rpc('wg_submit_guess',{p_guess:val});
   if(error){
     console.error('wg_submit_guess error:',error);
+    guessCounts[MY_NAME]=Math.max(0,(guessCounts[MY_NAME]||1)-1); // undo optimistic bump
+    renderGuessCounts(MY_NAME);
     document.getElementById('guessErr').textContent='Error: '+(error.message||'unknown')+(error.hint?' — '+error.hint:'');
     return;
   }
@@ -379,6 +444,8 @@ async function startNewMatch(){
     match=m;
     mySecret=null;
     oppSecret=null;
+    guessCounts={Satyam:0,Snks:0};
+    renderGuessCounts();
     document.getElementById('guessInput').value='';
     document.getElementById('guessErr').textContent='';
     routeScreen(); // no page reload needed — state is fully reset in memory
