@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"/>
+<title>Tic Tac Toe ✨</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg1:#ffe3f1; --bg2:#e9dfff; --bg3:#dff3ff;
+  --card:rgba(255,255,255,0.72); --card2:rgba(255,255,255,0.92);
+  --text:#463655; --text2:#8577a0; --text3:#ab9fc4;
+  --pink:#ff6fa8; --violet:#9b7fff; --good:#3fcf6e;
+  --grad:linear-gradient(135deg,#ff9dc4,#b79cff);
+  --border:rgba(255,255,255,0.9);
+  --bad:#ff6b6b;
+  --shadow:0 18px 45px rgba(155,127,255,0.22);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;touch-action:manipulation}
+body{
+  background:linear-gradient(160deg,var(--bg1) 0%,var(--bg2) 55%,var(--bg3) 100%);
+  background-attachment:fixed;
+  color:var(--text);font-family:'Quicksand',sans-serif;font-weight:500;
+  min-height:100vh;min-height:-webkit-fill-available;
+  display:flex;flex-direction:column;align-items:center;
+  padding:20px;overflow-x:hidden;position:relative;
+}
+body::before,body::after{
+  content:'';position:fixed;border-radius:50%;filter:blur(50px);opacity:0.55;z-index:0;pointer-events:none;
+}
+body::before{width:220px;height:220px;background:var(--pink);top:-60px;left:-60px;animation:floatA 9s ease-in-out infinite}
+body::after{width:260px;height:260px;background:var(--violet);bottom:-80px;right:-60px;animation:floatB 11s ease-in-out infinite}
+@keyframes floatA{0%,100%{transform:translate(0,0)}50%{transform:translate(20px,30px)}}
+@keyframes floatB{0%,100%{transform:translate(0,0)}50%{transform:translate(-25px,-20px)}}
+
+h1,h2{font-family:'Fredoka',sans-serif}
+.wrap{width:100%;max-width:380px;display:flex;flex-direction:column;gap:10px;position:relative;z-index:1;margin:auto 0;padding:10px 0 20px}
+.topbar{display:flex;align-items:center;justify-content:space-between}
+.backlink{
+  font-size:12.5px;font-weight:700;color:var(--text2);text-decoration:none;
+  display:flex;align-items:center;gap:4px;background:var(--card2);padding:7px 13px;border-radius:100px;
+}
+.brand{display:flex;align-items:center;gap:8px;justify-content:center}
+.brand .ic{font-size:24px;filter:drop-shadow(0 4px 10px rgba(255,111,168,0.4))}
+.brand h1{font-size:19px;font-weight:700;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+
+.screen{display:none;flex-direction:column;gap:10px;animation:fadeUp 0.4s cubic-bezier(.2,1,.3,1)}
+.screen.on{display:flex}
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px) scale(0.98)}to{opacity:1;transform:none}}
+
+.card{
+  background:var(--card);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+  border:1.5px solid var(--border);border-radius:22px;
+  padding:16px;display:flex;flex-direction:column;gap:10px;
+  box-shadow:var(--shadow);
+}
+.hint{font-size:12px;color:var(--text2);text-align:center;line-height:1.5;padding:0 6px}
+.dots{display:flex;gap:5px;justify-content:center}
+.dots span{width:7px;height:7px;border-radius:50%;background:var(--pink);animation:dotpulse 1.2s ease infinite}
+.dots span:nth-child(2){animation-delay:0.15s}
+.dots span:nth-child(3){animation-delay:0.3s}
+@keyframes dotpulse{0%,100%{opacity:0.3;transform:scale(0.8)}50%{opacity:1;transform:scale(1.15)}}
+
+/* ── header: whoami, turn status, running score ── */
+.status-row{display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--text2)}
+.pill{display:inline-flex;align-items:center;gap:5px;background:var(--card2);border-radius:100px;padding:6px 12px;font-size:11.5px;font-weight:700;color:var(--text)}
+.pill .dot{width:6px;height:6px;border-radius:50%;background:var(--good)}
+.pill.warn .dot{background:#ffb84d}
+.turn-banner{
+  text-align:center;font-family:'Fredoka',sans-serif;font-weight:600;font-size:15px;
+  padding:4px 0;transition:color 0.2s;
+}
+.turn-banner.mine{color:var(--pink)}
+.turn-banner.theirs{color:var(--text2)}
+.score-row{display:flex;align-items:stretch}
+.score-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:2px 8px}
+.score-num{font-family:'Fredoka',sans-serif;font-size:24px;font-weight:700;color:var(--text);line-height:1;transition:transform 0.15s cubic-bezier(.34,1.56,.64,1)}
+.score-num.bump{transform:scale(1.25)}
+.score-name{font-size:10.5px;font-weight:700;color:var(--text2);display:flex;align-items:center;gap:3px;justify-content:center}
+.score-divider{width:1.5px;background:rgba(155,127,255,0.25);margin:2px 0}
+.sym-badge{
+  display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:5px;
+  font-size:10px;font-weight:700;font-family:'Fredoka',sans-serif;
+}
+.sym-badge.x{background:rgba(255,111,168,0.18);color:var(--pink)}
+.sym-badge.o{background:rgba(155,127,255,0.18);color:var(--violet)}
+
+/* ── the board ── */
+.board{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:8px;
+  aspect-ratio:1;width:100%;
+}
+.cell{
+  background:var(--card2);border:1.5px solid rgba(155,127,255,0.15);border-radius:16px;
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Fredoka',sans-serif;font-weight:700;
+  font-size:clamp(28px,9vw,40px);cursor:pointer;
+  transition:transform 0.12s,background 0.15s;
+  user-select:none;
+}
+.cell:active{transform:scale(0.92)}
+.cell.x{color:var(--pink)}
+.cell.o{color:var(--violet)}
+.cell.win{background:linear-gradient(160deg,rgba(255,111,168,0.22),rgba(155,127,255,0.22));border-color:var(--pink)}
+.cell.disabled{cursor:default}
+.cell-mark{animation:popIn 0.22s cubic-bezier(.34,1.56,.64,1)}
+@keyframes popIn{from{transform:scale(0);opacity:0}to{transform:scale(1);opacity:1}}
+
+.trophy{font-size:44px;text-align:center;animation:trophyPop 0.6s cubic-bezier(.34,1.56,.64,1)}
+@keyframes trophyPop{from{transform:scale(0)}to{transform:scale(1)}}
+.final-name{font-family:'Fredoka',sans-serif;font-size:21px;font-weight:700;text-align:center;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+
+.btn{
+  border:none;border-radius:16px;padding:14px 18px;font-size:14.5px;font-weight:700;
+  font-family:'Fredoka',sans-serif;cursor:pointer;color:#fff;background:var(--grad);
+  transition:transform 0.15s cubic-bezier(.34,1.56,.64,1),opacity 0.15s;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  box-shadow:0 8px 20px rgba(255,111,168,0.35);
+}
+.btn:active{transform:scale(0.94)}
+.btn:disabled{opacity:0.45;pointer-events:none;box-shadow:none}
+
+.toast{
+  position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);
+  background:var(--card2);border:1.5px solid rgba(155,127,255,0.2);padding:12px 20px;border-radius:100px;
+  font-size:13px;font-weight:600;opacity:0;transition:opacity 0.2s,transform 0.2s;pointer-events:none;z-index:50;
+  box-shadow:var(--shadow);max-width:88vw;text-align:center;
+}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <a class="backlink" href="index.html">← Tether</a>
+    <div class="brand"><span class="ic">✨</span><h1>Tic Tac Toe</h1></div>
+    <div style="width:64px"></div>
+  </div>
+
+  <!-- LOADING / ERROR -->
+  <div class="screen on" id="s-loading">
+    <div class="card" style="text-align:center">
+      <div class="dots"><span></span><span></span><span></span></div>
+      <div class="hint" id="loadingMsg">Getting things ready...</div>
+    </div>
+  </div>
+
+  <!-- GAME -->
+  <div class="screen" id="s-game">
+    <div class="card">
+      <div class="status-row">
+        <span class="pill">🦊 <b id="whoamiName"></b> <span class="sym-badge" id="mySymBadge"></span></span>
+        <span id="connStatus" class="pill"><span class="dot"></span> Connected</span>
+      </div>
+      <div class="score-row">
+        <div class="score-col">
+          <div class="score-num" id="scoreSatyam">0</div>
+          <div class="score-name"><span class="sym-badge" id="satyamSymBadge">X</span> Satyam</div>
+        </div>
+        <div class="score-divider"></div>
+        <div class="score-col">
+          <div class="score-num" id="scoreSnks">0</div>
+          <div class="score-name"><span class="sym-badge" id="snksSymBadge">O</span> Snks</div>
+        </div>
+      </div>
+      <div class="turn-banner" id="turnBanner">—</div>
+    </div>
+
+    <div class="card">
+      <div class="board" id="board"></div>
+    </div>
+  </div>
+
+  <!-- OVER -->
+  <div class="screen" id="s-over">
+    <div class="card" style="text-align:center">
+      <div class="trophy" id="overTrophy">🏆</div>
+      <div class="final-name" id="finalName"></div>
+      <button class="btn" onclick="newGame()">🔄 Play Again</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+const SU='https://ggfxdeuwifmqulyhchtv.supabase.co';
+const SK='sb_publishable_DMMJ2sFnGlFWogBs30qowg_-N0zk3OI';
+let sb, MY_UID=null, MY_NAME=null, OPP_NAME=null;
+let match=null;
+let matchCh=null;
+let _prevScores={Satyam:0,Snks:0};
+
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('on');
+  clearTimeout(toast._t);
+  toast._t=setTimeout(()=>t.classList.remove('on'),2400);
+}
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on'));
+  document.getElementById(id).classList.add('on');
+}
+function showLoadingError(msg){
+  document.getElementById('loadingMsg').innerHTML=msg;
+  document.querySelector('#s-loading .dots').style.display='none';
+  showScreen('s-loading');
+}
+function withTimeout(promise,ms=12000){
+  return Promise.race([
+    promise,
+    new Promise((_,reject)=>setTimeout(()=>reject(new Error('Timed out — check your connection')),ms))
+  ]);
+}
+
+// ── BOOT ──
+async function boot(){
+  try{
+    const{data:{session}}=await sb.auth.getSession();
+    if(session){MY_UID=session.user.id;}
+    else{
+      const{data,error}=await sb.auth.signInAnonymously();
+      if(error) throw error;
+      MY_UID=data.user.id;
+    }
+
+    const{data:sess,error:sessErr}=await sb.from('sessions').select('user_name').eq('auth_uid',MY_UID).maybeSingle();
+    if(sessErr) throw sessErr;
+    if(!sess){
+      showLoadingError("Open and log into Tether chat on this device first 💬<br/>then come back here.");
+      return;
+    }
+    MY_NAME=sess.user_name;
+    OPP_NAME=MY_NAME==='Satyam'?'Snks':'Satyam';
+    document.getElementById('whoamiName').textContent=MY_NAME;
+
+    buildBoard();
+    await resync();
+    subscribeAll();
+
+    setInterval(resync,4000);
+    document.addEventListener('visibilitychange',()=>{ if(!document.hidden){ resync(); subscribeAll(); } });
+    window.addEventListener('online',()=>{ resync(); subscribeAll(); });
+    window.addEventListener('pageshow',()=>{ resync(); subscribeAll(); });
+  }catch(e){
+    console.error(e);
+    showLoadingError('Something went wrong: '+(e.message||'unknown error'));
+  }
+}
+(function init(){
+  sb=supabase.createClient(SU,SK);
+  boot();
+})();
+
+function subscribeAll(){
+  if(matchCh){try{sb.removeChannel(matchCh);}catch(e){}}
+  matchCh=sb.channel('ttt-match-'+Date.now())
+    .on('postgres_changes',{event:'UPDATE',schema:'public',table:'ttt_match',filter:'id=eq.1'},()=>resync())
+    .subscribe(status=>{
+      const el=document.getElementById('connStatus');
+      if(!el)return;
+      if(status==='SUBSCRIBED'){ el.className='pill'; el.innerHTML='<span class="dot"></span> Connected'; }
+      else{ el.className='pill warn'; el.innerHTML='<span class="dot"></span> Reconnecting...'; }
+    });
+}
+
+async function resync(){
+  try{
+    const{data:m,error}=await sb.from('ttt_match').select('*').eq('id',1).maybeSingle();
+    if(error) throw error;
+    if(!m)return;
+    match=m;
+    render();
+  }catch(e){
+    console.warn('resync failed (will retry):',e);
+  }
+}
+
+function buildBoard(){
+  const board=document.getElementById('board');
+  board.replaceChildren();
+  for(let i=0;i<9;i++){
+    const cell=document.createElement('div');
+    cell.className='cell';
+    cell.dataset.i=i;
+    cell.onclick=()=>makeMove(i);
+    board.appendChild(cell);
+  }
+}
+
+function render(){
+  if(!match)return;
+
+  document.getElementById('mySymBadge').textContent=match.x_player===MY_NAME?'X':'O';
+  document.getElementById('mySymBadge').className='sym-badge '+(match.x_player===MY_NAME?'x':'o');
+  document.getElementById('satyamSymBadge').textContent=match.x_player==='Satyam'?'X':'O';
+  document.getElementById('satyamSymBadge').className='sym-badge '+(match.x_player==='Satyam'?'x':'o');
+  document.getElementById('snksSymBadge').textContent=match.x_player==='Snks'?'X':'O';
+  document.getElementById('snksSymBadge').className='sym-badge '+(match.x_player==='Snks'?'x':'o');
+
+  const sEl=document.getElementById('scoreSatyam');
+  const nEl=document.getElementById('scoreSnks');
+  sEl.textContent=match.wins_satyam;
+  nEl.textContent=match.wins_snks;
+  if(match.wins_satyam!==_prevScores.Satyam) bumpEl(sEl);
+  if(match.wins_snks!==_prevScores.Snks) bumpEl(nEl);
+  _prevScores={Satyam:match.wins_satyam,Snks:match.wins_snks};
+
+  const board=document.getElementById('board');
+  const cells=board.children;
+  const winSet=new Set(match.win_line||[]);
+  for(let i=0;i<9;i++){
+    const val=match.board[i];
+    const cell=cells[i];
+    const hadVal=cell.dataset.filled==='1';
+    cell.className='cell'+(val?' '+val.toLowerCase():'')+(winSet.has(i)?' win':'')+(match.status!=='playing'||val?' disabled':'');
+    if(val){
+      if(!hadVal||cell.textContent!==val){
+        cell.innerHTML=`<span class="cell-mark">${val}</span>`;
+      }
+      cell.dataset.filled='1';
+    }else{
+      cell.textContent='';
+      cell.dataset.filled='0';
+    }
+  }
+
+  const banner=document.getElementById('turnBanner');
+  if(match.status==='playing'){
+    const myTurn=match.turn===MY_NAME;
+    banner.textContent=myTurn?"Your turn! 🎯":`Waiting for ${OPP_NAME}...`;
+    banner.className='turn-banner '+(myTurn?'mine':'theirs');
+    showScreen('s-game');
+  }else{
+    showScreen('s-game'); // keep board visible behind, then show result
+    renderOver();
+    showScreen('s-over');
+  }
+}
+
+function bumpEl(el){
+  el.classList.remove('bump');void el.offsetWidth;el.classList.add('bump');
+  setTimeout(()=>el.classList.remove('bump'),200);
+}
+
+function renderOver(){
+  if(match.status==='draw'){
+    document.getElementById('overTrophy').textContent='🤝';
+    document.getElementById('finalName').textContent="It's a draw!";
+  }else{
+    const iWon=match.winner_name===MY_NAME;
+    document.getElementById('overTrophy').textContent=iWon?'🏆':'🦊';
+    document.getElementById('finalName').textContent=iWon?'You win! 🎉':`${OPP_NAME} wins! 🎉`;
+  }
+}
+
+async function makeMove(i){
+  if(!match||match.status!=='playing')return;
+  if(match.turn!==MY_NAME){toast("It's not your turn yet ⏳");return;}
+  if(match.board[i]){return;}
+
+  // optimistic paint so it feels instant
+  const cells=document.getElementById('board').children;
+  const mySymbol=match.x_player===MY_NAME?'X':'O';
+  cells[i].className='cell '+mySymbol.toLowerCase()+' disabled';
+  cells[i].innerHTML=`<span class="cell-mark">${mySymbol}</span>`;
+
+  try{
+    const{error}=await withTimeout(sb.rpc('ttt_make_move',{p_index:i}));
+    if(error) throw error;
+    await resync();
+  }catch(e){
+    console.error('move failed:',e);
+    toast('Move failed: '+(e.message||'try again'));
+    await resync(); // undo optimistic paint by pulling real state
+  }
+}
+
+async function newGame(){
+  const btn=document.querySelector('#s-over .btn');
+  if(btn) btn.disabled=true;
+  try{
+    const{error}=await withTimeout(sb.rpc('ttt_new_game'));
+    if(error) throw error;
+    await resync();
+  }catch(e){
+    toast('Failed: '+(e.message||'try again'));
+  }
+  if(btn) btn.disabled=false;
+}
+</script>
+</body>
+</html>

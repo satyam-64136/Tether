@@ -1543,6 +1543,10 @@ html,body{
         <span style="font-size:16px">🦊</span>
         Play WildGuess
       </button>
+      <button class="wg-menu-btn" id="tttMenuBtn" onclick="openTTT()" style="margin-top:8px">
+        <span style="font-size:16px">✨</span>
+        Play Tic Tac Toe
+      </button>
     </div>
     <div>
       <div class="msec-ttl">Account</div>
@@ -4121,6 +4125,9 @@ function checkInstallState(){
 // ── LOGOUT ──
 function openWG(){
   location.href='wildguess.html';
+}
+function openTTT(){
+  location.href='tictactoe.html';
 }
 async function logout(){
   if(!confirm('Switch user? You\'ll be asked to pick again.')) return;
