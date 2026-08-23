@@ -8,19 +8,25 @@
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root{
-  --bg1:#ffe3f1; --bg2:#e9dfff; --bg3:#dff3ff;
-  --card:rgba(255,255,255,0.72); --card2:rgba(255,255,255,0.92);
-  --text:#463655; --text2:#8577a0; --text3:#ab9fc4;
-  --pink:#ff6fa8; --violet:#9b7fff; --good:#3fcf6e;
-  --grad:linear-gradient(135deg,#ff9dc4,#b79cff);
-  --border:rgba(255,255,255,0.9);
-  --bad:#ff6b6b;
-  --shadow:0 18px 45px rgba(155,127,255,0.22);
+  --bg1:#ffd9ec; --bg2:#e4d6ff; --bg3:#d3f0ff;
+  --card:rgba(255,255,255,0.68); --card2:rgba(255,255,255,0.9); --card3:rgba(255,255,255,0.55);
+  --text:#3d2c50; --text2:#8577a0; --text3:#b0a3c9;
+  --pink:#ff5fa0; --pink-dark:#e14b8c; --violet:#8f6bff; --violet-dark:#7752f0; --good:#2ed573; --gold:#ffc94d;
+  --grad:linear-gradient(135deg,#ff7db3 0%,#c68cff 55%,#8f9dff 100%);
+  --grad-soft:linear-gradient(135deg,rgba(255,125,179,0.16),rgba(143,107,255,0.16));
+  --border:rgba(255,255,255,0.85);
+  --bad:#ff5f5f;
+  --shadow:0 20px 50px -10px rgba(120,80,220,0.28);
+  --shadow-sm:0 10px 24px -8px rgba(120,80,220,0.22);
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;touch-action:manipulation}
 body{
-  background:linear-gradient(160deg,var(--bg1) 0%,var(--bg2) 55%,var(--bg3) 100%);
+  background:
+    radial-gradient(circle at 15% 8%,rgba(255,150,200,0.55),transparent 45%),
+    radial-gradient(circle at 88% 18%,rgba(150,130,255,0.5),transparent 45%),
+    radial-gradient(circle at 30% 95%,rgba(140,210,255,0.45),transparent 45%),
+    linear-gradient(160deg,var(--bg1) 0%,var(--bg2) 55%,var(--bg3) 100%);
   background-attachment:fixed;
   color:var(--text);font-family:'Quicksand',sans-serif;font-weight:500;
   min-height:100vh;min-height:-webkit-fill-available;
@@ -28,126 +34,189 @@ body{
   padding:20px;overflow-x:hidden;position:relative;
 }
 body::before,body::after{
-  content:'';position:fixed;border-radius:50%;filter:blur(50px);opacity:0.55;z-index:0;pointer-events:none;
+  content:'';position:fixed;border-radius:50%;filter:blur(60px);opacity:0.5;z-index:0;pointer-events:none;
 }
-body::before{width:220px;height:220px;background:var(--pink);top:-60px;left:-60px;animation:floatA 9s ease-in-out infinite}
-body::after{width:260px;height:260px;background:var(--violet);bottom:-80px;right:-60px;animation:floatB 11s ease-in-out infinite}
-@keyframes floatA{0%,100%{transform:translate(0,0)}50%{transform:translate(20px,30px)}}
-@keyframes floatB{0%,100%{transform:translate(0,0)}50%{transform:translate(-25px,-20px)}}
+body::before{width:240px;height:240px;background:var(--pink);top:-70px;left:-70px;animation:floatA 10s ease-in-out infinite}
+body::after{width:280px;height:280px;background:var(--violet);bottom:-90px;right:-70px;animation:floatB 12s ease-in-out infinite}
+@keyframes floatA{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(24px,32px) scale(1.08)}}
+@keyframes floatB{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(-28px,-22px) scale(1.05)}}
 
 h1,h2,.disp{font-family:'Fredoka',sans-serif}
-.wrap{width:100%;max-width:420px;display:flex;flex-direction:column;gap:10px;position:relative;z-index:1;margin:auto 0;padding:10px 0 20px}
+.wrap{width:100%;max-width:420px;display:flex;flex-direction:column;gap:12px;position:relative;z-index:1;margin:auto 0;padding:10px 0 20px}
 .topbar{display:flex;align-items:center;justify-content:space-between}
 .backlink{
   font-size:12.5px;font-weight:700;color:var(--text2);text-decoration:none;
   display:flex;align-items:center;gap:4px;background:var(--card2);padding:7px 13px;border-radius:100px;
+  box-shadow:var(--shadow-sm);transition:transform 0.15s cubic-bezier(.34,1.56,.64,1);
 }
-.brand{display:flex;align-items:center;gap:8px;justify-content:center}
-.brand .ic{font-size:26px;filter:drop-shadow(0 4px 10px rgba(255,111,168,0.4))}
-.brand h1{font-size:21px;font-weight:700;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.backlink:active{transform:scale(0.92)}
+.brand{display:flex;align-items:center;gap:7px;justify-content:center}
+.brand .ic{font-size:24px;filter:drop-shadow(0 4px 10px rgba(255,95,160,0.45));animation:iconWiggle 3.5s ease-in-out infinite}
+@keyframes iconWiggle{0%,100%{transform:rotate(0)}8%{transform:rotate(-9deg)}16%{transform:rotate(7deg)}24%{transform:rotate(0)}}
+.brand h1{font-size:20px;font-weight:700;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;background-size:200% auto;animation:gradShift 5s ease infinite}
+@keyframes gradShift{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
 
-.screen{display:none;flex-direction:column;gap:16px;animation:fadeUp 0.4s cubic-bezier(.2,1,.3,1)}
+.screen{display:none;flex-direction:column;gap:12px}
 .screen.on{display:flex}
-@keyframes fadeUp{from{opacity:0;transform:translateY(16px) scale(0.98)}to{opacity:1;transform:none}}
+.card{animation:cardIn 0.42s cubic-bezier(.16,1,.3,1) both}
+.card:nth-child(1){animation-delay:0.02s}
+.card:nth-child(2){animation-delay:0.08s}
+.card:nth-child(3){animation-delay:0.14s}
+.card:nth-child(4){animation-delay:0.2s}
+@keyframes cardIn{from{opacity:0;transform:translateY(18px) scale(0.96)}to{opacity:1;transform:none}}
 
 .card{
-  background:var(--card);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
-  border:1.5px solid var(--border);border-radius:22px;
+  position:relative;
+  background:var(--card);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border:1.5px solid var(--border);border-radius:24px;
   padding:18px;display:flex;flex-direction:column;gap:12px;
   box-shadow:var(--shadow);
+  isolation:isolate;
 }
-.card.tight{padding:14px;gap:9px;border-radius:20px}
-label{font-size:12px;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px;font-weight:700}
+.card::before{
+  content:'';position:absolute;inset:-1.5px;border-radius:inherit;padding:1.5px;z-index:-1;
+  background:var(--grad);opacity:0.28;
+  -webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);
+  -webkit-mask-composite:xor;mask-composite:exclude;
+}
+.card.tight{padding:14px;gap:10px;border-radius:22px}
+label{font-size:11.5px;color:var(--text2);text-transform:uppercase;letter-spacing:0.6px;font-weight:700}
 input[type=text]{
-  width:100%;padding:14px 16px;border-radius:16px;border:1.5px solid rgba(155,127,255,0.25);
+  width:100%;padding:14px 16px;border-radius:16px;border:1.5px solid rgba(143,107,255,0.2);
   background:var(--card2);color:var(--text);font-size:16px;font-family:'Quicksand',sans-serif;font-weight:600;
-  outline:none;transition:border-color 0.15s,transform 0.15s;
+  outline:none;transition:border-color 0.18s,transform 0.15s,box-shadow 0.18s;
 }
 input[type=text]::placeholder{color:var(--text3);font-weight:500}
-input[type=text]:focus{border-color:var(--pink)}
+input[type=text]:focus{border-color:var(--pink);box-shadow:0 0 0 4px rgba(255,95,160,0.12)}
 input[type=text]:active{transform:scale(0.99)}
 input[type=text]:disabled{opacity:0.55}
 
 .btn{
   border:none;border-radius:16px;padding:15px 18px;font-size:15px;font-weight:700;
   font-family:'Fredoka',sans-serif;cursor:pointer;color:#fff;background:var(--grad);
-  transition:transform 0.15s cubic-bezier(.34,1.56,.64,1),opacity 0.15s;
+  background-size:180% auto;
+  transition:transform 0.15s cubic-bezier(.34,1.56,.64,1),opacity 0.15s,box-shadow 0.15s,background-position 0.4s;
   display:flex;align-items:center;justify-content:center;gap:8px;
-  box-shadow:0 8px 20px rgba(255,111,168,0.35);
+  box-shadow:0 10px 24px -6px rgba(255,95,160,0.45);
 }
-.btn:active{transform:scale(0.94)}
+.btn:active{transform:scale(0.94);background-position:100% 50%}
 .btn:disabled{opacity:0.45;pointer-events:none;box-shadow:none}
-.btn.sm{padding:12px 16px;font-size:14px;flex-shrink:0}
+.btn.sm{padding:0;width:46px;height:46px;border-radius:50%;flex-shrink:0;font-size:17px;box-shadow:0 8px 18px -4px rgba(255,95,160,0.5)}
 
 .status-row{display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--text2)}
-.pill{display:inline-flex;align-items:center;gap:5px;background:var(--card2);border-radius:100px;padding:6px 12px;font-size:11.5px;font-weight:700;color:var(--text)}
-.pill .dot{width:6px;height:6px;border-radius:50%;background:var(--good)}
-.pill.warn .dot{background:#ffb84d}
-.hidden-badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;color:var(--pink);background:rgba(255,111,168,0.12);padding:5px 10px;border-radius:100px}
+.pill{display:inline-flex;align-items:center;gap:5px;background:var(--card2);border-radius:100px;padding:6px 12px;font-size:11.5px;font-weight:700;color:var(--text);box-shadow:var(--shadow-sm)}
+.pill .dot{width:6px;height:6px;border-radius:50%;background:var(--good);box-shadow:0 0 0 3px rgba(46,213,115,0.22);animation:dotBreathe 2s ease-in-out infinite}
+.pill.warn .dot{background:var(--gold);box-shadow:0 0 0 3px rgba(255,201,77,0.25)}
+@keyframes dotBreathe{0%,100%{transform:scale(1)}50%{transform:scale(1.3)}}
+.hidden-badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;color:var(--pink-dark);background:rgba(255,95,160,0.13);padding:5px 10px;border-radius:100px;animation:pulseGlow 2.4s ease-in-out infinite}
+@keyframes pulseGlow{0%,100%{box-shadow:0 0 0 0 rgba(255,95,160,0.18)}50%{box-shadow:0 0 0 6px rgba(255,95,160,0)}}
 
 .whoami{
-  align-self:center;display:inline-flex;align-items:center;gap:6px;
+  align-self:center;display:inline-flex;align-items:center;gap:7px;
   background:var(--grad);color:#fff;font-family:'Fredoka',sans-serif;font-weight:600;font-size:12.5px;
-  padding:6px 14px;border-radius:100px;box-shadow:0 6px 16px rgba(255,111,168,0.3);
+  padding:7px 16px 7px 7px;border-radius:100px;box-shadow:0 8px 20px -4px rgba(255,95,160,0.4);
 }
-.whoami-inline{font-size:12px;font-weight:700;color:var(--text2)}
-.whoami-inline b{color:var(--pink)}
+.whoami .avatar{width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,0.32);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700}
+.whoami-inline{font-size:12px;font-weight:700;color:var(--text2);display:flex;align-items:center;gap:6px}
+.whoami-inline .avatar-sm{
+  width:24px;height:24px;border-radius:50%;background:var(--grad);color:#fff;
+  display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;font-family:'Fredoka',sans-serif;
+  box-shadow:0 4px 10px -2px rgba(255,95,160,0.5);
+}
+.whoami-inline b{color:var(--text)}
 
 .hint{font-size:12px;color:var(--text2);text-align:center;line-height:1.5;padding:0 6px}
 .animal-tag{
   display:inline-flex;align-items:center;gap:6px;background:var(--card2);border-radius:100px;
-  padding:7px 14px;font-size:12.5px;color:var(--text);font-weight:700;align-self:center;
+  padding:7px 14px;font-size:12.5px;color:var(--text);font-weight:700;align-self:center;box-shadow:var(--shadow-sm);
 }
 
 /* ── live guess counter scoreboard ── */
-.gc-title{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;font-weight:700;text-align:center}
-.gc-row{display:flex;align-items:stretch}
-.gc-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:2px 8px}
-.gc-num{font-family:'Fredoka',sans-serif;font-size:26px;font-weight:700;color:var(--text);line-height:1;transition:transform 0.15s cubic-bezier(.34,1.56,.64,1)}
-.gc-num.bump{transform:scale(1.25)}
-.gc-name{font-size:11px;font-weight:700;color:var(--text2)}
-.gc-divider{width:1.5px;background:rgba(155,127,255,0.25);margin:2px 0}
+.gc-title{font-size:10.5px;color:var(--text3);text-transform:uppercase;letter-spacing:0.6px;font-weight:700;text-align:center}
+.gc-row{display:flex;align-items:center;justify-content:center;gap:18px}
+.gc-col{display:flex;flex-direction:column;align-items:center;gap:4px}
+.gc-badge{
+  width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  background:var(--card2);box-shadow:var(--shadow-sm);position:relative;
+}
+.gc-badge.satyam{background:linear-gradient(160deg,rgba(255,95,160,0.16),rgba(255,95,160,0.05))}
+.gc-badge.snks{background:linear-gradient(160deg,rgba(143,107,255,0.16),rgba(143,107,255,0.05))}
+.gc-num{font-family:'Fredoka',sans-serif;font-size:20px;font-weight:700;color:var(--text);line-height:1;transition:transform 0.18s cubic-bezier(.34,1.56,.64,1)}
+.gc-num.bump{transform:scale(1.35)}
+.gc-name{font-size:10.5px;font-weight:700;color:var(--text2)}
+.gc-vs{font-family:'Fredoka',sans-serif;font-size:12px;font-weight:700;color:var(--text3)}
 
-/* ── question / answer log ── */
-.q-ask-row{display:flex;gap:8px}
+/* ═══════════ question / answer log — chat transcript style ═══════════ */
+.q-ask-row{display:flex;gap:8px;align-items:center}
 .q-ask-row input{flex:1}
 #qHistory{
-  display:flex;flex-direction:column;gap:6px;max-height:150px;overflow-y:auto;
-  padding:2px 2px 2px;
+  display:flex;flex-direction:column;gap:8px;max-height:190px;overflow-y:auto;
+  padding:4px 2px 2px;scroll-behavior:smooth;
 }
-.q-item{
-  background:var(--card2);border-radius:12px;padding:8px 10px;
-  display:flex;flex-direction:column;gap:6px;
+.q-row{display:flex;animation:qSlideIn 0.32s cubic-bezier(.16,1,.3,1) both}
+.q-row.mine{justify-content:flex-end}
+.q-row.theirs{justify-content:flex-start}
+@keyframes qSlideIn{from{opacity:0;transform:translateY(10px) scale(0.96)}to{opacity:1;transform:none}}
+.q-bubble{
+  max-width:82%;border-radius:16px;padding:9px 12px;display:flex;flex-direction:column;gap:6px;
+  box-shadow:var(--shadow-sm);
 }
-.q-text{font-size:12.5px;color:var(--text);line-height:1.35}
-.q-text b{color:var(--pink)}
-.q-toggle{display:flex;gap:8px}
+.q-row.mine .q-bubble{background:linear-gradient(160deg,rgba(255,95,160,0.16),rgba(255,95,160,0.08));border-bottom-right-radius:5px}
+.q-row.theirs .q-bubble{background:linear-gradient(160deg,rgba(143,107,255,0.16),rgba(143,107,255,0.08));border-bottom-left-radius:5px}
+.q-asker{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;opacity:0.65}
+.q-row.mine .q-asker{color:var(--pink-dark)}
+.q-row.theirs .q-asker{color:var(--violet-dark)}
+.q-text{font-size:13px;color:var(--text);line-height:1.35;font-weight:600}
+
+/* sliding yes/no segmented control */
+.q-toggle{
+  display:flex;background:rgba(255,255,255,0.6);border-radius:100px;padding:3px;position:relative;
+  box-shadow:inset 0 1px 3px rgba(120,80,220,0.12);
+}
+.q-toggle .q-slide{
+  position:absolute;top:3px;bottom:3px;width:calc(50% - 3px);border-radius:100px;
+  background:var(--card3);transition:transform 0.22s cubic-bezier(.34,1.4,.64,1),background 0.22s;
+  box-shadow:0 2px 6px rgba(0,0,0,0.08);
+}
 .q-toggle button{
-  flex:1;border:none;border-radius:10px;padding:9px;font-family:'Fredoka',sans-serif;font-weight:600;
-  font-size:12.5px;cursor:pointer;transition:transform 0.12s;
+  position:relative;z-index:1;flex:1;border:none;background:transparent;padding:8px 6px;
+  font-family:'Fredoka',sans-serif;font-weight:600;font-size:12px;cursor:pointer;color:var(--text2);
+  transition:color 0.18s,transform 0.12s;
 }
-.q-toggle button:active{transform:scale(0.92)}
-.q-toggle .q-yes{background:rgba(63,207,110,0.18);color:#2a9e52}
-.q-toggle .q-no{background:rgba(255,107,107,0.18);color:#d64545}
+.q-toggle button:active{transform:scale(0.9)}
 .q-answer{
-  align-self:flex-start;font-family:'Fredoka',sans-serif;font-weight:600;font-size:12.5px;
-  padding:5px 12px;border-radius:100px;
+  align-self:flex-start;font-family:'Fredoka',sans-serif;font-weight:700;font-size:12px;
+  padding:5px 13px;border-radius:100px;display:inline-flex;align-items:center;gap:4px;
+  animation:answerPop 0.3s cubic-bezier(.34,1.56,.64,1);
 }
-.q-answer.yes{background:rgba(63,207,110,0.18);color:#2a9e52}
-.q-answer.no{background:rgba(255,107,107,0.18);color:#d64545}
-.q-pending{font-size:11.5px;color:var(--text3);font-style:italic}
-.q-empty{font-size:12.5px;color:var(--text3);text-align:center;padding:14px 8px}
+@keyframes answerPop{from{transform:scale(0.5);opacity:0}to{transform:scale(1);opacity:1}}
+.q-answer.yes{background:rgba(46,213,115,0.18);color:#1f9e56}
+.q-answer.no{background:rgba(255,95,95,0.18);color:#d64545}
+.q-pending{font-size:11px;color:var(--text3);font-style:italic;display:flex;align-items:center;gap:5px}
+.q-pending .wait-dot{width:4px;height:4px;border-radius:50%;background:var(--text3);animation:dotBreathe 1.2s ease-in-out infinite}
+.q-empty{font-size:12.5px;color:var(--text3);text-align:center;padding:18px 8px}
 
 .reveal-pair{display:flex;align-items:stretch}
-.reveal-card{flex:1;padding:16px 10px;text-align:center;display:flex;flex-direction:column;gap:6px;justify-content:center}
-.reveal-card.winner .reveal-animal{color:var(--pink)}
-.reveal-divider{width:1.5px;background:rgba(155,127,255,0.25);margin:4px 0}
+.reveal-card{flex:1;padding:16px 10px;text-align:center;display:flex;flex-direction:column;gap:6px;justify-content:center;border-radius:16px}
+.reveal-card.winner{background:var(--grad-soft)}
+.reveal-card.winner .reveal-animal{color:var(--pink-dark)}
+.reveal-divider{width:1.5px;background:rgba(143,107,255,0.22);margin:4px 0}
 .reveal-animal{font-size:19px;font-weight:700;font-family:'Fredoka',sans-serif;color:var(--text)}
 .reveal-name{font-size:11.5px;color:var(--text2);font-weight:700}
 
-.trophy{font-size:56px;text-align:center;animation:trophyPop 0.6s cubic-bezier(.34,1.56,.64,1)}
-@keyframes trophyPop{from{transform:scale(0)}to{transform:scale(1)}}
-.final-name{font-family:'Fredoka',sans-serif;font-size:24px;font-weight:700;text-align:center;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.trophy{font-size:58px;text-align:center;animation:trophyPop 0.65s cubic-bezier(.2,1.6,.4,1)}
+@keyframes trophyPop{0%{transform:scale(0) rotate(-20deg)}60%{transform:scale(1.15) rotate(6deg)}100%{transform:scale(1) rotate(0)}}
+.final-name{font-family:'Fredoka',sans-serif;font-size:24px;font-weight:700;text-align:center;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;background-size:200% auto;animation:gradShift 4s ease infinite}
+
+/* confetti burst on the win screen */
+.confetti-wrap{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:2}
+.confetti-piece{
+  position:absolute;top:-10px;border-radius:2px;opacity:0.9;
+  animation:confettiFall linear forwards;
+}
+@keyframes confettiFall{
+  to{transform:translateY(110vh) rotate(540deg);opacity:0}
+}
 
 .err{color:var(--bad);font-size:12.5px;text-align:center;min-height:16px;font-weight:600}
 .dots{display:flex;gap:5px;justify-content:center}
@@ -157,12 +226,12 @@ input[type=text]:disabled{opacity:0.55}
 @keyframes dotpulse{0%,100%{opacity:0.3;transform:scale(0.8)}50%{opacity:1;transform:scale(1.15)}}
 
 .toast{
-  position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);
-  background:var(--card2);border:1.5px solid rgba(155,127,255,0.2);padding:12px 20px;border-radius:100px;
-  font-size:13px;font-weight:600;opacity:0;transition:opacity 0.2s,transform 0.2s;pointer-events:none;z-index:50;
-  box-shadow:var(--shadow);max-width:88vw;text-align:center;
+  position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(24px) scale(0.9);
+  background:var(--card2);border:1.5px solid rgba(143,107,255,0.2);padding:12px 22px;border-radius:100px;
+  font-size:13px;font-weight:600;opacity:0;transition:opacity 0.25s cubic-bezier(.34,1.4,.64,1),transform 0.25s cubic-bezier(.34,1.4,.64,1);
+  pointer-events:none;z-index:50;box-shadow:var(--shadow);max-width:88vw;text-align:center;
 }
-.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0) scale(1)}
 </style>
 </head>
 <body>
@@ -183,7 +252,7 @@ input[type=text]:disabled{opacity:0.55}
 
   <!-- CHOOSING -->
   <div class="screen" id="s-choosing">
-    <div class="whoami" id="whoamiChip">🦊 You're playing as ...</div>
+    <div class="whoami" id="whoamiChip"><span class="avatar" id="whoamiAvatar">?</span> You're playing as ...</div>
     <div class="card">
       <div class="hidden-badge" style="align-self:center">🔒 Secret from them</div>
       <label>Pick your secret animal or bird</label>
@@ -197,30 +266,30 @@ input[type=text]:disabled{opacity:0.55}
   <div class="screen" id="s-playing">
     <div class="card tight">
       <div class="status-row">
-        <span class="whoami-inline">🦊 <b id="whoamiName2"></b></span>
+        <span class="whoami-inline"><span class="avatar-sm" id="whoamiAvatar2">?</span> Playing as <b id="whoamiName2"></b></span>
         <span id="connStatus" class="pill"><span class="dot"></span> Connected</span>
       </div>
       <div class="status-row" style="margin-top:-4px">
         <span class="animal-tag">🐾 Yours: <span id="myAnimalTag">—</span></span>
       </div>
+      <div class="gc-title">🎯 guesses so far</div>
       <div class="gc-row">
         <div class="gc-col">
-          <div class="gc-num" id="gcSatyam">0</div>
+          <div class="gc-badge satyam"><span class="gc-num" id="gcSatyam">0</span></div>
           <div class="gc-name">Satyam</div>
         </div>
-        <div class="gc-divider"></div>
+        <div class="gc-vs">vs</div>
         <div class="gc-col">
-          <div class="gc-num" id="gcSnks">0</div>
+          <div class="gc-badge snks"><span class="gc-num" id="gcSnks">0</span></div>
           <div class="gc-name">Snks</div>
         </div>
       </div>
-      <div class="gc-title" style="margin-top:-6px">🎯 guesses so far</div>
     </div>
 
     <div class="card tight">
       <div class="q-ask-row">
         <input type="text" id="qInput" placeholder="Ask a yes/no question..." maxlength="100" onkeydown="if(event.key==='Enter')askQuestion()"/>
-        <button class="btn sm" onclick="askQuestion()">Ask</button>
+        <button class="btn sm" onclick="askQuestion()">➤</button>
       </div>
       <div id="qHistory"></div>
     </div>
@@ -228,7 +297,7 @@ input[type=text]:disabled{opacity:0.55}
     <div class="card tight">
       <div class="q-ask-row">
         <input type="text" id="guessInput" placeholder="Guess the animal..." maxlength="30" onkeydown="if(event.key==='Enter')submitGuess()"/>
-        <button class="btn sm" onclick="submitGuess()">🎯 Guess</button>
+        <button class="btn sm" onclick="submitGuess()">🎯</button>
       </div>
       <div class="err" id="guessErr"></div>
     </div>
@@ -318,7 +387,9 @@ async function boot(){
     }
     MY_NAME=sess.user_name;
     OPP_NAME=MY_NAME==='Satyam'?'Snks':'Satyam';
-    document.getElementById('whoamiChip').textContent=`🦊 You're playing as ${MY_NAME}`;
+    document.getElementById('whoamiAvatar').textContent=MY_NAME[0];
+    document.getElementById('whoamiAvatar2').textContent=MY_NAME[0];
+    document.getElementById('whoamiChip').lastChild.textContent=` You're playing as ${MY_NAME}`;
     document.getElementById('whoamiName2').textContent=MY_NAME;
     document.getElementById('revealThemName').textContent=OPP_NAME;
 
@@ -436,42 +507,84 @@ function renderQuestions(){
   const el=document.getElementById('qHistory');
   if(!el)return;
   if(!questions.length){
+    el.replaceChildren();
     el.innerHTML='<div class="q-empty">No questions asked yet — start guessing! 🕵️</div>';
     return;
   }
-  el.replaceChildren();
+  const emptyEl=el.querySelector('.q-empty');
+  if(emptyEl) emptyEl.remove();
+
+  const existingRows=new Map();
+  el.querySelectorAll('.q-row').forEach(r=>existingRows.set(r.dataset.qid,r));
+
+  let appendedNew=false;
   questions.forEach(q=>{
-    const item=document.createElement('div');
-    item.className='q-item';
-    const isMine=q.asked_by===MY_NAME;
-    const textDiv=document.createElement('div');
-    textDiv.className='q-text';
-    textDiv.innerHTML=`<b>${escHtmlWG(q.asked_by)} asked:</b> ${escHtmlWG(q.question)}`;
-    item.appendChild(textDiv);
-    if(q.answer){
-      const badge=document.createElement('div');
-      badge.className='q-answer '+q.answer;
-      badge.textContent=q.answer==='yes'?'✅ Yes':'❌ No';
-      item.appendChild(badge);
-    }else if(!isMine){
-      const toggle=document.createElement('div');
-      toggle.className='q-toggle';
-      const yesBtn=document.createElement('button');
-      yesBtn.className='q-yes';yesBtn.textContent='✅ Yes';
-      yesBtn.onclick=()=>answerQuestion(q.id,'yes');
-      const noBtn=document.createElement('button');
-      noBtn.className='q-no';noBtn.textContent='❌ No';
-      noBtn.onclick=()=>answerQuestion(q.id,'no');
-      toggle.append(yesBtn,noBtn);
-      item.appendChild(toggle);
-    }else{
-      const pending=document.createElement('div');
-      pending.className='q-pending';pending.textContent='⏳ Waiting for their answer...';
-      item.appendChild(pending);
+    const stateKey=q.answer||'pending';
+    const existing=existingRows.get(String(q.id));
+    if(existing){
+      existingRows.delete(String(q.id));
+      if(existing.dataset.state===stateKey) return; // unchanged — leave its DOM completely alone, no re-animation
+      existing.replaceWith(buildQuestionRow(q,stateKey)); // only this row's state actually changed
+      return;
     }
-    el.appendChild(item);
+    el.appendChild(buildQuestionRow(q,stateKey)); // brand new question
+    appendedNew=true;
   });
-  el.scrollTop=el.scrollHeight;
+
+  // Anything left in existingRows belonged to a question that no longer exists (e.g. new match reset)
+  existingRows.forEach(r=>r.remove());
+
+  if(appendedNew) el.scrollTop=el.scrollHeight;
+}
+
+function buildQuestionRow(q,stateKey){
+  const isMine=q.asked_by===MY_NAME;
+  const row=document.createElement('div');
+  row.className='q-row '+(isMine?'mine':'theirs');
+  row.dataset.qid=String(q.id);
+  row.dataset.state=stateKey;
+
+  const bubble=document.createElement('div');
+  bubble.className='q-bubble';
+
+  const askerDiv=document.createElement('div');
+  askerDiv.className='q-asker';
+  askerDiv.textContent=isMine?'You asked':`${q.asked_by} asked`;
+  bubble.appendChild(askerDiv);
+
+  const textDiv=document.createElement('div');
+  textDiv.className='q-text';
+  textDiv.textContent=q.question;
+  bubble.appendChild(textDiv);
+
+  if(q.answer){
+    const badge=document.createElement('div');
+    badge.className='q-answer '+q.answer;
+    badge.textContent=q.answer==='yes'?'✅ Yes':'❌ No';
+    bubble.appendChild(badge);
+  }else if(!isMine){
+    // Sliding yes/no segmented control — tap either side, the pill glides to match
+    const toggle=document.createElement('div');
+    toggle.className='q-toggle';
+    const slide=document.createElement('div');
+    slide.className='q-slide';
+    slide.style.transform='translateX(0)';
+    const yesBtn=document.createElement('button');
+    yesBtn.textContent='✅ Yes';
+    yesBtn.onclick=()=>{slide.style.transform='translateX(0)';slide.style.background='rgba(46,213,115,0.28)';answerQuestion(q.id,'yes');};
+    const noBtn=document.createElement('button');
+    noBtn.textContent='❌ No';
+    noBtn.onclick=()=>{slide.style.transform='translateX(100%)';slide.style.background='rgba(255,95,95,0.28)';answerQuestion(q.id,'no');};
+    toggle.append(slide,yesBtn,noBtn);
+    bubble.appendChild(toggle);
+  }else{
+    const pending=document.createElement('div');
+    pending.className='q-pending';
+    pending.innerHTML='<span class="wait-dot"></span> Waiting for their answer...';
+    bubble.appendChild(pending);
+  }
+  row.appendChild(bubble);
+  return row;
 }
 async function askQuestion(){
   const input=document.getElementById('qInput');
@@ -547,6 +660,31 @@ function renderOver(){
   document.getElementById('revealThemAnimal').textContent=oppSecret?.animal||'—';
   document.getElementById('finalGuessStats').textContent=
     `You: ${guessCounts[MY_NAME]||0} guesses  ·  ${OPP_NAME}: ${guessCounts[OPP_NAME]||0} guesses`;
+  if(iWon&&!_confettiShownFor.has(match.updated_at)){
+    _confettiShownFor.add(match.updated_at);
+    burstConfetti();
+  }
+}
+const _confettiShownFor=new Set();
+function burstConfetti(){
+  const wrap=document.createElement('div');
+  wrap.className='confetti-wrap';
+  document.body.appendChild(wrap);
+  const colors=['#ff5fa0','#8f6bff','#ffc94d','#2ed573','#5fc9ff'];
+  const count=42;
+  for(let i=0;i<count;i++){
+    const p=document.createElement('div');
+    p.className='confetti-piece';
+    const size=5+Math.random()*7;
+    p.style.width=size+'px';
+    p.style.height=size*0.4+'px';
+    p.style.left=Math.random()*100+'vw';
+    p.style.background=colors[i%colors.length];
+    p.style.animationDuration=(1.8+Math.random()*1.4)+'s';
+    p.style.animationDelay=(Math.random()*0.4)+'s';
+    wrap.appendChild(p);
+  }
+  setTimeout(()=>wrap.remove(),3600);
 }
 
 // ── ACTIONS ──

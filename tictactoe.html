@@ -367,6 +367,7 @@ async function makeMove(i){
   const mySymbol=match.x_player===MY_NAME?'X':'O';
   cells[i].className='cell '+mySymbol.toLowerCase()+' disabled';
   cells[i].innerHTML=`<span class="cell-mark">${mySymbol}</span>`;
+  cells[i].dataset.filled='1'; // prevents render() from replaying the pop-in animation a second time once resync() confirms this same move
 
   try{
     const{error}=await withTimeout(sb.rpc('ttt_make_move',{p_index:i}));
