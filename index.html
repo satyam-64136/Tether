@@ -483,6 +483,36 @@ html,body{
   font-size:22px;font-weight:700;pointer-events:none;
 }
 
+/* ═══════ VIEW-ONCE PHOTOS ═══════ */
+.vo-card{
+  display:flex;align-items:center;gap:9px;padding:14px 18px;border-radius:14px;
+  background:linear-gradient(135deg,rgba(var(--accent-rgb),0.14),rgba(var(--accent-rgb),0.06));
+  border:1px solid rgba(var(--accent-rgb),0.22);cursor:pointer;min-width:160px;
+  transition:transform 0.12s;
+}
+.vo-card:active{transform:scale(0.96)}
+.vo-card.vo-spent{
+  background:var(--glass2);border-color:var(--border);cursor:default;color:var(--text3);opacity:0.75;
+}
+.vo-ic{font-size:18px}
+.mw.her .vo-card{cursor:default}
+.mw.her .vo-card:not(.vo-spent){cursor:pointer}
+
+/* ═══════ DOUBLE-TAP HEART (Instagram-style) ═══════ */
+.dtap-heart{
+  position:absolute;top:50%;left:50%;font-size:64px;
+  transform:translate(-50%,-50%) scale(0);
+  animation:dtapHeart 0.75s cubic-bezier(.17,.89,.32,1.49) forwards;
+  pointer-events:none;filter:drop-shadow(0 4px 14px rgba(0,0,0,0.35));
+}
+@keyframes dtapHeart{
+  0%{transform:translate(-50%,-50%) scale(0);opacity:0}
+  22%{transform:translate(-50%,-50%) scale(1.15);opacity:1}
+  35%{transform:translate(-50%,-50%) scale(0.95);opacity:1}
+  75%{transform:translate(-50%,-50%) scale(1);opacity:1}
+  100%{transform:translate(-50%,-50%) scale(1);opacity:0}
+}
+
 .mmeta{display:flex;align-items:center;gap:4px;margin-top:3px;padding:0 3px}
 .mtime{font-size:10px;color:var(--text3)}
 .ticks{font-size:11px;color:var(--text3);transition:color 0.35s}
@@ -675,12 +705,26 @@ html,body{
   cursor:pointer;padding:0;transition:transform 0.12s;
 }
 .iprv-tile .iprv-x:active{transform:scale(0.85)}
+.iprv-tile .iprv-edit{
+  position:absolute;bottom:2px;left:2px;width:20px;height:20px;border-radius:50%;
+  background:rgba(0,0,0,0.55);border:none;font-size:10px;display:flex;align-items:center;justify-content:center;
+  cursor:pointer;padding:0;transition:transform 0.12s;
+}
+.iprv-tile .iprv-edit:active{transform:scale(0.85)}
 .iprv-addmore{
   flex-shrink:0;width:40px;height:40px;border-radius:50%;border:1.5px dashed var(--border2);
   background:none;color:var(--text2);font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;
   transition:transform 0.15s cubic-bezier(.34,1.56,.64,1),background 0.15s;
 }
 .iprv-addmore:active{transform:scale(0.85);background:var(--glass2)}
+.iprv-viewonce{
+  flex-shrink:0;width:40px;height:40px;border-radius:50%;border:1.5px solid var(--border2);
+  background:none;color:var(--text2);cursor:pointer;display:none;align-items:center;justify-content:center;
+  transition:transform 0.15s cubic-bezier(.34,1.56,.64,1),background 0.15s,color 0.15s,border-color 0.15s;
+}
+.iprv-viewonce.show{display:flex}
+.iprv-viewonce:active{transform:scale(0.85)}
+.iprv-viewonce.on{background:rgba(var(--accent-rgb),0.14);color:var(--accent);border-color:rgba(var(--accent-rgb),0.35)}
 
 /* INPUT AREA */
 .inputrow{
@@ -1007,10 +1051,151 @@ html,body{
 
 
 /* LIGHTBOX */
-#lb{position:fixed;inset:0;background:rgba(0,0,0,0.93);z-index:800;display:none;align-items:center;justify-content:center;backdrop-filter:blur(5px)}
+#lb{position:fixed;inset:0;background:rgba(0,0,0,0.93);z-index:800;display:none;align-items:center;justify-content:center;backdrop-filter:blur(5px);overflow:hidden;touch-action:none}
 #lb.on{display:flex}
-#lb img{max-width:95vw;max-height:90vh;border-radius:10px;object-fit:contain}
-#lbx{position:absolute;top:18px;right:18px;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2);color:white;width:38px;height:38px;border-radius:50%;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(12px)}
+#lb-viewport{position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center;overflow:hidden}
+#lbimg{max-width:95vw;max-height:90vh;border-radius:10px;object-fit:contain;touch-action:none;will-change:transform;user-select:none;-webkit-user-drag:none;transition:transform 0.08s linear}
+#lbimg.snapping{transition:transform 0.25s cubic-bezier(.2,1,.3,1)}
+#lb-topbar{position:absolute;top:0;left:0;right:0;display:flex;align-items:center;justify-content:space-between;padding:16px 16px 0;z-index:2}
+#lbx,#lb-dl{background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2);color:white;width:38px;height:38px;border-radius:50%;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(12px);transition:transform 0.15s cubic-bezier(.34,1.56,.64,1)}
+#lbx:active,#lb-dl:active{transform:scale(0.85)}
+#lb-counter{
+  position:absolute;top:20px;left:50%;transform:translateX(-50%);
+  background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2);color:white;
+  font-size:12px;font-weight:600;padding:6px 14px;border-radius:100px;backdrop-filter:blur(12px);
+  display:none;
+}
+#lb-counter.on{display:block}
+#lb-prev,#lb-next{
+  position:absolute;top:50%;transform:translateY(-50%);z-index:2;
+  width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.18);
+  color:#fff;display:none;align-items:center;justify-content:center;cursor:pointer;backdrop-filter:blur(10px);
+  transition:transform 0.15s cubic-bezier(.34,1.56,.64,1),opacity 0.15s;
+}
+#lb-prev{left:12px}#lb-next{right:12px}
+#lb-prev.on,#lb-next.on{display:flex}
+#lb-prev:active,#lb-next:active{transform:translateY(-50%) scale(0.85)}
+#lb-prev.hide,#lb-next.hide{opacity:0;pointer-events:none}
+#lb-hint{
+  position:absolute;bottom:26px;left:50%;transform:translateX(-50%);
+  color:rgba(255,255,255,0.55);font-size:11px;text-align:center;pointer-events:none;
+  transition:opacity 0.4s;
+}
+#lb-hint.gone{opacity:0}
+
+/* ═══════════ MEDIA GALLERY ═══════════ */
+#galleryBg{
+  position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:299;
+  opacity:0;pointer-events:none;transition:opacity 0.2s;
+}
+#galleryBg.on{opacity:1;pointer-events:auto}
+#galleryPanel{
+  position:fixed;left:0;right:0;bottom:0;top:8vh;z-index:300;
+  background:var(--menu-bg);backdrop-filter:blur(24px);
+  border-radius:22px 22px 0 0;border:1px solid var(--border);border-bottom:none;
+  display:flex;flex-direction:column;
+  transform:translateY(100%);transition:transform 0.3s cubic-bezier(.2,1,.3,1);
+}
+#galleryPanel.on{transform:translateY(0)}
+.gal-hdr{display:flex;align-items:center;justify-content:space-between;padding:16px 18px 10px;flex-shrink:0}
+.gal-title{font-size:16px;font-weight:600;color:var(--text)}
+.gal-close{
+  width:32px;height:32px;border-radius:50%;background:var(--glass2);border:none;color:var(--text2);
+  display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform 0.15s;
+}
+.gal-close:active{transform:scale(0.85)}
+#galleryGrid{
+  flex:1;overflow-y:auto;display:grid;grid-template-columns:repeat(3,1fr);gap:2px;
+  padding:0 2px 2px;
+}
+.gal-tile{
+  position:relative;aspect-ratio:1;overflow:hidden;cursor:pointer;background:var(--glass2);
+}
+.gal-tile img,.gal-tile video{width:100%;height:100%;object-fit:cover;display:block;transition:transform 0.2s}
+.gal-tile:active img,.gal-tile:active video{transform:scale(0.94)}
+.gal-tile .gal-vid-badge{
+  position:absolute;bottom:4px;right:4px;background:rgba(0,0,0,0.55);color:#fff;
+  border-radius:5px;padding:1px 5px;font-size:9px;display:flex;align-items:center;gap:2px;
+}
+.gal-tile .gal-bundle-badge{
+  position:absolute;top:4px;right:4px;background:rgba(0,0,0,0.55);color:#fff;
+  border-radius:5px;padding:1px 5px;font-size:9px;font-weight:600;
+}
+#galleryEmpty{
+  display:flex;flex-direction:column;align-items:center;gap:8px;color:var(--text3);
+  font-size:12.5px;text-align:center;padding:60px 20px;
+}
+#galleryLoading{display:none;padding:40px 0;justify-content:center}
+#galleryLoading.on{display:flex}
+.dots2{display:flex;gap:5px}
+.dots2 span{width:6px;height:6px;border-radius:50%;background:var(--accent);animation:dotpulse2 1.2s ease infinite}
+.dots2 span:nth-child(2){animation-delay:0.15s}
+.dots2 span:nth-child(3){animation-delay:0.3s}
+@keyframes dotpulse2{0%,100%{opacity:0.3;transform:scale(0.8)}50%{opacity:1;transform:scale(1.15)}}
+
+/* ═══════════ PHOTO EDITOR ═══════════ */
+#editorOverlay{
+  position:fixed;inset:0;background:#0b0b0d;z-index:400;
+  display:none;flex-direction:column;
+}
+#editorOverlay.on{display:flex}
+.ed-topbar{display:flex;align-items:center;gap:10px;padding:14px 14px 8px;flex-shrink:0}
+.ed-icbtn{
+  width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.16);
+  color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;
+  transition:transform 0.15s cubic-bezier(.34,1.56,.64,1),opacity 0.15s;
+}
+.ed-icbtn:active{transform:scale(0.85)}
+.ed-icbtn:disabled{opacity:0.3;pointer-events:none}
+.ed-done{
+  margin-left:auto;background:var(--accent);color:#fff;border:none;font-weight:600;font-size:14px;
+  padding:9px 20px;border-radius:100px;cursor:pointer;transition:transform 0.15s cubic-bezier(.34,1.56,.64,1);
+}
+.ed-done:active{transform:scale(0.92)}
+#ed-canvas-wrap{
+  flex:1;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;padding:10px;
+  min-height:0;
+}
+#edCanvas{max-width:100%;max-height:100%;border-radius:6px;touch-action:none;display:block}
+#edCropBox{
+  position:absolute;display:none;border:1.5px solid #fff;box-shadow:0 0 0 2000px rgba(0,0,0,0.55);
+}
+#edCropBox.on{display:block}
+.ed-crop-handle{
+  position:absolute;width:22px;height:22px;background:#fff;border-radius:50%;
+  box-shadow:0 2px 8px rgba(0,0,0,0.4);touch-action:none;
+}
+.ed-crop-handle[data-h="tl"]{top:-11px;left:-11px;cursor:nwse-resize}
+.ed-crop-handle[data-h="tr"]{top:-11px;right:-11px;cursor:nesw-resize}
+.ed-crop-handle[data-h="bl"]{bottom:-11px;left:-11px;cursor:nesw-resize}
+.ed-crop-handle[data-h="br"]{bottom:-11px;right:-11px;cursor:nwse-resize}
+#edTextInput{
+  position:absolute;display:none;background:transparent;border:1.5px dashed rgba(255,255,255,0.6);
+  color:#fff;font-size:22px;font-weight:600;padding:4px 8px;border-radius:6px;outline:none;
+  min-width:80px;font-family:inherit;
+}
+.ed-toolbar{flex-shrink:0;padding:10px 14px calc(14px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:12px}
+.ed-tools{display:flex;justify-content:center;gap:10px}
+.ed-tool{
+  width:44px;height:44px;border-radius:14px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.14);
+  color:rgba(255,255,255,0.7);display:flex;align-items:center;justify-content:center;cursor:pointer;
+  transition:transform 0.15s cubic-bezier(.34,1.56,.64,1),background 0.15s,color 0.15s;
+}
+.ed-tool:active{transform:scale(0.88)}
+.ed-tool.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.ed-colors{display:none;justify-content:center;gap:10px}
+.ed-colors.show{display:flex}
+.ed-color{
+  width:26px;height:26px;border-radius:50%;cursor:pointer;transition:transform 0.15s cubic-bezier(.34,1.56,.64,1);
+  box-shadow:0 2px 6px rgba(0,0,0,0.3);
+}
+.ed-color.on{transform:scale(1.25);box-shadow:0 0 0 2.5px #0b0b0d,0 0 0 4.5px currentColor}
+.ed-crop-apply{
+  display:none;background:var(--accent);color:#fff;border:none;font-weight:600;font-size:13.5px;
+  padding:10px;border-radius:12px;cursor:pointer;transition:transform 0.15s;
+}
+.ed-crop-apply.show{display:block}
+.ed-crop-apply:active{transform:scale(0.95)}
 
 /* TOAST */
 #toast{
@@ -1508,6 +1693,9 @@ html,body{
     <div class="hdr-btn" id="imybtn" onclick="sendRing()" title="Ring her">
       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
     </div>
+    <div class="hdr-btn" onclick="openGallery()" title="Media gallery">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+    </div>
     <div class="hdr-btn" onclick="openMenu()">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
     </div>
@@ -1523,6 +1711,9 @@ html,body{
 
   <div id="iprv">
     <div id="iprvStrip"></div>
+    <button class="iprv-viewonce" id="iprvViewOnce" onclick="toggleViewOnce()" title="Send as view-once">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+    </button>
     <button class="iprv-addmore" id="iprvAddMore" onclick="document.getElementById('ifile').click()" title="Add more">+</button>
   </div>
 
@@ -1708,11 +1899,95 @@ html,body{
   autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
 
 <!-- LIGHTBOX -->
-<div id="lb" onclick="closeLB()">
-  <button id="lbx">
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-  </button>
-  <img id="lbimg" src="" alt=""/>
+<div id="lb">
+  <div id="lb-topbar" onclick="event.stopPropagation()">
+    <button id="lbx" onclick="closeLB()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <button id="lb-dl" onclick="downloadCurrentLB()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    </button>
+  </div>
+  <div id="lb-counter"></div>
+  <div id="lb-viewport" onclick="lbBackgroundTap(event)">
+    <img id="lbimg" src="" alt=""/>
+  </div>
+  <div id="lb-prev" onclick="event.stopPropagation();lbNav(-1)">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+  </div>
+  <div id="lb-next" onclick="event.stopPropagation();lbNav(1)">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+  </div>
+  <div id="lb-hint">Pinch or double-tap to zoom</div>
+</div>
+
+<!-- MEDIA GALLERY -->
+<div id="galleryBg" onclick="closeGallery()"></div>
+<div id="galleryPanel">
+  <div class="gal-hdr">
+    <div class="gal-title">Media</div>
+    <button class="gal-close" onclick="closeGallery()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <div id="galleryGrid"></div>
+  <div id="galleryEmpty" style="display:none">
+    <div style="font-size:36px">📸</div>
+    <div>No photos or videos shared yet</div>
+  </div>
+  <div id="galleryLoading">
+    <div class="dots2"><span></span><span></span><span></span></div>
+  </div>
+</div>
+
+<!-- PHOTO EDITOR -->
+<div id="editorOverlay">
+  <div class="ed-topbar">
+    <button class="ed-icbtn" onclick="closeEditor()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <button class="ed-icbtn" id="edUndoBtn" onclick="editorUndo()" disabled>
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"/><path d="M3 13a9 9 0 1 0 3-7"/></svg>
+    </button>
+    <button class="ed-done" onclick="editorDone()">Done</button>
+  </div>
+
+  <div id="ed-canvas-wrap">
+    <canvas id="edCanvas"></canvas>
+    <div id="edCropBox">
+      <div class="ed-crop-handle" data-h="tl"></div>
+      <div class="ed-crop-handle" data-h="tr"></div>
+      <div class="ed-crop-handle" data-h="bl"></div>
+      <div class="ed-crop-handle" data-h="br"></div>
+    </div>
+    <input type="text" id="edTextInput" placeholder="Type..." maxlength="60"/>
+  </div>
+
+  <div class="ed-toolbar">
+    <div class="ed-tools">
+      <button class="ed-tool on" id="edToolNone" onclick="setEditorTool('none')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+      </button>
+      <button class="ed-tool" id="edToolDraw" onclick="setEditorTool('draw')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>
+      </button>
+      <button class="ed-tool" id="edToolText" onclick="setEditorTool('text')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+      </button>
+      <button class="ed-tool" id="edToolCrop" onclick="setEditorTool('crop')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2v14a2 2 0 0 0 2 2h14"/><path d="M18 22V8a2 2 0 0 0-2-2H2"/></svg>
+      </button>
+    </div>
+    <div class="ed-colors" id="edColors">
+      <span class="ed-color on" data-c="#ff5f7e" style="background:#ff5f7e"></span>
+      <span class="ed-color" data-c="#ffd166" style="background:#ffd166"></span>
+      <span class="ed-color" data-c="#4ade80" style="background:#4ade80"></span>
+      <span class="ed-color" data-c="#5fc9ff" style="background:#5fc9ff"></span>
+      <span class="ed-color" data-c="#ffffff" style="background:#ffffff;border:1px solid rgba(0,0,0,0.15)"></span>
+      <span class="ed-color" data-c="#000000" style="background:#000000"></span>
+    </div>
+    <button class="ed-crop-apply" id="edCropApply" onclick="applyCrop()">Apply Crop</button>
+  </div>
 </div>
 
 <!-- MULTI-DELETE BAR -->
@@ -1876,7 +2151,7 @@ if(window.visualViewport){
   window.addEventListener('resize',layoutChat,{passive:true});
 }
 
-let msgs=[],replyTo=null,ctxId=null,pendingDoc=null,pendingImgs=[];
+let msgs=[],replyTo=null,ctxId=null,pendingDoc=null,pendingImgs=[],pendingViewOnce=false;
 let msgCh,typCh2,reconnT,presT;
 let _lastPresData=null,_presRefreshT=null;
 
@@ -2535,7 +2810,7 @@ function mkEl(msg,animate=false){
     if(orig){
       const rp=document.createElement('div');
       rp.className='rprev';
-      rp.textContent=orig.deleted?'🚫 deleted message':(orig.content||(orig.bundle?`🖼️ ${orig.bundle.length} items`:orig.video?'🎥 Video':'📷 Photo'));
+      rp.textContent=orig.deleted?'🚫 deleted message':(orig.content||(orig.view_once?'👀 View-once photo':orig.bundle?`🖼️ ${orig.bundle.length} items`:orig.video?'🎥 Video':'📷 Photo'));
       w.appendChild(rp);
     }
   }
@@ -2555,6 +2830,23 @@ function mkEl(msg,animate=false){
   if(msg.deleted){
     b.classList.add('deleted');
     b.textContent='this message was deleted';
+  } else if(msg.view_once){
+    const isSender=msg.sender===CU;
+    const card=document.createElement('div');
+    card.className='vo-card'+(msg.view_once_opened?' vo-spent':'');
+    if(msg.view_once_opened){
+      card.innerHTML=`<span class="vo-ic">👀</span><span>Viewed</span>`;
+    }else if(isSender){
+      card.innerHTML=`<span class="vo-ic">👀</span><span>Photo sent · view once</span>`;
+    }else{
+      card.innerHTML=`<span class="vo-ic">👀</span><span>Tap to view once</span>`;
+      card.onclick=ev=>{ev.stopPropagation();openViewOnce(msg.id);};
+    }
+    b.appendChild(card);
+    if(msg.content){
+      const t=document.createElement('div');t.style.marginTop='7px';
+      renderContent(msg.content,t);b.appendChild(t);
+    }
   } else if(msg.bundle&&Array.isArray(msg.bundle)&&msg.bundle.length>1){
     const items=msg.bundle;
     const grid=document.createElement('div');
@@ -2581,7 +2873,8 @@ function mkEl(msg,animate=false){
         more.textContent='+'+(items.length-4);
         tile.appendChild(more);
       }
-      tile.onclick=ev=>{ev.stopPropagation();openLB(it.url);};
+      tile.onclick=ev=>{ev.stopPropagation();openLB(it.url,items,i);};
+      tile.ondblclick=ev=>{ev.stopPropagation();likeOnDoubleTap(msg,tile);};
       grid.appendChild(tile);
     });
     b.appendChild(grid);
@@ -2638,6 +2931,7 @@ function mkEl(msg,animate=false){
     vid.controls=true;vid.playsInline=true;vid.preload='metadata';
     vid.style.cssText='max-width:min(220px,60vw);max-height:300px;border-radius:12px;display:block;background:#000';
     vid.addEventListener('click',e=>e.stopPropagation());
+    vidWrap.ondblclick=ev=>{ev.stopPropagation();likeOnDoubleTap(msg,vidWrap);};
     vidWrap.appendChild(vid);
     const saveBtn=document.createElement('button');
     saveBtn.className='media-save-btn';
@@ -2655,7 +2949,8 @@ function mkEl(msg,animate=false){
     img.src=msg.image_url;img.loading='lazy';
     img.onload=()=>{img.style.animation='none';img.style.background='none';};
     img.onerror=()=>{img.style.animation='none';img.style.background='none';};
-    img.onclick=ev=>{ev.stopPropagation();openLB(msg.image_url);};
+    img.onclick=ev=>{ev.stopPropagation();openLB(msg.image_url,null,0);};
+    imgWrap.ondblclick=ev=>{ev.stopPropagation();likeOnDoubleTap(msg,imgWrap);};
     imgWrap.appendChild(img);
     // Save to gallery button
     const saveBtn=document.createElement('button');
@@ -3090,6 +3385,7 @@ async function send(){
   const file=pendingDoc||pendingImgs[0]||null;
   const isDoc=!!pendingDoc;
   const isVid=!isDoc&&!!file&&file.type.startsWith('video/');
+  const isViewOnce=!isDoc&&pendingImgs.length===1&&pendingViewOnce;
   const replyToId=replyTo?.id||null;
 
   // Clear compose UI immediately — the message takes over from here
@@ -3107,6 +3403,7 @@ async function send(){
     _uploading:!!file,_progress:0
   };
   if(isVid) tempMsg.video=true;
+  if(isViewOnce){tempMsg.view_once=true;tempMsg.view_once_opened=false;}
   if(isDoc){tempMsg.doc_name=file.name;tempMsg.doc_type=file.type||'application/octet-stream';}
 
   msgs.push(tempMsg);
@@ -3143,6 +3440,7 @@ async function send(){
       }
       const row={sender:CU,content:txt||null,image_url:imgUrl,reply_to:replyToId,seen:false,reactions:{}};
       if(isVid) row.video=true;
+      if(isViewOnce) row.view_once=true;
       if(docName) row.doc_name=docName;
       if(docType) row.doc_type=docType;
       const{data,error}=await sb.from('messages').insert(row).select().single();
@@ -3267,6 +3565,10 @@ function renderIprvStrip(){
       const img=document.createElement('img');
       img.src=url;img.alt='';
       tile.appendChild(img);
+      const editBtn=document.createElement('button');
+      editBtn.className='iprv-edit';editBtn.innerHTML='✏️';
+      editBtn.onclick=ev=>{ev.stopPropagation();openEditor(idx);};
+      tile.appendChild(editBtn);
     }
     const x=document.createElement('button');
     x.className='iprv-x';x.innerHTML='✕';
@@ -3276,6 +3578,17 @@ function renderIprvStrip(){
   });
   // Keep the "add more" button reachable and the strip scrolled to the newest tile
   strip.scrollLeft=strip.scrollWidth;
+  // View-once only makes sense for a single item, not a bundle
+  const voBtn=document.getElementById('iprvViewOnce');
+  voBtn.classList.toggle('show',pendingImgs.length===1);
+  if(pendingImgs.length!==1){pendingViewOnce=false;voBtn.classList.remove('on');}
+}
+
+function toggleViewOnce(){
+  if(pendingImgs.length!==1)return;
+  pendingViewOnce=!pendingViewOnce;
+  document.getElementById('iprvViewOnce').classList.toggle('on',pendingViewOnce);
+  if(pendingViewOnce) toast('👀 This photo will disappear after being opened once');
 }
 
 function removePendingImg(idx){
@@ -3286,8 +3599,10 @@ function removePendingImg(idx){
 
 function clearImg(){
   pendingImgs=[];
+  pendingViewOnce=false;
   document.getElementById('iprv').classList.remove('on');
   document.getElementById('iprvStrip').replaceChildren();
+  document.getElementById('iprvViewOnce').classList.remove('show','on');
   document.getElementById('sndbtn').classList.toggle('on',document.getElementById('minp').value.trim().length>0);
   layoutChat();
 }
@@ -3543,34 +3858,51 @@ function _setUserRxns(msgId,arr){
   localStorage.setItem(_getRxnKey(msgId),JSON.stringify(arr));
 }
 
-function addRxn(em){
-  const msg=msgs.find(m=>m.id===ctxId);if(!msg)return;
+// Shared core: applies a reaction toggle to a specific message, instantly and locally,
+// then syncs to the server. Used by both the long-press picker and double-tap-to-like.
+function toggleReaction(msg,em,{forceOn=false}={}){
   const rx={...(msg.reactions||{})};
   const myRxns=_getUserRxns(msg.id);
   const alreadyReacted=myRxns.includes(em);
 
+  if(forceOn&&alreadyReacted)return; // double-tap when already liked = no-op, don't unlike
   if(alreadyReacted){
-    // Toggle OFF — decrement, remove key if reaches 0
     const newCount=(rx[em]||1)-1;
     if(newCount<=0) delete rx[em];
     else rx[em]=newCount;
     _setUserRxns(msg.id,myRxns.filter(e=>e!==em));
   } else {
-    // Toggle ON — increment
     rx[em]=(rx[em]||0)+1;
     _setUserRxns(msg.id,[...myRxns,em]);
   }
 
-  // Apply instantly — don't wait on the network round trip to see your own tap register
   msg.reactions=rx;
   const el=document.querySelector(`.mw[data-id="${msg.id}"]`);
   if(el) el.replaceWith(mkEl(msg));
-  closeCtx();
 
   sb.from('messages').update({reactions:rx}).eq('id',msg.id).then(({error})=>{
     if(error){console.error('reaction save failed:',error);toast('Could not save reaction');}
   });
 }
+
+function addRxn(em){
+  const msg=msgs.find(m=>m.id===ctxId);if(!msg)return;
+  toggleReaction(msg,em);
+  closeCtx();
+}
+
+// Instagram-style: double-tap a photo/video to like it, with a big heart pop animation.
+// Never unlikes on double-tap (matches Instagram — double-tap only ever adds the like).
+function likeOnDoubleTap(msg,container){
+  toggleReaction(msg,'❤️',{forceOn:true});
+  const heart=document.createElement('div');
+  heart.className='dtap-heart';
+  heart.textContent='❤️';
+  container.appendChild(heart);
+  if(navigator.vibrate) navigator.vibrate(15);
+  setTimeout(()=>heart.remove(),750);
+}
+
 async function ctxDel(){
   const msg=msgs.find(m=>m.id===ctxId);
   if(!msg||msg.sender!==CU){toast("Can't delete their message");closeCtx();return;}
@@ -4110,8 +4442,450 @@ function subRing(){
 }
 
 // ── LIGHTBOX ──
-function openLB(url){document.getElementById('lbimg').src=url;document.getElementById('lb').classList.add('on');}
-function closeLB(){document.getElementById('lb').classList.remove('on');}
+// ── LIGHTBOX: real photo viewer — pinch zoom, double-tap zoom, pan, album swipe, download ──
+let _lbAlbum=null,_lbIndex=0;
+let _lbScale=1,_lbTx=0,_lbTy=0;
+let _lbPointers=new Map();
+let _lbPinchStartDist=0,_lbPinchStartScale=1;
+let _lbPanStart=null;
+let _lbLastTapTime=0,_lbLastTapX=0,_lbLastTapY=0;
+let _lbMoved=false;
+
+// ── MEDIA GALLERY ──
+function flattenGalleryItems(rows){
+  const items=[];
+  rows.forEach(m=>{
+    if(m.deleted||m.doc_name||m.voice||m.view_once)return;
+    if(m.bundle&&Array.isArray(m.bundle)&&m.bundle.length){
+      m.bundle.forEach((it,i)=>items.push({url:it.url,video:!!it.video,album:m.bundle,albumIndex:i}));
+    }else if(m.image_url){
+      items.push({url:m.image_url,video:!!m.video,album:null,albumIndex:0});
+    }
+  });
+  return items;
+}
+function renderGalleryGrid(items){
+  const grid=document.getElementById('galleryGrid');
+  const empty=document.getElementById('galleryEmpty');
+  if(!items.length){grid.replaceChildren();empty.style.display='flex';return;}
+  empty.style.display='none';
+  grid.replaceChildren();
+  items.forEach(it=>{
+    const tile=document.createElement('div');
+    tile.className='gal-tile';
+    if(it.video){
+      const vid=document.createElement('video');
+      vid.src=it.url;vid.muted=true;vid.playsInline=true;vid.preload='metadata';
+      tile.appendChild(vid);
+      const badge=document.createElement('span');badge.className='gal-vid-badge';badge.textContent='▶';
+      tile.appendChild(badge);
+    }else{
+      const img=document.createElement('img');
+      img.src=it.url;img.loading='lazy';img.alt='';
+      tile.appendChild(img);
+    }
+    if(it.album&&it.album.length>1){
+      const bd=document.createElement('span');bd.className='gal-bundle-badge';bd.textContent=it.album.length;
+      tile.appendChild(bd);
+    }
+    tile.onclick=()=>openLB(it.url,it.album,it.albumIndex);
+    grid.appendChild(tile);
+  });
+}
+async function openGallery(){
+  document.getElementById('galleryBg').classList.add('on');
+  document.getElementById('galleryPanel').classList.add('on');
+  document.getElementById('galleryLoading').classList.add('on');
+  document.getElementById('galleryGrid').replaceChildren();
+  document.getElementById('galleryEmpty').style.display='none';
+  try{
+    const{data,error}=await sb.from('messages')
+      .select('id,image_url,bundle,video,doc_name,voice,view_once,deleted,created_at')
+      .or('image_url.not.is.null,bundle.not.is.null')
+      .order('created_at',{ascending:false})
+      .limit(300);
+    if(error) throw error;
+    renderGalleryGrid(flattenGalleryItems(data||[]));
+  }catch(e){
+    console.error('gallery load failed:',e);
+    toast('Could not load gallery');
+  }
+  document.getElementById('galleryLoading').classList.remove('on');
+}
+function closeGallery(){
+  document.getElementById('galleryBg').classList.remove('on');
+  document.getElementById('galleryPanel').classList.remove('on');
+}
+
+// ── PHOTO EDITOR: crop, draw, text — all baked onto a canvas before sending ──
+let _edSourceIdx=null,_edTool='none',_edColor='#ff5f7e';
+let _edHistory=[],_edCanvas=null,_edCtx=null;
+let _edDrawing=false;
+let _edCropRect=null,_edCropDragHandle=null,_edCropDragStart=null;
+let _edTextPending=null;
+
+async function openEditor(idx){
+  const file=pendingImgs[idx];
+  if(!file||file.type.startsWith('video/'))return;
+  _edSourceIdx=idx;
+  _edHistory=[];
+
+  const img=new Image();
+  const url=URL.createObjectURL(file);
+  await new Promise(res=>{img.onload=res;img.src=url;});
+
+  const canvas=document.getElementById('edCanvas');
+  const wrap=document.getElementById('ed-canvas-wrap');
+  document.getElementById('editorOverlay').classList.add('on');
+  await new Promise(r=>requestAnimationFrame(r)); // ensure wrap has real layout dimensions
+
+  const MAXDIM=1600;
+  const dimScale=Math.min(1,MAXDIM/Math.max(img.naturalWidth,img.naturalHeight));
+  const w=Math.round(img.naturalWidth*dimScale),h=Math.round(img.naturalHeight*dimScale);
+  canvas.width=w;canvas.height=h;
+
+  const maxW=wrap.clientWidth-20,maxH=wrap.clientHeight-20;
+  const dispScale=Math.min(maxW/w,maxH/h,1);
+  canvas.style.width=(w*dispScale)+'px';
+  canvas.style.height=(h*dispScale)+'px';
+
+  _edCanvas=canvas;
+  _edCtx=canvas.getContext('2d');
+  _edCtx.drawImage(img,0,0,w,h);
+  URL.revokeObjectURL(url);
+
+  setEditorTool('none');
+  pushEditorHistory();
+}
+
+function pushEditorHistory(){
+  _edHistory.push(_edCanvas.toDataURL('image/png'));
+  if(_edHistory.length>15) _edHistory.shift();
+  document.getElementById('edUndoBtn').disabled=_edHistory.length<=1;
+}
+function editorUndo(){
+  if(_edHistory.length<=1)return;
+  _edHistory.pop();
+  const prev=_edHistory[_edHistory.length-1];
+  const img=new Image();
+  img.onload=()=>{_edCtx.clearRect(0,0,_edCanvas.width,_edCanvas.height);_edCtx.drawImage(img,0,0);};
+  img.src=prev;
+  document.getElementById('edUndoBtn').disabled=_edHistory.length<=1;
+}
+
+function setEditorTool(tool){
+  _edTool=tool;
+  const map={none:'edToolNone',draw:'edToolDraw',text:'edToolText',crop:'edToolCrop'};
+  Object.entries(map).forEach(([t,id])=>document.getElementById(id).classList.toggle('on',t===tool));
+  document.getElementById('edColors').classList.toggle('show',tool==='draw'||tool==='text');
+  document.getElementById('edCropApply').classList.toggle('show',tool==='crop');
+  document.getElementById('edCropBox').classList.toggle('on',tool==='crop');
+  document.getElementById('edTextInput').style.display='none';
+  if(tool==='crop') initCropBox();
+}
+
+function editorDone(){
+  _edCanvas.toBlob(blob=>{
+    if(!blob){toast('Could not save edit');return;}
+    const editedFile=new File([blob],'edited_'+Date.now()+'.png',{type:'image/png'});
+    if(_edSourceIdx!=null&&pendingImgs[_edSourceIdx]){
+      pendingImgs[_edSourceIdx]=editedFile;
+      renderIprvStrip();
+    }
+    closeEditor();
+  },'image/png',0.92);
+}
+function closeEditor(){
+  document.getElementById('editorOverlay').classList.remove('on');
+  document.getElementById('edTextInput').style.display='none';
+  _edSourceIdx=null;_edHistory=[];_edCropRect=null;
+}
+
+// ── Text placement ──
+function startTextPlacement(e,canvasPos){
+  const input=document.getElementById('edTextInput');
+  const wrap=document.getElementById('ed-canvas-wrap');
+  const wrapRect=wrap.getBoundingClientRect();
+  input.style.left=(e.clientX-wrapRect.left)+'px';
+  input.style.top=(e.clientY-wrapRect.top-16)+'px';
+  input.style.color=_edColor;
+  input.style.display='block';
+  input.value='';
+  _edTextPending=canvasPos;
+  setTimeout(()=>input.focus(),30);
+  input.onkeydown=ev=>{if(ev.key==='Enter'){ev.preventDefault();confirmTextPlacement();}};
+  input.onblur=()=>confirmTextPlacement();
+}
+function confirmTextPlacement(){
+  const input=document.getElementById('edTextInput');
+  const val=input.value.trim();
+  input.style.display='none';
+  input.onblur=null;
+  if(!val||!_edTextPending)return;
+  const fontSize=Math.max(24,_edCanvas.width*0.05);
+  _edCtx.font=`600 ${fontSize}px 'Quicksand',sans-serif`;
+  _edCtx.fillStyle=_edColor;
+  _edCtx.textBaseline='top';
+  _edCtx.fillText(val,_edTextPending.x,_edTextPending.y);
+  _edTextPending=null;
+  pushEditorHistory();
+}
+
+// ── Crop box ──
+function initCropBox(){
+  const canvas=document.getElementById('edCanvas');
+  const rect=canvas.getBoundingClientRect();
+  const wrapRect=document.getElementById('ed-canvas-wrap').getBoundingClientRect();
+  const offsetX=rect.left-wrapRect.left,offsetY=rect.top-wrapRect.top;
+  const w=rect.width*0.8,h=rect.height*0.8;
+  _edCropRect={x:offsetX+(rect.width-w)/2,y:offsetY+(rect.height-h)/2,w,h};
+  renderCropBox();
+}
+function renderCropBox(){
+  const box=document.getElementById('edCropBox');
+  box.style.left=_edCropRect.x+'px';box.style.top=_edCropRect.y+'px';
+  box.style.width=_edCropRect.w+'px';box.style.height=_edCropRect.h+'px';
+}
+function applyCrop(){
+  const canvas=document.getElementById('edCanvas');
+  const rect=canvas.getBoundingClientRect();
+  const wrapRect=document.getElementById('ed-canvas-wrap').getBoundingClientRect();
+  const offsetX=rect.left-wrapRect.left,offsetY=rect.top-wrapRect.top;
+  const scaleX=canvas.width/rect.width,scaleY=canvas.height/rect.height;
+  const cx=(_edCropRect.x-offsetX)*scaleX,cy=(_edCropRect.y-offsetY)*scaleY;
+  const cw=_edCropRect.w*scaleX,ch=_edCropRect.h*scaleY;
+
+  const tmp=document.createElement('canvas');
+  tmp.width=Math.max(1,Math.round(cw));tmp.height=Math.max(1,Math.round(ch));
+  tmp.getContext('2d').drawImage(canvas,cx,cy,cw,ch,0,0,tmp.width,tmp.height);
+
+  canvas.width=tmp.width;canvas.height=tmp.height;
+  _edCtx.clearRect(0,0,canvas.width,canvas.height);
+  _edCtx.drawImage(tmp,0,0);
+
+  const wrap=document.getElementById('ed-canvas-wrap');
+  const maxW=wrap.clientWidth-20,maxH=wrap.clientHeight-20;
+  const dispScale=Math.min(maxW/canvas.width,maxH/canvas.height,1);
+  canvas.style.width=(canvas.width*dispScale)+'px';
+  canvas.style.height=(canvas.height*dispScale)+'px';
+
+  pushEditorHistory();
+  setEditorTool('none');
+}
+
+(function initEditorInteractions(){
+  document.querySelectorAll('.ed-color').forEach(el=>{
+    el.addEventListener('click',()=>{
+      document.querySelectorAll('.ed-color').forEach(c=>c.classList.remove('on'));
+      el.classList.add('on');
+      _edColor=el.dataset.c;
+      document.getElementById('edCropBox').style.borderColor=_edColor;
+    });
+  });
+
+  const canvas=document.getElementById('edCanvas');
+  function getPos(e){
+    const rect=canvas.getBoundingClientRect();
+    const scaleX=canvas.width/rect.width,scaleY=canvas.height/rect.height;
+    return{x:(e.clientX-rect.left)*scaleX,y:(e.clientY-rect.top)*scaleY};
+  }
+  canvas.addEventListener('pointerdown',e=>{
+    if(_edTool==='draw'){
+      canvas.setPointerCapture(e.pointerId);
+      _edDrawing=true;
+      const pt=getPos(e);
+      _edCtx.beginPath();
+      _edCtx.moveTo(pt.x,pt.y);
+    }else if(_edTool==='text'){
+      if(document.getElementById('edTextInput').style.display==='block') confirmTextPlacement();
+      startTextPlacement(e,getPos(e));
+    }
+  });
+  canvas.addEventListener('pointermove',e=>{
+    if(_edTool==='draw'&&_edDrawing){
+      const pt=getPos(e);
+      _edCtx.strokeStyle=_edColor;
+      _edCtx.lineWidth=Math.max(4,canvas.width*0.008);
+      _edCtx.lineCap='round';_edCtx.lineJoin='round';
+      _edCtx.lineTo(pt.x,pt.y);
+      _edCtx.stroke();
+    }
+  });
+  function endDraw(){
+    if(_edTool==='draw'&&_edDrawing){_edDrawing=false;pushEditorHistory();}
+  }
+  canvas.addEventListener('pointerup',endDraw);
+  canvas.addEventListener('pointercancel',endDraw);
+
+  document.querySelectorAll('.ed-crop-handle').forEach(handle=>{
+    handle.addEventListener('pointerdown',e=>{
+      e.stopPropagation();
+      handle.setPointerCapture(e.pointerId);
+      _edCropDragHandle=handle.dataset.h;
+      _edCropDragStart={x:e.clientX,y:e.clientY,rect:{..._edCropRect}};
+    });
+    handle.addEventListener('pointermove',e=>{
+      if(!_edCropDragHandle||!_edCropDragStart)return;
+      const dx=e.clientX-_edCropDragStart.x,dy=e.clientY-_edCropDragStart.y;
+      let{x,y,w,h}=_edCropDragStart.rect;
+      const min=40;
+      if(_edCropDragHandle==='tl'){x+=dx;y+=dy;w-=dx;h-=dy;}
+      else if(_edCropDragHandle==='tr'){y+=dy;w+=dx;h-=dy;}
+      else if(_edCropDragHandle==='bl'){x+=dx;w-=dx;h+=dy;}
+      else if(_edCropDragHandle==='br'){w+=dx;h+=dy;}
+      if(w<min)w=min;if(h<min)h=min;
+      _edCropRect={x,y,w,h};
+      renderCropBox();
+    });
+    function end(){_edCropDragHandle=null;_edCropDragStart=null;}
+    handle.addEventListener('pointerup',end);
+    handle.addEventListener('pointercancel',end);
+  });
+})();
+
+async function openViewOnce(id){
+  const msg=msgs.find(m=>m.id===id);
+  if(!msg||msg.view_once_opened)return;
+  try{
+    const{data,error}=await sb.rpc('open_view_once',{p_id:id});
+    if(error) throw error;
+    if(!data){toast('This photo is no longer available');return;}
+    // Reveal it once, then permanently mark it spent — the server has already
+    // forgotten the URL, so this is the only chance to see it.
+    msg.view_once_opened=true;
+    const el=document.querySelector(`.mw[data-id="${id}"]`);
+    if(el) el.replaceWith(mkEl(msg));
+    openLB(data,null,0);
+  }catch(e){
+    console.error('open_view_once failed:',e);
+    toast(e.message&&e.message.includes('own')?"You can't open your own view-once photo":'Could not open — try again');
+  }
+}
+
+function openLB(url,album,index){
+  _lbAlbum=(album&&album.length>1)?album:null;
+  _lbIndex=index||0;
+  resetLBTransform();
+  document.getElementById('lbimg').src=_lbAlbum?_lbAlbum[_lbIndex].url:url;
+  document.getElementById('lb').classList.add('on');
+  updateLBNav();
+  const hint=document.getElementById('lb-hint');
+  hint.classList.remove('gone');
+  clearTimeout(hint._t);
+  hint._t=setTimeout(()=>hint.classList.add('gone'),2200);
+}
+function updateLBNav(){
+  const counter=document.getElementById('lb-counter');
+  const prev=document.getElementById('lb-prev');
+  const next=document.getElementById('lb-next');
+  if(_lbAlbum){
+    counter.textContent=(_lbIndex+1)+' / '+_lbAlbum.length;
+    counter.classList.add('on');
+    prev.classList.add('on');next.classList.add('on');
+    prev.classList.toggle('hide',_lbIndex===0);
+    next.classList.toggle('hide',_lbIndex===_lbAlbum.length-1);
+  }else{
+    counter.classList.remove('on');
+    prev.classList.remove('on');next.classList.remove('on');
+  }
+}
+function lbNav(dir){
+  if(!_lbAlbum)return;
+  const newIdx=_lbIndex+dir;
+  if(newIdx<0||newIdx>=_lbAlbum.length)return;
+  _lbIndex=newIdx;
+  resetLBTransform();
+  document.getElementById('lbimg').src=_lbAlbum[_lbIndex].url;
+  updateLBNav();
+}
+function closeLB(){
+  document.getElementById('lb').classList.remove('on');
+  _lbAlbum=null;
+  resetLBTransform();
+}
+function resetLBTransform(){
+  _lbScale=1;_lbTx=0;_lbTy=0;
+  applyLBTransform(false);
+}
+function applyLBTransform(snap){
+  const img=document.getElementById('lbimg');
+  img.classList.toggle('snapping',!!snap);
+  img.style.transform=`translate(${_lbTx}px,${_lbTy}px) scale(${_lbScale})`;
+}
+function downloadCurrentLB(){
+  const url=_lbAlbum?_lbAlbum[_lbIndex].url:document.getElementById('lbimg').src;
+  saveMedia(url,'image');
+}
+function lbBackgroundTap(e){
+  if(_lbMoved){_lbMoved=false;return;}
+  if(e.target.id==='lb-viewport') closeLB();
+}
+
+(function initLightboxGestures(){
+  const img=document.getElementById('lbimg');
+  if(!img)return;
+  const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+
+  img.addEventListener('pointerdown',e=>{
+    img.setPointerCapture(e.pointerId);
+    _lbPointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    _lbMoved=false;
+    if(_lbPointers.size===2){
+      const pts=[..._lbPointers.values()];
+      _lbPinchStartDist=dist(pts[0],pts[1]);
+      _lbPinchStartScale=_lbScale;
+    }else if(_lbPointers.size===1){
+      _lbPanStart={x:e.clientX,y:e.clientY,tx:_lbTx,ty:_lbTy};
+    }
+  });
+
+  img.addEventListener('pointermove',e=>{
+    if(!_lbPointers.has(e.pointerId))return;
+    _lbPointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+
+    if(_lbPointers.size===2){
+      const pts=[..._lbPointers.values()];
+      const d=dist(pts[0],pts[1]);
+      _lbScale=Math.min(5,Math.max(1,_lbPinchStartScale*(d/_lbPinchStartDist)));
+      applyLBTransform(false);
+      _lbMoved=true;
+    }else if(_lbPointers.size===1&&_lbPanStart){
+      const dx=e.clientX-_lbPanStart.x,dy=e.clientY-_lbPanStart.y;
+      if(_lbScale>1){
+        _lbTx=_lbPanStart.tx+dx;
+        _lbTy=_lbPanStart.ty+dy;
+        applyLBTransform(false);
+      }
+      if(Math.hypot(dx,dy)>10) _lbMoved=true;
+    }
+  });
+
+  function endPointer(e){
+    _lbPointers.delete(e.pointerId);
+    if(_lbPointers.size<2&&_lbScale<1.02){
+      _lbScale=1;_lbTx=0;_lbTy=0;applyLBTransform(true);
+    }
+    if(_lbPointers.size===0){
+      if(!_lbMoved){
+        const now=Date.now();
+        const dt=now-_lbLastTapTime;
+        const closeEnough=Math.abs(e.clientX-_lbLastTapX)<40&&Math.abs(e.clientY-_lbLastTapY)<40;
+        if(dt<320&&closeEnough){
+          if(_lbScale>1){_lbScale=1;_lbTx=0;_lbTy=0;}
+          else{_lbScale=2.4;}
+          applyLBTransform(true);
+          _lbLastTapTime=0;
+        }else{
+          _lbLastTapTime=now;_lbLastTapX=e.clientX;_lbLastTapY=e.clientY;
+        }
+      }
+      _lbPanStart=null;
+    }
+  }
+  img.addEventListener('pointerup',endPointer);
+  img.addEventListener('pointercancel',endPointer);
+})();
+
 
 // ── SCROLL ──
 function scrollBot(s){
