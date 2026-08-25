@@ -2430,6 +2430,13 @@ function setUser(name){
         // Always catch up on messages when app comes to foreground —
         // this is what fixes "have to close and reopen to see new messages"
         catchupMsgs();
+        // Realtime websockets commonly die silently while the app is
+        // backgrounded for a while — REST calls like catchupMsgs() above
+        // still work fine (masking the problem for chat), but anything that
+        // depends purely on a live push — the ring button above all — would
+        // otherwise stay silently broken until a full reload. Resubscribing
+        // fresh on every resume is what actually fixes that.
+        subMsgs();subTyping();subSettings();subPres();subRing();subSession();
         if(navigator.serviceWorker?.controller){
           navigator.serviceWorker.controller.postMessage({type:'CLEAR_NOTIF'});
         }
@@ -2440,6 +2447,19 @@ function setUser(name){
             type:'PAGE_HIDDEN',ts:new Date().toISOString()
           });
         }
+      }
+    });
+    // Belt-and-suspenders: mobile browsers don't always fire visibilitychange
+    // reliably (e.g. coming back from a long sleep, or a network drop/restore
+    // without a tab switch) — these two catch those cases too.
+    window.addEventListener('online',()=>{
+      catchupMsgs();
+      subMsgs();subTyping();subSettings();subPres();subRing();subSession();
+    });
+    window.addEventListener('pageshow',e=>{
+      if(e.persisted){
+        catchupMsgs();
+        subMsgs();subTyping();subSettings();subPres();subRing();subSession();
       }
     });
   }
