@@ -2425,7 +2425,7 @@ function setUser(name){
     setUser._vis=true;
     document.addEventListener('visibilitychange',()=>{
       if(document.visibilityState==='visible'){
-        markSeen();
+        recheckVisibleSeen();
         updatePres();
         // Always catch up on messages when app comes to foreground —
         // this is what fixes "have to close and reopen to see new messages"
@@ -2736,7 +2736,7 @@ async function loadMsgs(){
     !==JSON.stringify(msgs.map(m=>m.id+m.seen+m.reactions+m.deleted+m.edited));
   msgs=fresh;
   if(changed||!cached.length) renderAll();
-  if(document.visibilityState==='visible') markSeen();
+  if(document.visibilityState==='visible') recheckVisibleSeen();
   if(!cached.length) scrollBot(false); // already scrolled if cache was shown
 }
 
@@ -3080,6 +3080,7 @@ function mkEl(msg,animate=false){
 
   // Swipe to reply
   if(!msg.deleted&&!msg._uploading) addSwipe(bw,arrow,msg);
+  observeForSeen(w,msg);
   return w;
 }
 
@@ -3232,7 +3233,7 @@ function subMsgs(){
         document.getElementById('msgs').appendChild(mkEl(p.new,true));
         scrollBot(true);
         if(p.new.sender!==CU){
-          if(document.visibilityState==='visible'){markSeen();playMsgSound();}
+          if(document.visibilityState==='visible'){playMsgSound();}
           pushNotif(p.new);
         }
       } else if(p.eventType==='UPDATE'){
@@ -3275,7 +3276,6 @@ async function catchupMsgs(){
       area.appendChild(mkEl(m,true));
     });
     scrollBot(true);
-    if(document.visibilityState==='visible') markSeen();
   }
   // 2. Re-sync existing visible messages that may have changed
   if(!msgs.length)return;
@@ -3532,13 +3532,111 @@ async function sendBundle(files,txt){
   attempt();
 }
 
-let _seenT=null;
-async function markSeen(){
-  if(!OU)return;
-  clearTimeout(_seenT);
-  _seenT=setTimeout(async()=>{
-    await sb.from('messages').update({seen:true}).eq('sender',OU).eq('seen',false);
-  },400);
+// ── SEEN RECEIPTS: only mark a message seen once it has actually scrolled into
+//    view on screen while the app is genuinely in the foreground — not just
+//    because the app happened to be open somewhere. This is what fixes
+//    messages showing "seen" before they were actually looked at. ──
+let _pendingSeenIds=new Set();
+let _seenFlushT=null;
+function scheduleSeenFlush(){
+  clearTimeout(_seenFlushT);
+  _seenFlushT=setTimeout(async()=>{
+    if(!_pendingSeenIds.size)return;
+    const ids=[..._pendingSeenIds];
+    _pendingSeenIds.clear();
+    const{error}=await sb.from('messages').update({seen:true}).in('id',ids);
+    if(error) console.error('mark seen failed:',error);
+  },500);
+}
+
+// Two guards against false "seen": the app must genuinely be the thing in front
+// of the person's eyes (visibilityState alone isn't reliable on mobile — locking
+// the screen or switching apps doesn't always flip it, hasFocus() catches more
+// of those cases), AND a message has to stay continuously in view for a short
+// dwell time before it counts — a single flashed frame during a DOM rebuild
+// (which happens on every resync/catch-up) is not the same as actually reading it.
+function _isGenuinelyForeground(){
+  return document.visibilityState==='visible'&&document.hasFocus();
+}
+const SEEN_DWELL_MS=700;
+let _seenDwellTimers=new Map(); // id -> timeout handle
+
+function _commitSeen(id){
+  const msg=msgs.find(m=>m.id===id);
+  if(!msg||msg.sender!==OU||msg.seen)return;
+  msg.seen=true;
+  _pendingSeenIds.add(id);
+  scheduleSeenFlush();
+  const el=document.querySelector(`.mw[data-id="${id}"]`);
+  if(el){try{getSeenObserver().unobserve(el);}catch(e){}}
+}
+
+let _seenObserver=null;
+function getSeenObserver(){
+  if(_seenObserver)return _seenObserver;
+  _seenObserver=new IntersectionObserver(entries=>{
+    entries.forEach(entry=>{
+      const id=entry.target.dataset.id;
+      if(!id)return;
+      if(entry.isIntersecting&&_isGenuinelyForeground()){
+        if(_seenDwellTimers.has(id))return; // already counting down
+        const t=setTimeout(()=>{
+          _seenDwellTimers.delete(id);
+          // Re-verify right before committing — the person could have scrolled
+          // away, backgrounded the app, or lost focus during the dwell window.
+          if(_isGenuinelyForeground()) _commitSeen(id);
+        },SEEN_DWELL_MS);
+        _seenDwellTimers.set(id,t);
+      }else{
+        // Left view, or app lost focus/foreground — cancel the pending countdown
+        const t=_seenDwellTimers.get(id);
+        if(t){clearTimeout(t);_seenDwellTimers.delete(id);}
+      }
+    });
+  },{root:document.getElementById('msgs'),threshold:0.6});
+  return _seenObserver;
+}
+function observeForSeen(el,msg){
+  if(!msg||msg.sender!==OU||msg.seen)return;
+  getSeenObserver().observe(el);
+}
+// Cancel any in-flight dwell timers whenever the app leaves the foreground —
+// belt and suspenders alongside the isGenuinelyForeground() re-check above.
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState!=='visible'){
+    _seenDwellTimers.forEach(t=>clearTimeout(t));
+    _seenDwellTimers.clear();
+  }
+});
+window.addEventListener('blur',()=>{
+  _seenDwellTimers.forEach(t=>clearTimeout(t));
+  _seenDwellTimers.clear();
+});
+// Re-check what's actually on screen right now — used when the app regains
+// focus, since a message could already be sitting in view at that moment
+// (IntersectionObserver only fires on a NEW intersection change, not on tab
+// refocus if nothing moved) and also as a safety net after the realtime
+// history rebuild replaces DOM nodes wholesale. Still goes through the same
+// dwell-timer path, not an instant commit, for the same anti-flash reason.
+function recheckVisibleSeen(){
+  if(!_isGenuinelyForeground()||!OU)return;
+  const container=document.getElementById('msgs');
+  if(!container)return;
+  const cRect=container.getBoundingClientRect();
+  container.querySelectorAll('.mw[data-id]').forEach(el=>{
+    const id=el.dataset.id;
+    const msg=msgs.find(m=>m.id===id);
+    if(!msg||msg.sender!==OU||msg.seen)return;
+    const r=el.getBoundingClientRect();
+    const visible=r.bottom>cRect.top+r.height*0.4&&r.top<cRect.bottom-r.height*0.4;
+    if(visible&&!_seenDwellTimers.has(id)){
+      const t=setTimeout(()=>{
+        _seenDwellTimers.delete(id);
+        if(_isGenuinelyForeground()) _commitSeen(id);
+      },SEEN_DWELL_MS);
+      _seenDwellTimers.set(id,t);
+    }
+  });
 }
 
 // ── INPUT ──
