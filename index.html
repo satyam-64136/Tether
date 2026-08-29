@@ -2169,6 +2169,17 @@ function escHtml(s){
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
+// Wraps any network call with a hard deadline — on a flaky mobile connection
+// a promise can simply hang forever with no rejection at all, which is worse
+// than an error: no error message ever shows and no UI ever recovers. This
+// guarantees every wrapped call eventually settles one way or the other.
+function withTimeout(promise,ms=12000){
+  return Promise.race([
+    promise,
+    new Promise((_,reject)=>setTimeout(()=>reject(new Error('Timed out — check your connection')),ms))
+  ]);
+}
+
 function isVideoUrl(url){
   if(!url)return false;
   return /\.(mp4|mov|webm|mkv|avi|m4v)(\?|$)/i.test(url);
@@ -2178,19 +2189,30 @@ function isVideoUrl(url){
 (function(){
   const s=document.createElement('script');
   s.src='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js';
+  let _bootSettled=false;
   s.onload=async()=>{
     try{
       sb=supabase.createClient(SU,SK);
-      const{data:{session}}=await sb.auth.getSession();
-      if(session){
-        MY_UID=session.user.id;
-      }else{
-        const{data,error:authErr}=await sb.auth.signInAnonymously();
-        if(authErr) throw authErr;
-        MY_UID=data.user.id;
-      }
+      // The CDN script loading fast doesn't mean the actual login work will —
+      // give the real auth calls their own timeout so a slow/flaky mobile
+      // connection can never leave the app silently stuck forever.
+      const authWork=(async()=>{
+        const{data:{session}}=await sb.auth.getSession();
+        if(session){
+          MY_UID=session.user.id;
+        }else{
+          const{data,error:authErr}=await sb.auth.signInAnonymously();
+          if(authErr) throw authErr;
+          MY_UID=data.user.id;
+        }
+      })();
+      await Promise.race([
+        authWork,
+        new Promise((_,reject)=>setTimeout(()=>reject(new Error('Connection timed out')),12000))
+      ]);
+      _bootSettled=true;
     }
-    catch(e){showFatal('Failed to connect: '+(e&&e.message?e.message:'unknown error'));return;}
+    catch(e){_bootSettled=true;showFatal('Failed to connect: '+(e&&e.message?e.message:'unknown error'));return;}
     // ── SPLASH QUOTES ──
 (function(){
   const quotes=[
@@ -2215,12 +2237,15 @@ boot();
     document.getElementById('ldr').classList.add('off');
     showFatal('No internet connection. Please connect and reload.');
   };
+  // Backstop for the CDN script itself never loading/firing onload at all
+  // (separate from the auth-specific timeout above, which covers everything
+  // that happens after the script is already loaded).
   setTimeout(()=>{
-    if(!sb){
+    if(!_bootSettled&&!sb){
       document.getElementById('ldr').classList.add('off');
       showFatal('Loading timed out. Please reload.');
     }
-  },10000);
+  },15000);
   document.head.appendChild(s);
 })();
 
@@ -2256,7 +2281,7 @@ function boot(){
   const saved=localStorage.getItem('us_user');
   if(saved){
     if(localStorage.getItem('us_trusted_'+saved)==='1'){
-      sb.rpc('check_session',{p_user:saved}).then(({data,error})=>{
+      withTimeout(sb.rpc('check_session',{p_user:saved}),8000).then(({data,error})=>{
         if(!error&&data===true) setUser(saved);
         else{
           localStorage.removeItem('us_trusted_'+saved);
@@ -2374,7 +2399,7 @@ async function verifyLockPin(){
   const pad=document.getElementById('lockpad');
   pad.style.pointerEvents='none';
   try{
-    const{data,error}=await sb.rpc('verify_pin',{p_user:LK_NAME,p_pin:LK_PIN});
+    const{data,error}=await withTimeout(sb.rpc('verify_pin',{p_user:LK_NAME,p_pin:LK_PIN}));
     if(error) throw error;
     if(data==='true'){
       localStorage.setItem('us_trusted_'+LK_NAME,'1');
@@ -2720,10 +2745,19 @@ async function loadMsgs(){
   }
 
   // 2. Fetch from server in background
-  const{data,error}=await sb.from('messages')
-    .select('*')
-    .order('created_at',{ascending:false})
-    .limit(PAGE);
+  let data,error;
+  try{
+    ({data,error}=await withTimeout(
+      sb.from('messages').select('*').order('created_at',{ascending:false}).limit(PAGE),
+      10000
+    ));
+  }catch(timeoutErr){
+    if(!cached.length){
+      toast('Could not load messages — check your connection');
+      document.getElementById('empty').style.display='flex';
+    }
+    return;
+  }
   if(error){if(!cached.length) toast('DB error');return;}
   const fresh=(data||[]).reverse();
   if(fresh.length<PAGE) _allLoaded=true;
