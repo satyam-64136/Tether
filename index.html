@@ -2069,7 +2069,7 @@ html,body{
 const SU='https://ggfxdeuwifmqulyhchtv.supabase.co';
 const SK='sb_publishable_DMMJ2sFnGlFWogBs30qowg_-N0zk3OI';
 // Paste your VAPID public key here after running generate-vapid.js
-const VAPID_PUBLIC_KEY='BGZQe5f7pRH06GORsHHpoJrzFbna4USfGb6zGhua-SOyd1S0coLrnGBEG0Ku953PkNiJxT_jAc9TPL8hmbhDIEg';
+const VAPID_PUBLIC_KEY='BDfT2a2PGVM1HSlKlfgFygvOa_JJ_tFqVA7o5J2RKqyMgQdGvk4pz65BvMP8W2nsLBvSo9lp6a9cUIOa66dV9C4';
 
 const THEMES=[
   {id:'dusty-rose',     name:'Dusty Rose',   bg:'#f9f4f5',ac:'#b86070',light:true},
@@ -5215,20 +5215,32 @@ async function subscribeToSWPush(){
   if(!('serviceWorker'in navigator)||!CU)return;
   try{
     const reg=await navigator.serviceWorker.ready;
-    // Request a Web Push subscription using VAPID public key
     let sub=await reg.pushManager.getSubscription();
+
+    // Track which VAPID key a subscription was created with. If the app's key
+    // has changed since (e.g. rotating a leaked key, like happened here), any
+    // existing subscription becomes permanently invalid — the push service
+    // silently rejects anything sent to it, with no visible error anywhere.
+    const lastKey=localStorage.getItem('us_push_vapid_key');
+    if(sub&&lastKey!==VAPID_PUBLIC_KEY){
+      try{await sub.unsubscribe();}catch(e){}
+      sub=null;
+    }
+
     if(!sub){
       sub=await reg.pushManager.subscribe({
         userVisibleOnly:true,
         applicationServerKey:urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
       });
+      localStorage.setItem('us_push_vapid_key',VAPID_PUBLIC_KEY);
     }
     // Save subscription to Supabase so Edge Function can look it up
-    await sb.from('push_subscriptions').upsert({
+    const{error}=await sb.from('push_subscriptions').upsert({
       username:CU,
       subscription:JSON.parse(JSON.stringify(sub)),
       updated_at:new Date().toISOString()
     },{onConflict:'username'});
+    if(error) console.error('Failed to save push subscription:',error);
   }catch(e){
     console.warn('Push subscription failed:',e);
   }
