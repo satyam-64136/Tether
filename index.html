@@ -3268,7 +3268,12 @@ function subMsgs(){
         scrollBot(true);
         if(p.new.sender!==CU){
           if(document.visibilityState==='visible'){playMsgSound();}
-          pushNotif(p.new);
+          // Notifications now arrive via a real server-triggered push (see the
+          // database trigger + Edge Function) — that's the only path needed,
+          // works even when this page isn't open at all. The old approach of
+          // asking this page's own service worker to show one too has been
+          // removed; keeping both would just show duplicate notifications
+          // whenever the app was open in the background.
         }
       } else if(p.eventType==='UPDATE'){
         const i=msgs.findIndex(m=>m.id===p.new.id);
@@ -5229,21 +5234,12 @@ async function toggleNotifications(){
 }
 
 // ── NOTIFICATIONS ──
-function pushNotif(msg){
-  // Only notify when page is hidden — never when visible
-  if(document.visibilityState!=='hidden')return;
-  try{
-    if(!('Notification'in window)||Notification.permission!=='granted')return;
-    const body=(msg.video||isVideoUrl(msg.image_url))?'🎥 sent a video':msg.image_url?'📷 sent a photo':msg.content||'…';
-    // Always route through SW — never use new Notification() directly
-    // This prevents double-notification (browser + app simultaneously)
-    if('serviceWorker'in navigator&&navigator.serviceWorker.controller){
-      navigator.serviceWorker.controller.postMessage({type:'SHOW_NOTIF',title:msg.sender,body});
-    }
-    // If no SW controller (very first load before SW installs) — silently skip
-    // rather than show a duplicate native notification
-  }catch(e){/* WebView restriction — skip silently */}
-}
+// Real notifications now arrive via a genuine server-side push (database
+// trigger → Edge Function → Web Push), which is what actually works even
+// when the app is fully closed. The old pushNotif() function used to ask
+// this page's own service worker to show a notification directly — that
+// only ever worked while the page was already loaded, and now that the
+// real push exists, keeping it around would just cause duplicates. Removed.
 
 async function subscribeToSWPush(){
   if(!('serviceWorker'in navigator)||!CU)return;
