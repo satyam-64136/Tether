@@ -5274,7 +5274,17 @@ async function subscribeToSWPush(){
       subscription:JSON.parse(JSON.stringify(sub)),
       updated_at:new Date().toISOString()
     },{onConflict:'username'});
-    if(error) console.error('Failed to save push subscription:',error);
+    if(error){
+      console.error('Failed to save push subscription:',error);
+      if(error.code==='42501'){
+        // The database doesn't currently recognize this device as validly
+        // logged in as CU — this device's session has drifted out of sync
+        // with what's on record (can happen after clearing site data,
+        // switching devices, etc). Notifications silently won't work until
+        // this is corrected, so surface it instead of failing invisibly.
+        toast("Couldn't set up notifications — try Switch user, then log back in");
+      }
+    }
   }catch(e){
     console.warn('Push subscription failed:',e);
   }
