@@ -3540,6 +3540,37 @@ async function send(){
   attempt();
 }
 
+// Downscale + re-encode an image before it ever leaves the device, so we're
+// not uploading (and later re-downloading) full-resolution camera photos for
+// a chat bubble that only ever displays at a few hundred pixels wide.
+// - Caps the longest edge at 1600px — plenty sharp for a phone/chat view,
+//   invisible quality loss for anything you'd actually zoom into here.
+// - Re-encodes as WebP at quality 0.82 — WebP beats JPEG at the same visual
+//   quality by 25-35% file size on photos.
+// - Skips GIFs (animation would be destroyed) and anything already small.
+// - Falls back to the original file untouched if compression fails or
+//   somehow doesn't actually save space.
+async function compressImage(file, maxDim=1600, quality=0.82){
+  if(!file.type.startsWith('image/') || file.type==='image/gif') return file;
+  if(file.size < 350*1024) return file; // already small — not worth a re-encode pass
+  try{
+    const bitmap=await createImageBitmap(file);
+    const {width,height}=bitmap;
+    const scale=Math.min(1,maxDim/Math.max(width,height));
+    const w=Math.max(1,Math.round(width*scale)), h=Math.max(1,Math.round(height*scale));
+    const canvas=document.createElement('canvas');
+    canvas.width=w;canvas.height=h;
+    canvas.getContext('2d').drawImage(bitmap,0,0,w,h);
+    bitmap.close?.();
+    const blob=await new Promise(res=>canvas.toBlob(res,'image/webp',quality));
+    if(!blob||blob.size>=file.size) return file; // didn't actually help — keep original
+    return new File([blob],file.name.replace(/\.\w+$/,'')+'.webp',{type:'image/webp'});
+  }catch(e){
+    console.error('image compression failed, sending original:',e);
+    return file;
+  }
+}
+
 // Send several images/videos as one bundled message, average progress across all uploads
 async function sendBundle(files,txt){
   const replyToId=replyTo?.id||null;
@@ -3572,9 +3603,10 @@ async function sendBundle(files,txt){
     try{
       const uploaded=await Promise.all(files.map(async(f,i)=>{
         const isVid=f.type.startsWith('video/');
-        const ext=f.name.split('.').pop()||(isVid?'mp4':'jpg');
+        const toUpload=isVid?f:await compressImage(f);
+        const ext=toUpload.name.split('.').pop()||(isVid?'mp4':'jpg');
         const path=`chat_${Date.now()}_${i}_${Math.random().toString(36).slice(2)}.${ext}`;
-        await uploadWithProgress('images',path,f,p=>{progressPerFile[i]=p;updateAvg();});
+        await uploadWithProgress('images',path,toUpload,p=>{progressPerFile[i]=p;updateAvg();});
         const url=sb.storage.from('images').getPublicUrl(path).data.publicUrl;
         return{url,video:isVid};
       }));
@@ -4249,7 +4281,10 @@ async function startRec(){
       return;
     }
     audioChunks=[];
-    mediaRec=new MediaRecorder(stream,{mimeType:getSupportedMime()});
+    // 24kbps is a well-known "voice mode" bitrate for Opus — speech stays
+    // perfectly clear at it, but it's roughly a fifth the size of the
+    // ~128kbps browsers otherwise default to for audio recording.
+    mediaRec=new MediaRecorder(stream,{mimeType:getSupportedMime(),audioBitsPerSecond:24000});
     mediaRec.ondataavailable=e=>{if(e.data.size>0)audioChunks.push(e.data);};
     mediaRec.onstop=async()=>{
       stream.getTracks().forEach(t=>t.stop());

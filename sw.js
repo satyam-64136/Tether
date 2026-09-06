@@ -25,6 +25,23 @@ function isStorageAsset(url){
   return url.pathname.includes('/storage/v1/object/');
 }
 
+// Keep the media cache from growing forever. Cache Storage has no built-in
+// size limit or eviction, so left alone it would just accumulate every photo
+// and voice note either of you ever sent, indefinitely, taking up more and
+// more space on-device. This keeps roughly the most-recently-fetched
+// MAX_MEDIA_ENTRIES media files and quietly drops the oldest ones once that
+// cap is hit — the app shell / API cache entries are untouched.
+const MAX_MEDIA_ENTRIES = 300;
+async function trimMediaCache(){
+  const cache = await caches.open(CACHE);
+  const keys = await cache.keys();
+  const mediaKeys = keys.filter(req => isStorageAsset(new URL(req.url)));
+  const excess = mediaKeys.length - MAX_MEDIA_ENTRIES;
+  if(excess > 0){
+    for(let i=0; i<excess; i++) await cache.delete(mediaKeys[i]);
+  }
+}
+
 self.addEventListener('fetch', e => {
   if(e.request.method !== 'GET') return;
   const url = new URL(e.request.url);
@@ -38,7 +55,7 @@ self.addEventListener('fetch', e => {
         return fetch(e.request).then(res => {
           if(res.ok){
             const clone = res.clone();
-            caches.open(CACHE).then(c => c.put(e.request, clone));
+            caches.open(CACHE).then(c => c.put(e.request, clone)).then(trimMediaCache);
           }
           return res;
         }).catch(() => cached);
