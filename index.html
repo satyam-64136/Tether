@@ -3264,11 +3264,20 @@ function subMsgs(){
     .on('postgres_changes',{event:'*',schema:'public',table:'messages'},p=>{
       if(p.eventType==='INSERT'){
         if(msgs.find(m=>m.id===p.new.id))return;
+        // Read scroll position BEFORE the DOM changes below — appending
+        // shifts scrollHeight instantly, so this has to happen first.
+        const wasNearBottom=p.new.sender===CU||isNearBottom();
         msgs.push(p.new);
         cacheUpdateOne(p.new); // write to cache
         document.getElementById('empty').style.display='none';
         document.getElementById('msgs').appendChild(mkEl(p.new,true));
-        scrollBot(true);
+        // Only snap to the bottom if the user was already there (or it's
+        // their own message going out). Otherwise a message arriving —
+        // e.g. right as the app opens from a push notification — used to
+        // force-scroll everyone to the bottom and fight anyone trying to
+        // scroll up to read older messages. Now it just reveals the
+        // "scroll to latest" button instead, same as loading older history.
+        if(wasNearBottom) scrollBot(true); else updateScrollBtn(_lc.msgs||document.getElementById('msgs'));
         if(p.new.sender!==CU){
           if(document.visibilityState==='visible'){playMsgSound();}
           // Notifications now arrive via a real server-triggered push (see the
@@ -3310,6 +3319,13 @@ async function catchupMsgs(){
     .order('created_at',{ascending:true});
   const area=document.getElementById('msgs');
   if(newMsgs&&newMsgs.length){
+    // Same reasoning as subMsgs' INSERT handler: this is exactly what runs
+    // when the app resumes from being backgrounded (see the visibilitychange
+    // listener), which is the #1 trigger for this — opening the app off a
+    // push notification. Check position BEFORE appending any of the catch-up
+    // messages, otherwise scrollHeight has already moved and this always
+    // reads as "at the bottom".
+    const wasNearBottom=isNearBottom();
     newMsgs.forEach(m=>{
       if(msgs.find(x=>x.id===m.id))return;
       msgs.push(m);
@@ -3317,7 +3333,7 @@ async function catchupMsgs(){
       document.getElementById('empty').style.display='none';
       area.appendChild(mkEl(m,true));
     });
-    scrollBot(true);
+    if(wasNearBottom) scrollBot(true); else updateScrollBtn(area);
   }
   // 2. Re-sync existing visible messages that may have changed
   if(!msgs.length)return;
@@ -5061,6 +5077,16 @@ function scrollBot(s){
   a.scrollTo({top:a.scrollHeight,behavior:s?'smooth':'auto'});
   const btn=_lc.scrollBtn||document.getElementById('scroll-down-btn');
   if(btn) btn.classList.remove('visible');
+}
+
+// True if the user is already near the bottom of the chat (i.e. it's safe to
+// auto-scroll them without yanking them away from something they're reading).
+// Must be called BEFORE new message DOM nodes are appended, since appending
+// changes scrollHeight immediately.
+function isNearBottom(threshold=150){
+  const a=_lc.msgs||document.getElementById('msgs');
+  if(!a) return true;
+  return (a.scrollHeight-a.scrollTop-a.clientHeight)<threshold;
 }
 
 let _scrollBtnRaf=false;
