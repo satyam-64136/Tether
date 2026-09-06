@@ -14,8 +14,42 @@ self.addEventListener('activate', e => {
   self.clients.claim();
 });
 
+// Uploaded chat media (images, voice notes, videos) never changes once it's
+// uploaded — a given Storage URL always points at the same bytes forever.
+// There's no reason to ever re-fetch it from Supabase once we have a local
+// copy. Re-fetching it anyway is exactly what blew through the 5GB/month
+// cached-egress quota: every reopen of the chat re-downloaded every photo
+// and voice note all over again instead of reusing what was already on
+// the device.
+function isStorageAsset(url){
+  return url.pathname.includes('/storage/v1/object/');
+}
+
 self.addEventListener('fetch', e => {
   if(e.request.method !== 'GET') return;
+  const url = new URL(e.request.url);
+
+  if(isStorageAsset(url)){
+    // Cache-first: serve instantly from disk if we've ever fetched this file
+    // before, and only hit the network the very first time.
+    e.respondWith(
+      caches.match(e.request).then(cached => {
+        if(cached) return cached;
+        return fetch(e.request).then(res => {
+          if(res.ok){
+            const clone = res.clone();
+            caches.open(CACHE).then(c => c.put(e.request, clone));
+          }
+          return res;
+        }).catch(() => cached);
+      })
+    );
+    return;
+  }
+
+  // Everything else (app shell, Supabase REST/API calls, realtime long-polls)
+  // stays network-first — that data changes constantly and needs to be fresh.
+  // Cache is only a fallback for when the network is unavailable.
   e.respondWith(
     fetch(e.request).then(res => {
       const clone = res.clone();
