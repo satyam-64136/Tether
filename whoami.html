@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"/>
+<title>Who Am I To You 💕</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg1:#ffd9ec; --bg2:#e4d6ff; --bg3:#d3f0ff;
+  --card:rgba(255,255,255,0.68); --card2:rgba(255,255,255,0.9); --card3:rgba(255,255,255,0.55);
+  --text:#3d2c50; --text2:#8577a0; --text3:#b0a3c9;
+  --pink:#ff5fa0; --pink-dark:#e14b8c; --violet:#8f6bff; --violet-dark:#7752f0; --good:#2ed573; --gold:#ffc94d;
+  --grad:linear-gradient(135deg,#ff7db3 0%,#c68cff 55%,#8f9dff 100%);
+  --grad-soft:linear-gradient(135deg,rgba(255,125,179,0.16),rgba(143,107,255,0.16));
+  --border:rgba(255,255,255,0.85);
+  --bad:#ff5f5f;
+  --shadow:0 20px 50px -10px rgba(120,80,220,0.28);
+  --shadow-sm:0 10px 24px -8px rgba(120,80,220,0.22);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;touch-action:manipulation}
+body{
+  background:
+    radial-gradient(circle at 15% 8%,rgba(255,150,200,0.55),transparent 45%),
+    radial-gradient(circle at 88% 18%,rgba(150,130,255,0.5),transparent 45%),
+    radial-gradient(circle at 30% 95%,rgba(140,210,255,0.45),transparent 45%),
+    linear-gradient(160deg,var(--bg1) 0%,var(--bg2) 55%,var(--bg3) 100%);
+  background-attachment:fixed;
+  color:var(--text);font-family:'Quicksand',sans-serif;font-weight:500;
+  min-height:100vh;min-height:-webkit-fill-available;
+  display:flex;flex-direction:column;align-items:center;
+  padding:20px;overflow-x:hidden;position:relative;
+}
+body::before,body::after{
+  content:'';position:fixed;border-radius:50%;filter:blur(60px);opacity:0.5;z-index:0;pointer-events:none;
+}
+body::before{width:240px;height:240px;background:var(--pink);top:-70px;left:-70px;animation:floatA 10s ease-in-out infinite}
+body::after{width:280px;height:280px;background:var(--violet);bottom:-90px;right:-70px;animation:floatB 12s ease-in-out infinite}
+@keyframes floatA{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(24px,32px) scale(1.08)}}
+@keyframes floatB{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(-28px,-22px) scale(1.05)}}
+
+h1,h2,.disp{font-family:'Fredoka',sans-serif}
+.wrap{width:100%;max-width:420px;display:flex;flex-direction:column;gap:12px;position:relative;z-index:1;margin:auto 0;padding:10px 0 20px}
+.topbar{display:flex;align-items:center;justify-content:space-between}
+.backlink{
+  font-size:12.5px;font-weight:700;color:var(--text2);text-decoration:none;
+  display:flex;align-items:center;gap:4px;background:var(--card2);padding:7px 13px;border-radius:100px;
+  box-shadow:var(--shadow-sm);transition:transform 0.15s cubic-bezier(.34,1.56,.64,1);
+}
+.backlink:active{transform:scale(0.92)}
+.brand{display:flex;align-items:center;gap:7px;justify-content:center}
+.brand .ic{font-size:24px;filter:drop-shadow(0 4px 10px rgba(255,95,160,0.45));animation:iconWiggle 3.5s ease-in-out infinite}
+@keyframes iconWiggle{0%,100%{transform:rotate(0)}8%{transform:rotate(-9deg)}16%{transform:rotate(7deg)}24%{transform:rotate(0)}}
+.brand h1{font-size:18px;font-weight:700;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;background-size:200% auto;animation:gradShift 5s ease infinite}
+@keyframes gradShift{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+
+.screen{display:none;flex-direction:column;gap:12px}
+.screen.on{display:flex}
+.card{animation:cardIn 0.42s cubic-bezier(.16,1,.3,1) both}
+.card:nth-child(1){animation-delay:0.02s}
+.card:nth-child(2){animation-delay:0.08s}
+.card:nth-child(3){animation-delay:0.14s}
+@keyframes cardIn{from{opacity:0;transform:translateY(18px) scale(0.96)}to{opacity:1;transform:none}}
+
+.card{
+  position:relative;
+  background:var(--card);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border:1.5px solid var(--border);border-radius:24px;
+  padding:18px;display:flex;flex-direction:column;gap:12px;
+  box-shadow:var(--shadow);
+  isolation:isolate;
+}
+.card::before{
+  content:'';position:absolute;inset:-1.5px;border-radius:inherit;padding:1.5px;z-index:-1;
+  background:var(--grad);opacity:0.28;
+  -webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);
+  -webkit-mask-composite:xor;mask-composite:exclude;
+}
+.card.tight{padding:14px;gap:10px;border-radius:22px}
+input[type=text]{
+  width:100%;padding:14px 16px;border-radius:16px;border:1.5px solid rgba(143,107,255,0.2);
+  background:var(--card2);color:var(--text);font-size:16px;font-family:'Quicksand',sans-serif;font-weight:600;
+  outline:none;transition:border-color 0.18s,transform 0.15s,box-shadow 0.18s;
+}
+input[type=text]::placeholder{color:var(--text3);font-weight:500}
+input[type=text]:focus{border-color:var(--pink);box-shadow:0 0 0 4px rgba(255,95,160,0.12)}
+input[type=text]:active{transform:scale(0.99)}
+input[type=text]:disabled{opacity:0.55}
+
+.btn{
+  border:none;border-radius:16px;padding:15px 18px;font-size:15px;font-weight:700;
+  font-family:'Fredoka',sans-serif;cursor:pointer;color:#fff;background:var(--grad);
+  background-size:180% auto;
+  transition:transform 0.15s cubic-bezier(.34,1.56,.64,1),opacity 0.15s,box-shadow 0.15s,background-position 0.4s;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  box-shadow:0 10px 24px -6px rgba(255,95,160,0.45);
+}
+.btn:active{transform:scale(0.94);background-position:100% 50%}
+.btn:disabled{opacity:0.45;pointer-events:none;box-shadow:none}
+.btn.sm{padding:0;width:46px;height:46px;border-radius:50%;flex-shrink:0;font-size:17px;box-shadow:0 8px 18px -4px rgba(255,95,160,0.5)}
+
+.status-row{display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--text2)}
+.pill{display:inline-flex;align-items:center;gap:5px;background:var(--card2);border-radius:100px;padding:6px 12px;font-size:11.5px;font-weight:700;color:var(--text);box-shadow:var(--shadow-sm)}
+.pill .dot{width:6px;height:6px;border-radius:50%;background:var(--good);box-shadow:0 0 0 3px rgba(46,213,115,0.22);animation:dotBreathe 2s ease-in-out infinite}
+.pill.warn .dot{background:var(--gold);box-shadow:0 0 0 3px rgba(255,201,77,0.25)}
+@keyframes dotBreathe{0%,100%{transform:scale(1)}50%{transform:scale(1.3)}}
+
+.whoami-inline{font-size:12px;font-weight:700;color:var(--text2);display:flex;align-items:center;gap:6px}
+.whoami-inline .avatar-sm{
+  width:24px;height:24px;border-radius:50%;background:var(--grad);color:#fff;
+  display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;font-family:'Fredoka',sans-serif;
+  box-shadow:0 4px 10px -2px rgba(255,95,160,0.5);
+}
+.hint{font-size:12px;color:var(--text2);text-align:center;line-height:1.5;padding:0 6px}
+
+/* role banner + secret word reveal (describer only) */
+.role-banner{
+  align-self:center;display:inline-flex;align-items:center;gap:7px;
+  background:var(--grad);color:#fff;font-family:'Fredoka',sans-serif;font-weight:600;font-size:12.5px;
+  padding:8px 18px;border-radius:100px;box-shadow:0 8px 20px -4px rgba(255,95,160,0.4);
+}
+.role-banner.guesser{background:var(--card2);color:var(--text);box-shadow:var(--shadow-sm)}
+.secret-word{
+  align-self:center;text-align:center;font-family:'Fredoka',sans-serif;font-weight:700;font-size:26px;
+  text-transform:capitalize;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;
+  background-size:200% auto;animation:gradShift 4s ease infinite;padding:4px 0;
+}
+.hidden-badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;color:var(--pink-dark);background:rgba(255,95,160,0.13);padding:5px 10px;border-radius:100px;align-self:center;animation:pulseGlow 2.4s ease-in-out infinite}
+@keyframes pulseGlow{0%,100%{box-shadow:0 0 0 0 rgba(255,95,160,0.18)}50%{box-shadow:0 0 0 6px rgba(255,95,160,0)}}
+.gc-title{font-size:10.5px;color:var(--text3);text-transform:uppercase;letter-spacing:0.6px;font-weight:700;text-align:center}
+
+/* ═══ shared clue/guess feed — chat transcript style ═══ */
+.feed-ask-row{display:flex;gap:8px;align-items:center}
+.feed-ask-row input{flex:1}
+#feed{
+  display:flex;flex-direction:column;gap:8px;max-height:220px;overflow-y:auto;
+  padding:4px 2px 2px;scroll-behavior:smooth;
+}
+.f-row{display:flex;animation:fSlideIn 0.32s cubic-bezier(.16,1,.3,1) both}
+.f-row.mine{justify-content:flex-end}
+.f-row.theirs{justify-content:flex-start}
+@keyframes fSlideIn{from{opacity:0;transform:translateY(10px) scale(0.96)}to{opacity:1;transform:none}}
+.f-bubble{max-width:82%;border-radius:16px;padding:9px 12px;display:flex;flex-direction:column;gap:4px;box-shadow:var(--shadow-sm)}
+.f-row.mine .f-bubble{background:linear-gradient(160deg,rgba(255,95,160,0.16),rgba(255,95,160,0.08));border-bottom-right-radius:5px}
+.f-row.theirs .f-bubble{background:linear-gradient(160deg,rgba(143,107,255,0.16),rgba(143,107,255,0.08));border-bottom-left-radius:5px}
+.f-tag{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;opacity:0.65}
+.f-row.mine .f-tag{color:var(--pink-dark)}
+.f-row.theirs .f-tag{color:var(--violet-dark)}
+.f-text{font-size:13px;color:var(--text);line-height:1.35;font-weight:600}
+.f-bubble.wrong .f-text{color:var(--bad)}
+.f-bubble.right .f-text{color:#1f9e56}
+.f-empty{font-size:12.5px;color:var(--text3);text-align:center;padding:18px 8px}
+
+.reveal-word{
+  font-family:'Fredoka',sans-serif;font-size:24px;font-weight:700;text-align:center;text-transform:capitalize;
+  background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;
+  background-size:200% auto;animation:gradShift 4s ease infinite;
+}
+.final-name{font-family:'Fredoka',sans-serif;font-size:18px;font-weight:700;text-align:center;color:var(--text2)}
+.trophy{font-size:52px;text-align:center;animation:trophyPop 0.65s cubic-bezier(.2,1.6,.4,1)}
+@keyframes trophyPop{0%{transform:scale(0) rotate(-20deg)}60%{transform:scale(1.15) rotate(6deg)}100%{transform:scale(1) rotate(0)}}
+
+.confetti-wrap{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:2}
+.confetti-piece{position:absolute;top:-10px;border-radius:2px;opacity:0.9;animation:confettiFall linear forwards}
+@keyframes confettiFall{to{transform:translateY(110vh) rotate(540deg);opacity:0}}
+
+.err{color:var(--bad);font-size:12.5px;text-align:center;min-height:16px;font-weight:600}
+.dots{display:flex;gap:5px;justify-content:center}
+.dots span{width:7px;height:7px;border-radius:50%;background:var(--pink);animation:dotpulse 1.2s ease infinite}
+.dots span:nth-child(2){animation-delay:0.15s}
+.dots span:nth-child(3){animation-delay:0.3s}
+@keyframes dotpulse{0%,100%{opacity:0.3;transform:scale(0.8)}50%{opacity:1;transform:scale(1.15)}}
+
+.toast{
+  position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(24px) scale(0.9);
+  background:var(--card2);border:1.5px solid rgba(143,107,255,0.2);padding:12px 22px;border-radius:100px;
+  font-size:13px;font-weight:600;opacity:0;transition:opacity 0.25s cubic-bezier(.34,1.4,.64,1),transform 0.25s cubic-bezier(.34,1.4,.64,1);
+  pointer-events:none;z-index:50;box-shadow:var(--shadow);max-width:88vw;text-align:center;
+}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0) scale(1)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <a class="backlink" href="index.html">← Tether</a>
+    <div class="brand"><span class="ic">💭</span><h1>Who Am I To You</h1></div>
+    <div style="width:64px"></div>
+  </div>
+
+  <!-- LOADING / ERROR -->
+  <div class="screen on" id="s-loading">
+    <div class="card" style="text-align:center">
+      <div class="dots"><span></span><span></span><span></span></div>
+      <div class="hint" id="loadingMsg">Getting things ready...</div>
+    </div>
+  </div>
+
+  <!-- PLAYING -->
+  <div class="screen" id="s-playing">
+    <div class="card tight">
+      <div class="status-row">
+        <span class="whoami-inline"><span class="avatar-sm" id="avatarSm">?</span> Playing as <b id="myNameLbl"></b></span>
+        <span id="connStatus" class="pill"><span class="dot"></span> Connected</span>
+      </div>
+      <div id="roleBannerWrap" style="display:flex;flex-direction:column;gap:8px;align-items:center"></div>
+    </div>
+
+    <div class="card tight">
+      <div class="gc-title">🎯 guesses this round</div>
+      <div class="hint" id="guessCount" style="font-size:18px;font-weight:700;color:var(--text)">0</div>
+      <div id="feed"></div>
+    </div>
+
+    <div class="card tight" id="clueCard" style="display:none">
+      <div class="feed-ask-row">
+        <input type="text" id="clueInput" placeholder="Type a clue... (don't say the word!)" maxlength="140" onkeydown="if(event.key==='Enter')sendClue()"/>
+        <button class="btn sm" onclick="sendClue()">➤</button>
+      </div>
+    </div>
+
+    <div class="card tight" id="guessCard" style="display:none">
+      <div class="feed-ask-row">
+        <input type="text" id="guessInput" placeholder="Guess the word..." maxlength="40" onkeydown="if(event.key==='Enter')submitGuess()"/>
+        <button class="btn sm" onclick="submitGuess()">🎯</button>
+      </div>
+      <div class="err" id="guessErr"></div>
+    </div>
+  </div>
+
+  <!-- OVER -->
+  <div class="screen" id="s-over">
+    <div class="card" style="text-align:center">
+      <div class="trophy" id="overTrophy">🏆</div>
+      <div class="final-name" id="finalWinnerName"></div>
+      <div class="reveal-word" id="revealWord">—</div>
+      <div class="hint" id="finalGuessStats"></div>
+      <button class="btn" onclick="startNewRound()">🔄 Next round</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+const SU='https://ggfxdeuwifmqulyhchtv.supabase.co';
+const SK='sb_publishable_DMMJ2sFnGlFWogBs30qowg_-N0zk3OI';
+let sb, MY_UID=null, MY_NAME=null, OPP_NAME=null;
+let match=null, myWord=null, log=[];
+let matchCh=null, logCh=null;
+let _lastRoutedStatus=null;
+
+// ── WORD POOL ──────────────────────────────────────────────────────────
+// This is the "not a static list" part explained honestly: there's no
+// real way to conjure meaningful relationship-flavored words out of thin
+// air, so this is a deliberately large, editable pool. What keeps it from
+// feeling repetitive is whoami_new_round() on the server, which excludes
+// the last ~15 words used before picking — so you'd need well over a
+// dozen rounds before anything can repeat. Add your own inside words,
+// nicknames, or things only the two of you would recognize any time —
+// just add a line below, lowercase, no need to touch the SQL again.
+const WORD_POOL=[
+  'girlfriend','boyfriend','wife','husband','fiancé','soulmate','partner',
+  'best friend','first love','life partner','other half','person',
+  'jaan','jaanu','baby','babe','sweetheart','cutie','honey','love','darling','shona',
+  'crush','forever','destiny','chemistry','butterflies','heartbeat','home',
+  'comfort','safe space','missing you','distance','promise','trust','loyalty',
+  'memory','moment','anniversary','first date','first kiss','proposal',
+  'engagement','wedding','honeymoon','together forever',
+  'hug','kiss','cuddle','hand holding','forehead kiss','good morning text','good night call',
+  'video call','late night talk','inside joke','nickname','matching outfits',
+  'playlist','favorite song','photo album','screenshot','voice note',
+  'ring','tether','notification','overthinking','jealous','forgive','apology',
+  'surprise','gift','birthday','date night','fight','patience','support',
+  'future','home town','long distance','reunion','goodbye','hello',
+  'secret','diary','poem','letter','promise ring','best decision'
+];
+
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('on');
+  clearTimeout(toast._t);
+  toast._t=setTimeout(()=>t.classList.remove('on'),2400);
+}
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on'));
+  document.getElementById(id).classList.add('on');
+}
+function showLoadingError(msg){
+  document.getElementById('loadingMsg').innerHTML=msg;
+  document.querySelector('#s-loading .dots').style.display='none';
+  showScreen('s-loading');
+}
+function withTimeout(promise,ms=12000){
+  return Promise.race([
+    promise,
+    new Promise((_,reject)=>setTimeout(()=>reject(new Error('Timed out — check your connection')),ms))
+  ]);
+}
+
+// ── BOOT ──
+async function boot(){
+  try{
+    const{data:{session}}=await sb.auth.getSession();
+    if(session){MY_UID=session.user.id;}
+    else{
+      const{data,error}=await sb.auth.signInAnonymously();
+      if(error) throw error;
+      MY_UID=data.user.id;
+    }
+    const{data:sess,error:sessErr}=await sb.from('sessions').select('user_name').eq('auth_uid',MY_UID).maybeSingle();
+    if(sessErr) throw sessErr;
+    if(!sess){
+      showLoadingError("Open and log into Tether chat on this device first 💬<br/>then come back here.");
+      return;
+    }
+    MY_NAME=sess.user_name;
+    OPP_NAME=MY_NAME==='Satyam'?'Snks':'Satyam';
+    document.getElementById('avatarSm').textContent=MY_NAME[0];
+    document.getElementById('myNameLbl').textContent=MY_NAME;
+
+    await resync();
+    subscribeAll();
+
+    setInterval(resync,4000);
+    document.addEventListener('visibilitychange',()=>{
+      if(!document.hidden){ resync(); subscribeAll(); }
+    });
+    window.addEventListener('online',()=>{ resync(); subscribeAll(); });
+    window.addEventListener('pageshow',()=>{ resync(); subscribeAll(); });
+  }catch(e){
+    console.error(e);
+    showLoadingError('Something went wrong: '+(e.message||'unknown error'));
+  }
+}
+
+(function init(){
+  sb=supabase.createClient(SU,SK);
+  boot();
+})();
+
+function subscribeAll(){
+  if(matchCh){try{sb.removeChannel(matchCh);}catch(e){}}
+  if(logCh){try{sb.removeChannel(logCh);}catch(e){}}
+
+  matchCh=sb.channel('whoami-match-'+Date.now())
+    .on('postgres_changes',{event:'UPDATE',schema:'public',table:'whoami_match',filter:'id=eq.1'},()=>resync())
+    .subscribe(status=>{
+      const el=document.getElementById('connStatus');
+      if(!el)return;
+      if(status==='SUBSCRIBED') el.innerHTML=`<span class="dot"></span> Connected`;
+      else{ el.className='pill warn'; el.innerHTML=`<span class="dot"></span> Reconnecting...`; }
+    });
+
+  logCh=sb.channel('whoami-log-'+Date.now())
+    .on('postgres_changes',{event:'*',schema:'public',table:'whoami_log'},()=>loadLog())
+    .subscribe();
+}
+
+async function resync(){
+  try{
+    const{data:m,error:mErr}=await sb.from('whoami_match').select('*').eq('id',1).maybeSingle();
+    if(mErr) throw mErr;
+    if(!m)return;
+    match=m;
+    if(match.status==='playing' && match.describer===MY_NAME){
+      const{data:w}=await withTimeout(sb.rpc('whoami_get_my_word'));
+      myWord=w;
+    }else{
+      myWord=null;
+    }
+    if(match.status==='playing') await loadLog();
+    routeScreen();
+  }catch(e){
+    console.warn('resync failed (will retry):',e);
+  }
+}
+
+async function loadLog(){
+  if(!match)return;
+  const{data,error}=await sb.from('whoami_log').select('*').eq('round',match.round).order('created_at',{ascending:true});
+  if(!error) log=data||[];
+  renderFeed();
+}
+
+function routeScreen(){
+  if(!match)return;
+  const iAmDescriber=match.describer===MY_NAME;
+
+  if(match.status==='playing'){
+    const wrap=document.getElementById('roleBannerWrap');
+    wrap.innerHTML='';
+    if(iAmDescriber){
+      wrap.innerHTML=`
+        <div class="role-banner">🎭 You're describing this round</div>
+        <div class="hidden-badge">🔒 Hidden from ${OPP_NAME}</div>
+        <div class="secret-word">${escHtml(myWord||'…')}</div>
+        <div class="hint">Describe it without saying the word — think "who/what am I to you" style clues.</div>`;
+      document.getElementById('clueCard').style.display='flex';
+      document.getElementById('guessCard').style.display='none';
+    }else{
+      wrap.innerHTML=`
+        <div class="role-banner guesser">🕵️ ${OPP_NAME} is describing — you're guessing</div>
+        <div class="hint">Read the clues below and guess the word!</div>`;
+      document.getElementById('clueCard').style.display='none';
+      document.getElementById('guessCard').style.display='flex';
+    }
+    document.getElementById('guessCount').textContent=match.guess_count||0;
+    if(_lastRoutedStatus!=='playing'){
+      document.getElementById('clueInput').value='';
+      document.getElementById('guessInput').value='';
+      document.getElementById('guessErr').textContent='';
+    }
+    showScreen('s-playing');
+  }else{
+    renderOver();
+    showScreen('s-over');
+  }
+  _lastRoutedStatus=match.status;
+}
+
+function escHtml(s){
+  const d=document.createElement('div');d.textContent=s??'';return d.innerHTML;
+}
+
+function renderFeed(){
+  const el=document.getElementById('feed');
+  if(!el)return;
+  if(!log.length){
+    el.innerHTML='<div class="f-empty">No clues yet — describer, go ahead! 💭</div>';
+    return;
+  }
+  el.innerHTML='';
+  log.forEach(item=>{
+    const isMine=item.sender===MY_NAME;
+    const row=document.createElement('div');
+    row.className='f-row '+(isMine?'mine':'theirs');
+    const bubble=document.createElement('div');
+    bubble.className='f-bubble'+(item.kind==='guess'?(item.correct?' right':' wrong'):'');
+    const tag=document.createElement('div');
+    tag.className='f-tag';
+    tag.textContent=(isMine?'You':item.sender)+(item.kind==='guess'?' guessed':' said');
+    const text=document.createElement('div');
+    text.className='f-text';
+    text.textContent=item.kind==='guess'?`"${item.content}"${item.correct?' ✅':' ❌'}`:item.content;
+    bubble.append(tag,text);
+    row.appendChild(bubble);
+    el.appendChild(row);
+  });
+  el.scrollTop=el.scrollHeight;
+}
+
+function renderOver(){
+  const iWon=match.winner===MY_NAME;
+  document.getElementById('overTrophy').textContent=iWon?'🏆':'💔';
+  document.getElementById('finalWinnerName').textContent=match.winner
+    ? (iWon?'You got it! 🎉':`${OPP_NAME} got it! 🎉`)
+    : 'Round over';
+  document.getElementById('revealWord').textContent=match.revealed_word||'—';
+  document.getElementById('finalGuessStats').textContent=`Guesses this round: ${match.guess_count||0}`;
+  if(iWon&&!_confettiShownFor.has(match.updated_at)){
+    _confettiShownFor.add(match.updated_at);
+    burstConfetti();
+  }
+}
+const _confettiShownFor=new Set();
+function burstConfetti(){
+  const wrap=document.createElement('div');
+  wrap.className='confetti-wrap';
+  document.body.appendChild(wrap);
+  const colors=['#ff5fa0','#8f6bff','#ffc94d','#2ed573','#5fc9ff'];
+  for(let i=0;i<42;i++){
+    const p=document.createElement('div');
+    p.className='confetti-piece';
+    const size=5+Math.random()*7;
+    p.style.width=size+'px';
+    p.style.height=size*0.4+'px';
+    p.style.left=Math.random()*100+'vw';
+    p.style.background=colors[i%colors.length];
+    p.style.animationDuration=(1.8+Math.random()*1.4)+'s';
+    p.style.animationDelay=(Math.random()*0.4)+'s';
+    wrap.appendChild(p);
+  }
+  setTimeout(()=>wrap.remove(),3600);
+}
+
+// ── ACTIONS ──
+async function sendClue(){
+  const input=document.getElementById('clueInput');
+  const val=input.value.trim();
+  if(!val)return;
+  input.value='';
+  try{
+    const{error}=await withTimeout(sb.rpc('whoami_add_clue',{p_text:val}));
+    if(error) throw error;
+    await loadLog();
+  }catch(e){
+    console.error('send clue failed:',e);
+    toast('Could not send — try again');
+    input.value=val;
+  }
+}
+
+async function submitGuess(){
+  const input=document.getElementById('guessInput');
+  const val=input.value.trim();
+  if(!val)return;
+  document.getElementById('guessErr').textContent='';
+  try{
+    const{data,error}=await withTimeout(sb.rpc('whoami_submit_guess',{p_guess:val}));
+    if(error) throw error;
+    input.value='';
+    if(data.won){
+      toast('🎉 Correct!');
+    }else{
+      document.getElementById('guessErr').textContent='Not quite — keep guessing! 🤔';
+    }
+    await resync();
+  }catch(e){
+    console.error('submitGuess error:',e);
+    document.getElementById('guessErr').textContent='Error: '+(e.message||'unknown');
+  }
+}
+
+async function startNewRound(){
+  const btn=document.querySelector('#s-over .btn');
+  if(btn) btn.disabled=true;
+  try{
+    const{error}=await withTimeout(sb.rpc('whoami_new_round',{p_word_pool:WORD_POOL}));
+    if(error) throw error;
+    myWord=null;
+    log=[];
+    await resync();
+  }catch(e){
+    toast('Failed: '+(e.message||'try again'));
+  }
+  if(btn) btn.disabled=false;
+}
+</script>
+</body>
+</html>

@@ -1838,6 +1838,10 @@ html,body{
         <span style="font-size:16px">✨</span>
         Play Tic Tac Toe
       </button>
+      <button class="wg-menu-btn" id="whoamiMenuBtn" onclick="openWhoAmI()" style="margin-top:8px">
+        <span style="font-size:16px">💭</span>
+        Play Who Am I To You
+      </button>
     </div>
     <div>
       <div class="msec-ttl">Account</div>
@@ -5441,6 +5445,9 @@ function openWG(){
 }
 function openTTT(){
   location.href='tictactoe.html';
+}
+function openWhoAmI(){
+  location.href='whoami.html';
 }
 async function logout(){
   if(!confirm('Switch user? You\'ll be asked to pick again.')) return;
