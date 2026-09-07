@@ -1844,6 +1844,13 @@ html,body{
       </button>
     </div>
     <div>
+      <div class="msec-ttl">Storage</div>
+      <button class="wg-menu-btn" id="cleanupMenuBtn" onclick="cleanupOldMedia()">
+        <span style="font-size:16px">🧹</span>
+        Clean up old media
+      </button>
+    </div>
+    <div>
       <div class="msec-ttl">Account</div>
       <button class="logout-btn" onclick="logout()">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
@@ -3391,6 +3398,11 @@ function uploadWithProgress(bucket,path,file,onProgress){
       xhr.setRequestHeader('Authorization','Bearer '+token);
       xhr.setRequestHeader('apikey',SK);
       xhr.setRequestHeader('Content-Type',(file.type)||'application/octet-stream');
+      // Chat media never changes once uploaded, so tell Supabase's CDN and
+      // every browser that touches it to hold onto it for a full year
+      // instead of revalidating — fewer round-trips per file over time,
+      // on top of the cache-first service worker already in place.
+      xhr.setRequestHeader('cache-control','public, max-age=31536000, immutable');
       xhr.upload.onprogress=e=>{
         if(e.lengthComputable&&onProgress) onProgress(e.loaded/e.total);
       };
@@ -5449,6 +5461,78 @@ function openTTT(){
 function openWhoAmI(){
   location.href='whoami.html';
 }
+// ── STORAGE CLEANUP — manual, on-demand only. Never runs automatically;
+//    always shows exactly what it found and asks before deleting anything. ──
+async function cleanupOldMedia(){
+  const btn=document.getElementById('cleanupMenuBtn');
+  if(btn) btn.disabled=true;
+  try{
+    const cutoff=new Date();
+    cutoff.setMonth(cutoff.getMonth()-6);
+    const cutoffIso=cutoff.toISOString();
+
+    const{data,error}=await sb.from('messages')
+      .select('id,bundle,image_url,voice,content,created_at')
+      .lt('created_at',cutoffIso)
+      .not('deleted','is',true);
+    if(error) throw error;
+
+    const candidates=(data||[]).filter(m=>(m.bundle&&m.bundle.length)||m.image_url);
+    if(!candidates.length){
+      toast('No media older than 6 months to clean up 🎉');
+      return;
+    }
+
+    let fileCount=0;
+    candidates.forEach(m=>{ fileCount += (m.bundle&&m.bundle.length) ? m.bundle.length : (m.image_url?1:0); });
+
+    const ok=confirm(
+      `Found ${fileCount} file(s) across ${candidates.length} message(s) older than 6 months.\n\n`+
+      `This permanently deletes the actual photos/videos/voice notes from storage. `+
+      `The messages themselves stay in the chat, just with the media removed — this cannot be undone.\n\n`+
+      `Delete them now?`
+    );
+    if(!ok) return;
+
+    // Pull the storage path out of a public Supabase Storage URL, e.g.
+    // https://xxx.supabase.co/storage/v1/object/public/images/chat_123.jpg -> chat_123.jpg
+    const pathOf=url=>{
+      const marker='/storage/v1/object/public/images/';
+      const i=url.indexOf(marker);
+      return i===-1?null:decodeURIComponent(url.slice(i+marker.length));
+    };
+
+    const paths=[];
+    candidates.forEach(m=>{
+      if(m.bundle&&m.bundle.length){
+        m.bundle.forEach(b=>{ const p=pathOf(b.url); if(p) paths.push(p); });
+      }else if(m.image_url){
+        const p=pathOf(m.image_url); if(p) paths.push(p);
+      }
+    });
+
+    if(paths.length){
+      const{error:rmErr}=await sb.storage.from('images').remove(paths);
+      if(rmErr) console.error('storage remove had issues (continuing):',rmErr);
+    }
+
+    // Clear the media fields on each message, leaving a plain placeholder bubble behind
+    await Promise.all(candidates.map(m=>
+      sb.from('messages').update({
+        bundle:null,
+        image_url:null,
+        content: m.content || '🧹 Old media removed to save storage'
+      }).eq('id',m.id)
+    ));
+
+    toast(`Cleaned up ${fileCount} file(s) ✨`);
+  }catch(e){
+    console.error('cleanup failed:',e);
+    toast('Cleanup failed: '+(e.message||'try again'));
+  }
+  if(btn) btn.disabled=false;
+}
+
 async function logout(){
   if(!confirm('Switch user? You\'ll be asked to pick again.')) return;
   await setOffPres();

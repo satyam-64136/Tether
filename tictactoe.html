@@ -3,139 +3,190 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"/>
-<title>Tic Tac Toe ✨</title>
+<title>Tic Tac Toe</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 :root{
-  --bg1:#ffe3f1; --bg2:#e9dfff; --bg3:#dff3ff;
-  --card:rgba(255,255,255,0.72); --card2:rgba(255,255,255,0.92);
-  --text:#463655; --text2:#8577a0; --text3:#ab9fc4;
-  --pink:#ff6fa8; --violet:#9b7fff; --good:#3fcf6e;
-  --grad:linear-gradient(135deg,#ff9dc4,#b79cff);
-  --border:rgba(255,255,255,0.9);
-  --bad:#ff6b6b;
-  --shadow:0 18px 45px rgba(155,127,255,0.22);
+  --bg0:#0d0b12; --bg1:#161320; --bg2:#1f1a2c;
+  --surface:rgba(255,255,255,0.045); --surface2:rgba(255,255,255,0.07);
+  --border:rgba(255,255,255,0.09); --border-hi:rgba(232,192,114,0.4);
+  --text:#f3ede4; --text2:#a79cb8; --text3:#6f6480;
+  --gold:#d4af6a; --gold-soft:#e8cf9c; --gold-dim:#a9884f; --silver:#9d97ac; --silver-soft:#c7c2d3;
+  --grad:linear-gradient(135deg,var(--gold) 0%,var(--gold-soft) 100%);
+  --good:#7ed6a5; --bad:#e2707a;
+  --shadow-lg:0 32px 70px -18px rgba(0,0,0,0.55),0 10px 26px -10px rgba(0,0,0,0.5);
+  --shadow-sm:0 10px 22px -10px rgba(0,0,0,0.5);
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;touch-action:manipulation}
 body{
-  background:linear-gradient(160deg,var(--bg1) 0%,var(--bg2) 55%,var(--bg3) 100%);
+  background:
+    radial-gradient(circle at 12% 0%,rgba(232,192,114,0.09),transparent 50%),
+    radial-gradient(circle at 92% 12%,rgba(157,151,172,0.08),transparent 50%),
+    linear-gradient(165deg,var(--bg0) 0%,var(--bg1) 55%,var(--bg2) 100%);
   background-attachment:fixed;
-  color:var(--text);font-family:'Quicksand',sans-serif;font-weight:500;
+  color:var(--text);font-family:'Manrope',sans-serif;font-weight:500;
   min-height:100vh;min-height:-webkit-fill-available;
   display:flex;flex-direction:column;align-items:center;
   padding:20px;overflow-x:hidden;position:relative;
 }
 body::before,body::after{
-  content:'';position:fixed;border-radius:50%;filter:blur(50px);opacity:0.55;z-index:0;pointer-events:none;
+  content:'';position:fixed;border-radius:50%;filter:blur(70px);opacity:0.35;z-index:0;pointer-events:none;
 }
-body::before{width:220px;height:220px;background:var(--pink);top:-60px;left:-60px;animation:floatA 9s ease-in-out infinite}
-body::after{width:260px;height:260px;background:var(--violet);bottom:-80px;right:-60px;animation:floatB 11s ease-in-out infinite}
-@keyframes floatA{0%,100%{transform:translate(0,0)}50%{transform:translate(20px,30px)}}
-@keyframes floatB{0%,100%{transform:translate(0,0)}50%{transform:translate(-25px,-20px)}}
+body::before{width:260px;height:260px;background:var(--gold);top:-90px;left:-80px}
+body::after{width:280px;height:280px;background:var(--silver);bottom:-100px;right:-80px;opacity:0.12}
 
-h1,h2{font-family:'Fredoka',sans-serif}
-.wrap{width:100%;max-width:380px;display:flex;flex-direction:column;gap:10px;position:relative;z-index:1;margin:auto 0;padding:10px 0 20px}
+h1,h2{font-family:'Fraunces',serif}
+.wrap{width:100%;max-width:380px;display:flex;flex-direction:column;gap:12px;position:relative;z-index:1;margin:auto 0;padding:10px 0 20px}
 .topbar{display:flex;align-items:center;justify-content:space-between}
 .backlink{
-  font-size:12.5px;font-weight:700;color:var(--text2);text-decoration:none;
-  display:flex;align-items:center;gap:4px;background:var(--card2);padding:7px 13px;border-radius:100px;
+  font-size:12.5px;font-weight:600;color:var(--text2);text-decoration:none;
+  display:flex;align-items:center;gap:5px;background:var(--surface);border:1px solid var(--border);
+  padding:7px 14px 7px 10px;border-radius:100px;
+  box-shadow:var(--shadow-sm);transition:transform .15s cubic-bezier(.34,1.56,.64,1),border-color .2s;
 }
+.backlink svg{width:13px;height:13px;stroke:var(--text2)}
+.backlink:active{transform:scale(0.94);border-color:var(--border-hi)}
 .brand{display:flex;align-items:center;gap:8px;justify-content:center}
-.brand .ic{font-size:24px;filter:drop-shadow(0 4px 10px rgba(255,111,168,0.4))}
-.brand h1{font-size:19px;font-weight:700;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.brand .ic{width:22px;height:22px;color:var(--gold);filter:drop-shadow(0 2px 8px rgba(232,192,114,0.4))}
+.brand h1{font-size:18px;font-weight:600;letter-spacing:0.2px;color:var(--text)}
 
-.screen{display:none;flex-direction:column;gap:10px;animation:fadeUp 0.4s cubic-bezier(.2,1,.3,1)}
-.screen.on{display:flex}
-@keyframes fadeUp{from{opacity:0;transform:translateY(16px) scale(0.98)}to{opacity:1;transform:none}}
+.screen{display:none;flex-direction:column;gap:12px}
+.screen.on{display:flex;animation:fadeUp .5s cubic-bezier(.16,1,.3,1) both}
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
 
 .card{
-  background:var(--card);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
-  border:1.5px solid var(--border);border-radius:22px;
-  padding:16px;display:flex;flex-direction:column;gap:10px;
-  box-shadow:var(--shadow);
+  background:var(--surface);backdrop-filter:blur(26px) saturate(140%);-webkit-backdrop-filter:blur(26px) saturate(140%);
+  border:1px solid var(--border);border-radius:20px;
+  padding:18px;display:flex;flex-direction:column;gap:12px;
+  box-shadow:var(--shadow-lg);
+  position:relative;isolation:isolate;overflow:hidden;
+}
+.card::before{
+  content:'';position:absolute;top:0;left:8%;right:8%;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,0.16),transparent);
 }
 .hint{font-size:12px;color:var(--text2);text-align:center;line-height:1.5;padding:0 6px}
 .dots{display:flex;gap:5px;justify-content:center}
-.dots span{width:7px;height:7px;border-radius:50%;background:var(--pink);animation:dotpulse 1.2s ease infinite}
+.dots span{width:6px;height:6px;border-radius:50%;background:var(--gold);animation:dotpulse 1.2s ease infinite}
 .dots span:nth-child(2){animation-delay:0.15s}
 .dots span:nth-child(3){animation-delay:0.3s}
 @keyframes dotpulse{0%,100%{opacity:0.3;transform:scale(0.8)}50%{opacity:1;transform:scale(1.15)}}
 
 /* ── header: whoami, turn status, running score ── */
 .status-row{display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--text2)}
-.pill{display:inline-flex;align-items:center;gap:5px;background:var(--card2);border-radius:100px;padding:6px 12px;font-size:11.5px;font-weight:700;color:var(--text)}
-.pill .dot{width:6px;height:6px;border-radius:50%;background:var(--good)}
-.pill.warn .dot{background:#ffb84d}
+.pill{display:inline-flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border);border-radius:100px;padding:6px 12px;font-size:11.5px;font-weight:600;color:var(--text)}
+.pill .dot{width:6px;height:6px;border-radius:50%;background:var(--good);box-shadow:0 0 0 3px rgba(126,214,165,0.2);animation:dotBreathe 2s ease-in-out infinite}
+.pill.warn .dot{background:var(--gold);box-shadow:0 0 0 3px rgba(232,192,114,0.22)}
+@keyframes dotBreathe{0%,100%{transform:scale(1)}50%{transform:scale(1.3)}}
 .turn-banner{
-  text-align:center;font-family:'Fredoka',sans-serif;font-weight:600;font-size:15px;
-  padding:4px 0;transition:color 0.2s;
+  display:flex;align-items:center;justify-content:center;gap:7px;
+  text-align:center;font-family:'Fraunces',serif;font-weight:600;font-size:15px;
+  padding:5px 0;transition:color .25s;
 }
-.turn-banner.mine{color:var(--pink)}
+.turn-banner .tb-dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0;animation:tbPulse 1.4s ease-in-out infinite}
+@keyframes tbPulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.6);opacity:0.45}}
+.turn-banner.mine{color:var(--gold-soft)}
 .turn-banner.theirs{color:var(--text2)}
 .score-row{display:flex;align-items:stretch}
-.score-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:2px 8px}
-.score-num{font-family:'Fredoka',sans-serif;font-size:24px;font-weight:700;color:var(--text);line-height:1;transition:transform 0.15s cubic-bezier(.34,1.56,.64,1)}
-.score-num.bump{transform:scale(1.25)}
-.score-name{font-size:10.5px;font-weight:700;color:var(--text2);display:flex;align-items:center;gap:3px;justify-content:center}
-.score-divider{width:1.5px;background:rgba(155,127,255,0.25);margin:2px 0}
+.score-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:2px 8px}
+.score-num{font-family:'Fraunces',serif;font-size:26px;font-weight:600;color:var(--text);line-height:1}
+.score-num.bump{animation:scoreBump .5s cubic-bezier(.34,1.56,.64,1)}
+@keyframes scoreBump{0%{transform:scale(1)}40%{transform:scale(1.35);color:var(--gold)}100%{transform:scale(1)}}
+.score-name{font-size:10.5px;font-weight:600;color:var(--text2);display:flex;align-items:center;gap:4px;justify-content:center;letter-spacing:0.2px}
+.score-divider{width:1px;background:linear-gradient(180deg,transparent,var(--border),transparent);margin:2px 0}
 .sym-badge{
   display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:5px;
-  font-size:10px;font-weight:700;font-family:'Fredoka',sans-serif;
+  font-size:10px;font-weight:700;font-family:'Fraunces',serif;
 }
-.sym-badge.x{background:rgba(255,111,168,0.18);color:var(--pink)}
-.sym-badge.o{background:rgba(155,127,255,0.18);color:var(--violet)}
+.sym-badge.x{background:rgba(232,192,114,0.16);color:var(--gold)}
+.sym-badge.o{background:rgba(157,151,172,0.18);color:var(--silver-soft)}
 
 /* ── the board ── */
 .board{
-  display:grid;grid-template-columns:repeat(3,1fr);gap:8px;
-  aspect-ratio:1;width:100%;
+  display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);gap:9px;
+  aspect-ratio:1;width:100%;position:relative;
 }
 .cell{
-  background:var(--card2);border:1.5px solid rgba(155,127,255,0.15);border-radius:16px;
+  background:var(--surface2);border:1px solid var(--border);border-radius:16px;
   display:flex;align-items:center;justify-content:center;
-  font-family:'Fredoka',sans-serif;font-weight:700;
-  font-size:clamp(28px,9vw,40px);cursor:pointer;
-  transition:transform 0.12s,background 0.15s;
+  position:relative;overflow:hidden;isolation:isolate;
+  cursor:pointer;
+  transition:transform .16s cubic-bezier(.34,1.56,.64,1),box-shadow .2s,border-color .2s;
   user-select:none;
 }
+.cell::before{
+  content:'';position:absolute;inset:0;border-radius:inherit;z-index:-1;
+  background:radial-gradient(circle,rgba(232,192,114,0.18),transparent 70%);
+  opacity:0;transform:scale(0.4);transition:opacity .4s,transform .4s;
+}
 .cell:active{transform:scale(0.92)}
-.cell.x{color:var(--pink)}
-.cell.o{color:var(--violet)}
-.cell.win{background:linear-gradient(160deg,rgba(255,111,168,0.22),rgba(155,127,255,0.22));border-color:var(--pink)}
+.cell:active::before{opacity:1;transform:scale(1);transition:none}
+.cell svg{width:46%;height:46%}
+.cell.x svg{stroke:var(--gold);filter:drop-shadow(0 0 10px rgba(232,192,114,0.4))}
+.cell.o svg{stroke:var(--silver-soft);filter:drop-shadow(0 0 8px rgba(157,151,172,0.35))}
+.cell.win{
+  background:linear-gradient(160deg,rgba(232,192,114,0.14),rgba(157,151,172,0.14));
+  border-color:var(--border-hi);
+  box-shadow:0 10px 24px -8px rgba(232,192,114,0.3);
+}
 .cell.disabled{cursor:default}
-.cell-mark{animation:popIn 0.22s cubic-bezier(.34,1.56,.64,1)}
-@keyframes popIn{from{transform:scale(0);opacity:0}to{transform:scale(1);opacity:1}}
 
-.trophy{font-size:44px;text-align:center;animation:trophyPop 0.6s cubic-bezier(.34,1.56,.64,1)}
-@keyframes trophyPop{from{transform:scale(0)}to{transform:scale(1)}}
-.final-name{font-family:'Fredoka',sans-serif;font-size:21px;font-weight:700;text-align:center;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.win-line{
+  position:absolute;height:2.5px;border-radius:4px;top:0;left:0;
+  background:var(--gold);
+  transform-origin:left center;width:0;opacity:0;
+  box-shadow:0 0 14px rgba(232,192,114,0.55),0 0 26px rgba(157,151,172,0.4);
+  transition:width .5s cubic-bezier(.16,1,.3,1),opacity .2s;
+  z-index:5;pointer-events:none;
+}
+.win-line.show{opacity:1}
+
+.trophy{width:52px;height:52px;margin:0 auto;color:var(--gold);filter:drop-shadow(0 4px 16px rgba(232,192,114,0.4));animation:trophyPop .7s cubic-bezier(.2,1.7,.4,1)}
+@keyframes trophyPop{0%{transform:scale(0) rotate(-12deg)}60%{transform:scale(1.15) rotate(6deg)}100%{transform:scale(1) rotate(0)}}
+.final-name{font-family:'Fraunces',serif;font-size:21px;font-weight:600;text-align:center;color:var(--text);font-style:italic}
 
 .btn{
-  border:none;border-radius:16px;padding:14px 18px;font-size:14.5px;font-weight:700;
-  font-family:'Fredoka',sans-serif;cursor:pointer;color:#fff;background:var(--grad);
-  transition:transform 0.15s cubic-bezier(.34,1.56,.64,1),opacity 0.15s;
+  position:relative;overflow:hidden;
+  border:none;border-radius:14px;padding:14px 18px;font-size:14px;font-weight:700;letter-spacing:0.2px;
+  font-family:'Manrope',sans-serif;cursor:pointer;color:#1b1420;background:var(--grad);background-size:200% auto;
+  transition:transform .18s cubic-bezier(.34,1.56,.64,1),opacity .15s,background-position .5s;
   display:flex;align-items:center;justify-content:center;gap:8px;
-  box-shadow:0 8px 20px rgba(255,111,168,0.35);
+  box-shadow:0 12px 26px -8px rgba(232,192,114,0.4);
 }
-.btn:active{transform:scale(0.94)}
-.btn:disabled{opacity:0.45;pointer-events:none;box-shadow:none}
+.btn svg{width:15px;height:15px;stroke:#1b1420}
+.btn::after{
+  content:'';position:absolute;top:0;left:-60%;width:35%;height:100%;
+  background:linear-gradient(120deg,transparent,rgba(255,255,255,0.55),transparent);
+  transform:skewX(-20deg);
+}
+.btn:active{transform:scale(0.95);background-position:100% 50%}
+.btn:active::after{animation:shine .55s ease}
+@keyframes shine{from{left:-60%}to{left:130%}}
+.btn:disabled{opacity:0.4;pointer-events:none;box-shadow:none}
 
 .toast{
-  position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);
-  background:var(--card2);border:1.5px solid rgba(155,127,255,0.2);padding:12px 20px;border-radius:100px;
-  font-size:13px;font-weight:600;opacity:0;transition:opacity 0.2s,transform 0.2s;pointer-events:none;z-index:50;
-  box-shadow:var(--shadow);max-width:88vw;text-align:center;
+  position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(24px) scale(0.92);
+  background:#1b1626;border:1px solid var(--border-hi);padding:12px 22px;border-radius:100px;
+  font-size:13px;font-weight:600;color:var(--text);opacity:0;
+  transition:opacity .25s cubic-bezier(.34,1.4,.64,1),transform .25s cubic-bezier(.34,1.4,.64,1);
+  pointer-events:none;z-index:50;box-shadow:var(--shadow-lg);max-width:88vw;text-align:center;
 }
-.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0) scale(1)}
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="topbar">
-    <a class="backlink" href="index.html">← Tether</a>
-    <div class="brand"><span class="ic">✨</span><h1>Tic Tac Toe</h1></div>
+    <a class="backlink" href="index.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+      Tether
+    </a>
+    <div class="brand">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+      <h1>Tic Tac Toe</h1>
+    </div>
     <div style="width:64px"></div>
   </div>
 
@@ -151,7 +202,7 @@ h1,h2{font-family:'Fredoka',sans-serif}
   <div class="screen" id="s-game">
     <div class="card">
       <div class="status-row">
-        <span class="pill">🦊 <b id="whoamiName"></b> <span class="sym-badge" id="mySymBadge"></span></span>
+        <span class="pill"><b id="whoamiName"></b> <span class="sym-badge" id="mySymBadge"></span></span>
         <span id="connStatus" class="pill"><span class="dot"></span> Connected</span>
       </div>
       <div class="score-row">
@@ -176,9 +227,12 @@ h1,h2{font-family:'Fredoka',sans-serif}
   <!-- OVER -->
   <div class="screen" id="s-over">
     <div class="card" style="text-align:center">
-      <div class="trophy" id="overTrophy">🏆</div>
+      <svg class="trophy" id="overTrophy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0V4z"/><path d="M7 5H4a1 1 0 0 0-1 1c0 2.5 1.5 4.5 4 5M17 5h3a1 1 0 0 1 1 1c0 2.5-1.5 4.5-4 5"/></svg>
       <div class="final-name" id="finalName"></div>
-      <button class="btn" onclick="newGame()">🔄 Play Again</button>
+      <button class="btn" onclick="newGame()">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6"/></svg>
+        Play Again
+      </button>
     </div>
   </div>
 </div>
@@ -193,6 +247,7 @@ let sb, MY_UID=null, MY_NAME=null, OPP_NAME=null;
 let match=null;
 let matchCh=null;
 let _prevScores={Satyam:0,Snks:0};
+let _wasPlaying=true; // guards the game-over haptic so it fires once per finished game, not on every poll
 
 function toast(msg){
   const t=document.getElementById('toast');
@@ -230,7 +285,7 @@ async function boot(){
     const{data:sess,error:sessErr}=await sb.from('sessions').select('user_name').eq('auth_uid',MY_UID).maybeSingle();
     if(sessErr) throw sessErr;
     if(!sess){
-      showLoadingError("Open and log into Tether chat on this device first 💬<br/>then come back here.");
+      showLoadingError("Open and log into Tether chat on this device first,<br/>then come back here.");
       return;
     }
     MY_NAME=sess.user_name;
@@ -241,7 +296,9 @@ async function boot(){
     await resync();
     subscribeAll();
 
-    setInterval(resync,4000);
+    // Same reliability net as WildGuess/Tether chat, but skipped while the
+    // tab is hidden — resuming happens instantly via visibilitychange below.
+    setInterval(()=>{ if(!document.hidden) resync(); },15000);
     document.addEventListener('visibilitychange',()=>{ if(!document.hidden){ resync(); subscribeAll(); } });
     window.addEventListener('online',()=>{ resync(); subscribeAll(); });
     window.addEventListener('pageshow',()=>{ resync(); subscribeAll(); });
@@ -277,6 +334,23 @@ async function resync(){
   }catch(e){
     console.warn('resync failed (will retry):',e);
   }
+}
+
+// Hand-drawn-looking SVG marks instead of plain text characters — the
+// stroke-dasharray/dashoffset trick draws the line on, rather than just
+// popping a glyph in.
+const X_MARK='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path class="mark-path" d="M5 5l14 14M19 5L5 19"/></svg>';
+const O_MARK='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle class="mark-path" cx="12" cy="12" r="8"/></svg>';
+function markHtml(val){ return val==='X'?X_MARK:O_MARK; }
+function animateMark(cell){
+  const path=cell.querySelector('.mark-path');
+  if(!path) return;
+  const len=path.getTotalLength();
+  path.style.strokeDasharray=len;
+  path.style.strokeDashoffset=len;
+  path.getBoundingClientRect(); // force reflow so the transition below actually animates
+  path.style.transition='stroke-dashoffset .38s cubic-bezier(.2,1,.3,1)';
+  requestAnimationFrame(()=>{ path.style.strokeDashoffset='0'; });
 }
 
 function buildBoard(){
@@ -318,8 +392,11 @@ function render(){
     const hadVal=cell.dataset.filled==='1';
     cell.className='cell'+(val?' '+val.toLowerCase():'')+(winSet.has(i)?' win':'')+(match.status!=='playing'||val?' disabled':'');
     if(val){
-      if(!hadVal||cell.textContent!==val){
-        cell.innerHTML=`<span class="cell-mark">${val}</span>`;
+      // a cell's value never changes once set, so once painted just leave it —
+      // this also avoids re-triggering the draw-on animation every resync
+      if(!hadVal){
+        cell.innerHTML=markHtml(val);
+        animateMark(cell);
       }
       cell.dataset.filled='1';
     }else{
@@ -331,43 +408,105 @@ function render(){
   const banner=document.getElementById('turnBanner');
   if(match.status==='playing'){
     const myTurn=match.turn===MY_NAME;
-    banner.textContent=myTurn?"Your turn! 🎯":`Waiting for ${OPP_NAME}...`;
+    banner.innerHTML=(myTurn?'<span class="tb-dot"></span> Your turn':`Waiting for ${OPP_NAME}...`);
     banner.className='turn-banner '+(myTurn?'mine':'theirs');
+    hideWinLine();
+    _wasPlaying=true;
     showScreen('s-game');
   }else{
     showScreen('s-game'); // keep board visible behind, then show result
+    if(match.status!=='draw' && match.win_line&&match.win_line.length) drawWinLine(match.win_line);
+    if(_wasPlaying){
+      // only the FIRST time we see this game as finished — not on every
+      // subsequent poll/realtime tick while still parked on the result screen
+      vibrate(match.status==='draw'?20:(match.winner_name===MY_NAME?[25,60,25,60,60]:[20,40,20]));
+    }
+    _wasPlaying=false;
     renderOver();
     showScreen('s-over');
   }
 }
 
-function bumpEl(el){
-  el.classList.remove('bump');void el.offsetWidth;el.classList.add('bump');
-  setTimeout(()=>el.classList.remove('bump'),200);
+function vibrate(pattern){
+  if(navigator.vibrate){ try{navigator.vibrate(pattern);}catch(e){} }
 }
 
+function hideWinLine(){
+  const line=document.getElementById('winLine');
+  if(line) line.classList.remove('show');
+}
+
+// Draws the connecting line straight from live DOM geometry (not hardcoded
+// percentages), so it lines up correctly no matter the board's rendered size.
+function drawWinLine(indices){
+  const board=document.getElementById('board');
+  let line=document.getElementById('winLine');
+  if(!line){
+    line=document.createElement('div');
+    line.id='winLine';
+    line.className='win-line';
+    board.appendChild(line);
+  }
+  const boardRect=board.getBoundingClientRect();
+  const centerOf=i=>{
+    const r=board.children[i].getBoundingClientRect();
+    return{x:r.left+r.width/2-boardRect.left,y:r.top+r.height/2-boardRect.top};
+  };
+  const a=centerOf(indices[0]), b=centerOf(indices[2]);
+  const dx=b.x-a.x, dy=b.y-a.y;
+  const dist=Math.sqrt(dx*dx+dy*dy);
+  const overhang=dist*0.18; // slight overhang past the end cells looks more finished
+  const angle=Math.atan2(dy,dx)*180/Math.PI;
+  line.style.left=(a.x-overhang/2)+'px';
+  line.style.top=a.y+'px';
+  line.style.transform=`translateY(-50%) rotate(${angle}deg)`;
+  line.style.width='0px';
+  line.classList.remove('show');
+  requestAnimationFrame(()=>{
+    requestAnimationFrame(()=>{
+      line.style.width=(dist+overhang)+'px';
+      line.classList.add('show');
+    });
+  });
+}
+
+function bumpEl(el){
+  el.classList.remove('bump');void el.offsetWidth;el.classList.add('bump');
+  setTimeout(()=>el.classList.remove('bump'),500);
+}
+
+// Inner paths swapped per outcome — trophy for a win, a handshake-ish
+// clasp for a draw, a plain circle-slash for a loss — same outer <svg>
+// element (with its glow/animation styling) reused each time.
+const TROPHY_ICON='<path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0V4z"/><path d="M7 5H4a1 1 0 0 0-1 1c0 2.5 1.5 4.5 4 5M17 5h3a1 1 0 0 1 1 1c0 2.5-1.5 4.5-4 5"/>';
+const DRAW_ICON='<circle cx="12" cy="12" r="9"/><path d="M9 12h6M12 9v6"/>';
+const LOSS_ICON='<circle cx="12" cy="12" r="9"/><path d="M9 15l6-6M9 9l6 6"/>';
+
 function renderOver(){
+  const icon=document.getElementById('overTrophy');
   if(match.status==='draw'){
-    document.getElementById('overTrophy').textContent='🤝';
-    document.getElementById('finalName').textContent="It's a draw!";
+    icon.innerHTML=DRAW_ICON;
+    document.getElementById('finalName').textContent="It's a draw";
   }else{
     const iWon=match.winner_name===MY_NAME;
-    document.getElementById('overTrophy').textContent=iWon?'🏆':'🦊';
-    document.getElementById('finalName').textContent=iWon?'You win! 🎉':`${OPP_NAME} wins! 🎉`;
+    icon.innerHTML=iWon?TROPHY_ICON:LOSS_ICON;
+    document.getElementById('finalName').textContent=iWon?'You win':`${OPP_NAME} wins`;
   }
 }
 
 async function makeMove(i){
   if(!match||match.status!=='playing')return;
-  if(match.turn!==MY_NAME){toast("It's not your turn yet ⏳");return;}
+  if(match.turn!==MY_NAME){toast("It's not your turn yet");return;}
   if(match.board[i]){return;}
 
   // optimistic paint so it feels instant
+  vibrate(12);
   const cells=document.getElementById('board').children;
   const mySymbol=match.x_player===MY_NAME?'X':'O';
   cells[i].className='cell '+mySymbol.toLowerCase()+' disabled';
-  cells[i].innerHTML=`<span class="cell-mark">${mySymbol}</span>`;
-  cells[i].dataset.filled='1'; // prevents render() from replaying the pop-in animation a second time once resync() confirms this same move
+  cells[i].innerHTML=markHtml(mySymbol);
+  animateMark(cells[i]);
+  cells[i].dataset.filled='1'; // prevents render() from replaying the draw-on animation a second time once resync() confirms this same move
 
   try{
     const{error}=await withTimeout(sb.rpc('ttt_make_move',{p_index:i}));
