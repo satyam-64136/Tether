@@ -418,7 +418,9 @@ async function boot(){
     document.getElementById('whoamiName2').textContent=MY_NAME;
     document.getElementById('revealThemName').textContent=OPP_NAME;
 
-    await resync();
+    // Throwing variant for the first load only, so a real failure surfaces
+    // an actual error instead of leaving "Getting things ready" up forever.
+    await resyncOrThrow();
     subscribeAll();
 
     // Reliability net: even if realtime silently drops (very common on mobile
@@ -481,18 +483,22 @@ function subscribeAll(){
 // ── Central resync: the single source of truth pulled fresh from the server.
 //    Called on boot, on every realtime match ping, every 4s regardless, and
 //    whenever the app comes back to the foreground. ──
+async function resyncOrThrow(){
+  const{data:m,error:mErr}=await sb.from('wg_match').select('*').eq('id',1).maybeSingle();
+  if(mErr) throw mErr;
+  if(!m)return;
+  match=m;
+  await loadMySecret();
+  if(match.status==='over') await loadOppSecretIfRevealed();
+  else oppSecret=null;
+  await loadGuessCounts();
+  if(match.status==='playing') await loadQuestions();
+  routeScreen();
+}
+
 async function resync(){
   try{
-    const{data:m,error:mErr}=await sb.from('wg_match').select('*').eq('id',1).maybeSingle();
-    if(mErr) throw mErr;
-    if(!m)return;
-    match=m;
-    await loadMySecret();
-    if(match.status==='over') await loadOppSecretIfRevealed();
-    else oppSecret=null;
-    await loadGuessCounts();
-    if(match.status==='playing') await loadQuestions();
-    routeScreen();
+    await resyncOrThrow();
   }catch(e){
     console.warn('resync failed (will retry):',e);
   }

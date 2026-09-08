@@ -344,7 +344,13 @@ async function boot(){
     document.getElementById('avatarSm').textContent=MY_NAME[0];
     document.getElementById('myNameLbl').textContent=MY_NAME;
 
-    await resync();
+    // Use the throwing variant for the FIRST load only — if this fails (e.g.
+    // the whoami_resync SQL function isn't set up yet, or a real network
+    // error), boot()'s catch below shows an actual error instead of leaving
+    // the "Getting things ready" screen up forever with no explanation.
+    // The 15s background poll further down uses the quiet resync() instead,
+    // since we don't want a transient blip to interrupt an active game.
+    await resyncOrThrow();
     subscribeAll();
 
     setInterval(()=>{ if(!document.hidden) resync(); },15000);
@@ -382,15 +388,19 @@ function subscribeAll(){
     .subscribe();
 }
 
+async function resyncOrThrow(){
+  const{data,error}=await withTimeout(sb.rpc('whoami_resync'));
+  if(error) throw error;
+  match=data.match;
+  myWord=data.my_word;
+  log=data.log||[];
+  renderFeed();
+  routeScreen();
+}
+
 async function resync(){
   try{
-    const{data,error}=await withTimeout(sb.rpc('whoami_resync'));
-    if(error) throw error;
-    match=data.match;
-    myWord=data.my_word;
-    log=data.log||[];
-    renderFeed();
-    routeScreen();
+    await resyncOrThrow();
   }catch(e){
     console.warn('resync failed (will retry):',e);
   }
