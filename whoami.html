@@ -217,6 +217,7 @@ input[type=text]:disabled{opacity:0.5}
         <span id="connStatus" class="pill"><span class="dot"></span> Connected</span>
       </div>
       <div id="roleBannerWrap" style="display:flex;flex-direction:column;gap:8px;align-items:center"></div>
+      <div class="hint" id="seriesProgress" style="margin-top:-4px"></div>
     </div>
 
     <div class="card tight">
@@ -241,16 +242,31 @@ input[type=text]:disabled{opacity:0.5}
     </div>
   </div>
 
-  <!-- OVER -->
+  <!-- OVER (single round, series still in progress) -->
   <div class="screen" id="s-over">
     <div class="card" style="text-align:center">
       <svg class="trophy" id="overTrophy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0V4z"/><path d="M7 5H4a1 1 0 0 0-1 1c0 2.5 1.5 4.5 4 5M17 5h3a1 1 0 0 1 1 1c0 2.5-1.5 4.5-4 5"/></svg>
       <div class="final-name" id="finalWinnerName"></div>
       <div class="reveal-word" id="revealWord">—</div>
       <div class="hint" id="finalGuessStats"></div>
+      <div class="hint" id="seriesProgressOver"></div>
       <button class="btn" onclick="startNewRound()">
         <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6"/></svg>
         Next round
+      </button>
+    </div>
+  </div>
+
+  <!-- SERIES OVER — 20 rounds each played, overall winner decided by fewest total guesses -->
+  <div class="screen" id="s-series-over">
+    <div class="card" style="text-align:center">
+      <svg class="trophy" id="seriesTrophy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0V4z"/><path d="M7 5H4a1 1 0 0 0-1 1c0 2.5 1.5 4.5 4 5M17 5h3a1 1 0 0 1 1 1c0 2.5-1.5 4.5-4 5"/></svg>
+      <div class="hint" style="font-size:11px;letter-spacing:0.5px;text-transform:uppercase">Series complete · fewest guesses wins</div>
+      <div class="final-name" id="seriesFinalName"></div>
+      <div class="hint" id="seriesFinalScore"></div>
+      <button class="btn" onclick="startNewSeries()">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6"/></svg>
+        Start New Series
       </button>
     </div>
   </div>
@@ -427,9 +443,19 @@ function subscribeAll(){
     .subscribe();
 }
 
+// Multiple things can trigger a resync close together — your own action,
+// the realtime channel firing, and the 15s poll — and their network
+// responses can land out of order. Without a guard, an older response
+// landing after a newer one would silently overwrite fresh state with
+// stale state, which is exactly what a "my message disappeared" symptom
+// looks like. This tags each request and only ever applies the result of
+// the LATEST one issued, discarding anything older that resolves late.
+let _resyncSeq=0;
 async function resyncOrThrow(){
+  const mySeq=++_resyncSeq;
   const{data,error}=await withTimeout(sb.rpc('whoami_resync'));
   if(error) throw error;
+  if(mySeq!==_resyncSeq) return; // a newer resync was issued while this one was in flight — drop this stale result
   match=data.match;
   myWord=data.my_word;
   log=data.log||[];
@@ -444,6 +470,9 @@ async function resync(){
     console.warn('resync failed (will retry):',e);
   }
 }
+
+const SERIES_ROUNDS_PER_PLAYER=20;
+const SERIES_LENGTH=SERIES_ROUNDS_PER_PLAYER*2; // 40 total rounds = 20 each as guesser, since describer strictly alternates every round
 
 function routeScreen(){
   if(!match)return;
@@ -468,12 +497,17 @@ function routeScreen(){
       document.getElementById('guessCard').style.display='flex';
     }
     document.getElementById('guessCount').textContent=match.guess_count||0;
+    document.getElementById('seriesProgress').textContent=
+      `Round ${Math.min(match.round+1,SERIES_LENGTH)} of ${SERIES_LENGTH}  ·  fewest total guesses wins the series`;
     if(_lastRoutedStatus!=='playing'){
       document.getElementById('clueInput').value='';
       document.getElementById('guessInput').value='';
       document.getElementById('guessErr').textContent='';
     }
     showScreen('s-playing');
+  }else if(match.round>=SERIES_LENGTH){
+    renderSeriesOver();
+    showScreen('s-series-over');
   }else{
     renderOver();
     showScreen('s-over');
@@ -523,10 +557,31 @@ function renderOver(){
     : 'Round over';
   document.getElementById('revealWord').textContent=match.revealed_word||'—';
   document.getElementById('finalGuessStats').textContent=`Guesses this round: ${match.guess_count||0}`;
+  document.getElementById('seriesProgressOver').textContent=
+    `Series so far — you: ${match.total_guesses_satyam!==undefined?(MY_NAME==='Satyam'?match.total_guesses_satyam:match.total_guesses_snks):0} total guesses, `+
+    `${OPP_NAME}: ${MY_NAME==='Satyam'?match.total_guesses_snks:match.total_guesses_satyam} total guesses  ·  round ${match.round} of ${SERIES_LENGTH}`;
   if(iWon&&!_confettiShownFor.has(match.updated_at)){
     _confettiShownFor.add(match.updated_at);
     burstConfetti();
     vibrate([25,60,25,60,60]);
+  }
+}
+
+let _seriesConfettiShown=false;
+function renderSeriesOver(){
+  const myTotal=MY_NAME==='Satyam'?match.total_guesses_satyam:match.total_guesses_snks;
+  const oppTotal=MY_NAME==='Satyam'?match.total_guesses_snks:match.total_guesses_satyam;
+  const tied=myTotal===oppTotal;
+  const iWon=myTotal<oppTotal; // fewer total guesses wins
+  document.getElementById('seriesTrophy').innerHTML=tied?'<circle cx="12" cy="12" r="9"/><path d="M9 12h6M12 9v6"/>':(iWon?TROPHY_ICON:LOSS_ICON);
+  document.getElementById('seriesFinalName').textContent=
+    tied?"It's a tie!":(iWon?'You win the series!':`${OPP_NAME} wins the series!`);
+  document.getElementById('seriesFinalScore').textContent=
+    `Total guesses — You: ${myTotal}, ${OPP_NAME}: ${oppTotal} (fewer is better)`;
+  if(iWon&&!tied&&!_seriesConfettiShown){
+    _seriesConfettiShown=true;
+    burstConfetti();
+    vibrate([30,80,30,80,30,80,80]);
   }
 }
 const _confettiShownFor=new Set();
@@ -601,6 +656,29 @@ async function startNewRound(){
     await resync();
   }catch(e){
     toast('Failed: '+(e.message||'try again'));
+  }
+  if(btn) btn.disabled=false;
+}
+
+async function startNewSeries(){
+  const btn=document.querySelector('#s-series-over .btn');
+  if(btn) btn.disabled=true;
+  try{
+    // Reset the running series tally and round counter directly — same
+    // permissive-table-write pattern already used elsewhere in this app —
+    // then deal a fresh word to kick off round 1 of the new series.
+    const{error:resetErr}=await sb.from('whoami_match')
+      .update({round:0,total_guesses_satyam:0,total_guesses_snks:0})
+      .eq('id',1);
+    if(resetErr) throw resetErr;
+    const{error}=await withTimeout(sb.rpc('whoami_new_round',{p_word_pool:WORD_POOL}));
+    if(error) throw error;
+    myWord=null;
+    log=[];
+    _seriesConfettiShown=false;
+    await resync();
+  }catch(e){
+    toast('Failed to start new series: '+(e.message||'try again'));
   }
   if(btn) btn.disabled=false;
 }
