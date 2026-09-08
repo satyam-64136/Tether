@@ -2762,7 +2762,7 @@ async function loadMsgs(){
   let data,error;
   try{
     ({data,error}=await withTimeout(
-      sb.from('messages').select('*').order('created_at',{ascending:false}).limit(PAGE),
+      sb.from('messages').select('id,sender,content,created_at,bundle,image_url,video,voice,doc_name,doc_type,deleted,edited,view_once,view_once_opened,reactions,reply_to,seen').order('created_at',{ascending:false}).limit(PAGE),
       10000
     ));
   }catch(timeoutErr){
@@ -2799,7 +2799,7 @@ async function loadOlderMsgs(){
   const prevScrollH=area.scrollHeight;
   const prevScrollTop=area.scrollTop;
   const{data,error}=await sb.from('messages')
-    .select('*')
+    .select('id,sender,content,created_at,bundle,image_url,video,voice,doc_name,doc_type,deleted,edited,view_once,view_once_opened,reactions,reply_to,seen')
     .lt('created_at',oldestTs)
     .order('created_at',{ascending:false})
     .limit(PAGE);
@@ -3325,7 +3325,7 @@ function subMsgs(){
 async function catchupMsgs(){
   const lastTs=msgs.length?msgs[msgs.length-1].created_at:new Date(0).toISOString();
   // 1. Get new inserts since last known message
-  const{data:newMsgs}=await sb.from('messages').select('*')
+  const{data:newMsgs}=await sb.from('messages').select('id,sender,content,created_at,bundle,image_url,video,voice,doc_name,doc_type,deleted,edited,view_once,view_once_opened,reactions,reply_to,seen')
     .gt('created_at',lastTs)
     .order('created_at',{ascending:true});
   const area=document.getElementById('msgs');
@@ -3349,7 +3349,7 @@ async function catchupMsgs(){
   // 2. Re-sync existing visible messages that may have changed
   if(!msgs.length)return;
   const ids=msgs.map(m=>m.id);
-  const{data:refreshed}=await sb.from('messages').select('*').in('id',ids);
+  const{data:refreshed}=await sb.from('messages').select('id,sender,content,created_at,bundle,image_url,video,voice,doc_name,doc_type,deleted,edited,view_once,view_once_opened,reactions,reply_to,seen').in('id',ids);
   if(!refreshed)return;
   refreshed.forEach(fresh=>{
     const i=msgs.findIndex(m=>m.id===fresh.id);

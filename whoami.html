@@ -277,20 +277,59 @@ let _lastRoutedStatus=null;
 // nicknames, or things only the two of you would recognize any time —
 // just add a line below, lowercase, no need to touch the SQL again.
 const WORD_POOL=[
-  'girlfriend','boyfriend','wife','husband','fiancé','soulmate','partner',
-  'best friend','first love','life partner','other half','person',
-  'jaan','jaanu','baby','babe','sweetheart','cutie','honey','love','darling','shona',
-  'crush','forever','destiny','chemistry','butterflies','heartbeat','home',
-  'comfort','safe space','missing you','distance','promise','trust','loyalty',
-  'memory','moment','anniversary','first date','first kiss','proposal',
-  'engagement','wedding','honeymoon','together forever',
-  'hug','kiss','cuddle','hand holding','forehead kiss','good morning text','good night call',
-  'video call','late night talk','inside joke','nickname','matching outfits',
-  'playlist','favorite song','photo album','screenshot','voice note',
-  'ring','tether','notification','overthinking','jealous','forgive','apology',
-  'surprise','gift','birthday','date night','fight','patience','support',
-  'future','home town','long distance','reunion','goodbye','hello',
-  'secret','diary','poem','letter','promise ring','best decision'
+  // relationship roles — kept a few as "easy" rounds, trimmed way down from before
+  'soulmate','life partner','other half','person','my person','best friend',
+
+  // abstract / poetic concepts — need real description, not a one-word giveaway
+  'gravity','anchor','compass','north star','constant','echo','reflection',
+  'safe harbor','sanctuary','refuge','cocoon','orbit','magnetism','resonance',
+  'wavelength','frequency','gravitational pull','center of gravity','muse',
+  'foundation','cornerstone','keystone','backbone','glue','counterweight',
+  'translator','witness','sounding board','soft place to land','home base',
+
+  // fire/spark metaphors
+  'spark','ember','wildfire','slow burn','chemistry','static electricity',
+
+  // playful modern / tech metaphors — genuinely tricky to clue well
+  'wifi password','airplane mode','do not disturb exception','read receipt',
+  'typing indicator','blue tick','last seen','low battery anxiety',
+  'group chat MVP','main character energy','plot twist','side quest',
+  'extra life','cheat code','loading screen','buffering','autocorrect fail',
+  'missed call','voicemail','3am thoughts','notification sound',
+
+  // specific relationship-only quirks — funny, needs a real story to describe
+  'blanket thief','the aux cord','remote control custody','left side of the bed',
+  'the good pillow','charger thief','backseat driver','human alarm clock',
+  'emotional support human','hype person','designated snack sharer',
+  'built-in translator for moods','vibe check','mood ring',
+
+  // travel / journey metaphors
+  'road trip','passenger seat','shotgun','designated driver','GPS voice',
+  'pit stop','finish line','starting line','layover','safe landing',
+  'turbulence buddy','black box','life raft','map marker','waypoint',
+
+  // game/story metaphors
+  'co-op partner','player two','main quest','walkthrough','easter egg',
+  'directors cut','deleted scene','bonus content','rough draft','final draft',
+  'co-author','ghostwriter',
+
+  // sound / music metaphors
+  'favorite song on repeat','white noise','in sync','on the same wavelength',
+  'harmony','duet',
+
+  // everyday romance (kept, but a smaller share than before)
+  'inside joke','nickname','playlist','voice note','ring','tether',
+  'good morning text','good night call','matching outfits','photo album',
+  'screenshot','video call','late night talk',
+
+  // emotional/relationship concepts
+  'trust','loyalty','patience','support','forgiveness','apology','promise',
+  'distance','reunion','comfort','overthinking','jealousy','growth',
+  'vulnerability','reassurance','belonging','constant variable','favorite chaos',
+  'calm in the storm','eye of the storm',
+
+  // milestones (kept a handful)
+  'first date','first kiss','proposal','anniversary','long distance'
 ];
 
 function toast(msg){
