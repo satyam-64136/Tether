@@ -574,10 +574,10 @@ async function startNewSeries(){
   const btn=document.querySelector('#s-series-over .btn');
   if(btn) btn.disabled=true;
   try{
-    // Resets the running score directly — same permissive-table-write pattern
-    // already used elsewhere in this app (no dedicated RPC exists for this
-    // specific reset, since a full series wasn't part of the original design).
-    const{error:resetErr}=await sb.from('ttt_match').update({wins_satyam:0,wins_snks:0}).eq('id',1);
+    // Resets the running score via RPC (SECURITY DEFINER), consistent with
+    // ttt_make_move / ttt_new_game elsewhere in this app. A direct table
+    // write here is blocked by RLS ("permission denied for table ttt_match").
+    const{error:resetErr}=await withTimeout(sb.rpc('ttt_start_new_series'));
     if(resetErr) throw resetErr;
     const{error}=await withTimeout(sb.rpc('ttt_new_game'));
     if(error) throw error;
