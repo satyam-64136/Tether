@@ -4226,6 +4226,7 @@ async function fetchOG(url){
 
 // ── VOICE MESSAGES ──
 let mediaRec=null,audioChunks=[],recStart=0,recTimer=null;
+const MIN_REC_HOLD_MS=600; // below this, treat it as an accidental brush/tap rather than a real voice note
 
 let _recCanceled=false;
 const REC_CANCEL_THRESHOLD=90; // px of leftward drag to trigger cancel
@@ -4305,8 +4306,16 @@ async function startRec(){
       slideEl.classList.remove('on','canceling');
       slideEl.style.opacity='';
       slideEl.querySelector('span:last-child').textContent='Slide to cancel';
+      const heldMs=Date.now()-recStart;
       if(_recCanceled||audioChunks.length===0){
         if(_recCanceled) toast('Recording canceled');
+        return;
+      }
+      if(heldMs<MIN_REC_HOLD_MS){
+        // Too short to be an intentional voice note — almost certainly an
+        // accidental brush against the button. Silently drop it instead of
+        // sending a stray ~1 second clip nobody meant to send.
+        toast('Hold to record a voice message');
         return;
       }
       const blob=new Blob(audioChunks,{type:mediaRec.mimeType});
@@ -4683,6 +4692,8 @@ let _lbPinchStartDist=0,_lbPinchStartScale=1;
 let _lbPanStart=null;
 let _lbLastTapTime=0,_lbLastTapX=0,_lbLastTapY=0;
 let _lbMoved=false;
+let _lbSwipeActive=false; // true when a 1-finger drag at scale 1 is being treated as "swipe to next/prev image" rather than a pinch-pan
+const LB_SWIPE_THRESHOLD=70; // px of horizontal drag needed to commit to changing images
 
 // ── MEDIA GALLERY ──
 function flattenGalleryItems(rows){
@@ -5064,11 +5075,13 @@ function lbBackgroundTap(e){
     _lbPointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
     _lbMoved=false;
     if(_lbPointers.size===2){
+      _lbSwipeActive=false; // a second finger landing mid-swipe means it's a pinch now, not a swipe
       const pts=[..._lbPointers.values()];
       _lbPinchStartDist=dist(pts[0],pts[1]);
       _lbPinchStartScale=_lbScale;
     }else if(_lbPointers.size===1){
       _lbPanStart={x:e.clientX,y:e.clientY,tx:_lbTx,ty:_lbTy};
+      _lbSwipeActive=_lbScale<=1.02&&!!_lbAlbum&&_lbAlbum.length>1;
     }
   });
 
@@ -5084,7 +5097,16 @@ function lbBackgroundTap(e){
       _lbMoved=true;
     }else if(_lbPointers.size===1&&_lbPanStart){
       const dx=e.clientX-_lbPanStart.x,dy=e.clientY-_lbPanStart.y;
-      if(_lbScale>1){
+      if(_lbSwipeActive){
+        // Rubber-band resistance at the ends of the album — dragging past
+        // the first or last photo should feel like hitting a soft limit,
+        // not just do nothing.
+        const atStart=_lbIndex===0,atEnd=_lbIndex===_lbAlbum.length-1;
+        let swipeDx=dx;
+        if((dx>0&&atStart)||(dx<0&&atEnd)) swipeDx=dx*0.35;
+        _lbTx=swipeDx;
+        applyLBTransform(false);
+      }else if(_lbScale>1){
         _lbTx=_lbPanStart.tx+dx;
         _lbTy=_lbPanStart.ty+dy;
         applyLBTransform(false);
@@ -5093,12 +5115,63 @@ function lbBackgroundTap(e){
     }
   });
 
+  // Slides the current image the rest of the way off-screen, swaps to the
+  // next/prev photo positioned just off the opposite edge, then slides that
+  // one into center — a proper "swipe through" rather than an abrupt swap.
+  function completeSwipe(dir){
+    const vw=window.innerWidth;
+    _lbTx=dir<0?-vw:vw;
+    applyLBTransform(true); // eased slide the rest of the way off-screen (matches the 0.25s .snapping transition)
+    setTimeout(()=>{
+      lbNav(dir); // advances _lbIndex, swaps src, and resets transform via resetLBTransform()
+      const img2=document.getElementById('lbimg');
+      // #lbimg has an always-on 80ms transition even without .snapping, so
+      // repositioning it off-screen for the entry point needs the
+      // transition explicitly killed first — otherwise you'd see a quick
+      // flash-slide across the middle before the real entrance animation.
+      img2.style.transition='none';
+      _lbTx=dir<0?vw:-vw;
+      applyLBTransform(false);
+      void img2.offsetWidth; // force layout so the transition:none above actually applies before it's cleared
+      img2.style.transition='';
+      requestAnimationFrame(()=>{
+        requestAnimationFrame(()=>{ // next frame: slide the new photo into center, eased
+          _lbTx=0;
+          applyLBTransform(true);
+        });
+      });
+    },250);
+  }
+
   function endPointer(e){
     _lbPointers.delete(e.pointerId);
-    if(_lbPointers.size<2&&_lbScale<1.02){
+    // Going from 2 fingers (pinching) down to 1 (still down) needs a fresh
+    // pan reference for that remaining finger — otherwise the next
+    // pointermove computes its delta against wherever that finger happened
+    // to be when the OTHER finger first touched down, possibly a while ago
+    // and a good distance away, causing the image to visibly jump/snap the
+    // instant the second finger lifts. This is the pinch-then-pan glitch.
+    if(_lbPointers.size===1){
+      const remaining=[..._lbPointers.values()][0];
+      _lbPanStart={x:remaining.x,y:remaining.y,tx:_lbTx,ty:_lbTy};
+    }
+    if(_lbPointers.size<2&&_lbScale<1.02&&!_lbSwipeActive){
       _lbScale=1;_lbTx=0;_lbTy=0;applyLBTransform(true);
     }
     if(_lbPointers.size===0){
+      if(_lbSwipeActive&&_lbMoved){
+        const dir=_lbTx<0?1:-1;
+        const canNav=(dir===1&&_lbIndex<_lbAlbum.length-1)||(dir===-1&&_lbIndex>0);
+        if(Math.abs(_lbTx)>=LB_SWIPE_THRESHOLD&&canNav){
+          completeSwipe(dir);
+        }else{
+          _lbTx=0;applyLBTransform(true); // didn't drag far enough, or already at the first/last photo — snap back to center
+        }
+        _lbSwipeActive=false;
+        _lbPanStart=null;
+        return;
+      }
+      _lbSwipeActive=false;
       if(!_lbMoved){
         const now=Date.now();
         const dt=now-_lbLastTapTime;
