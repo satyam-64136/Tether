@@ -408,7 +408,10 @@ async function boot(){
     await resyncOrThrow();
     subscribeAll();
 
-    setInterval(()=>{ if(!document.hidden) resync(); },15000);
+    // Now backed by real reconnect logic above, so this is a light backstop
+    // rather than the primary sync path. Kept quick (6s) since quota
+    // headroom is not a concern here.
+    setInterval(()=>{ if(!document.hidden) resync(); },6000);
     document.addEventListener('visibilitychange',()=>{
       if(!document.hidden){ resync(); subscribeAll(); }
     });
@@ -425,6 +428,15 @@ async function boot(){
   boot();
 })();
 
+let _reconnectTimer=null;
+function scheduleReconnect(){
+  if(_reconnectTimer)return; // one retry in flight at a time
+  _reconnectTimer=setTimeout(()=>{
+    _reconnectTimer=null;
+    if(!document.hidden) subscribeAll();
+  },2000);
+}
+
 function subscribeAll(){
   if(matchCh){try{sb.removeChannel(matchCh);}catch(e){}}
   if(logCh){try{sb.removeChannel(logCh);}catch(e){}}
@@ -433,9 +445,13 @@ function subscribeAll(){
     .on('postgres_changes',{event:'UPDATE',schema:'public',table:'whoami_match',filter:'id=eq.1'},()=>resync())
     .subscribe(status=>{
       const el=document.getElementById('connStatus');
-      if(!el)return;
-      if(status==='SUBSCRIBED') el.innerHTML=`<span class="dot"></span> Connected`;
-      else{ el.className='pill warn'; el.innerHTML=`<span class="dot"></span> Reconnecting...`; }
+      if(status==='SUBSCRIBED'){
+        if(el){ el.className='pill'; el.innerHTML=`<span class="dot"></span> Connected`; }
+        resync(); // catch up on anything missed while this channel was down
+      }else if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'||status==='CLOSED'){
+        if(el){ el.className='pill warn'; el.innerHTML=`<span class="dot"></span> Reconnecting...`; }
+        scheduleReconnect();
+      }
     });
 
   logCh=sb.channel('whoami-log-'+Date.now())

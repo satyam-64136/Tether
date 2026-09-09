@@ -423,13 +423,15 @@ async function boot(){
     await resyncOrThrow();
     subscribeAll();
 
-    // Reliability net: even if realtime silently drops (very common on mobile
-    // when the app backgrounds), this guarantees we're never out of sync with
-    // the server for more than a few seconds. Skipped entirely while the tab
-    // is hidden — nobody's looking at a backgrounded game, so there's no
-    // reason to keep spending API calls on it; the visibilitychange listener
-    // below already forces an instant resync the moment it's opened again.
-    setInterval(()=>{ if(!document.hidden) resync(); },15000);
+    // Reliability net: now backed by real reconnect logic above, so this
+    // mainly just catches the rare missed realtime event rather than being
+    // the primary sync path. Kept fairly quick (6s) since quota headroom is
+    // huge and a snappier fallback means less time sitting on stale state
+    // during the brief window before a dropped channel reconnects. Skipped
+    // entirely while the tab is hidden — nobody's looking at a backgrounded
+    // game — the visibilitychange listener below forces an instant resync
+    // the moment it's opened again.
+    setInterval(()=>{ if(!document.hidden) resync(); },6000);
     document.addEventListener('visibilitychange',()=>{
       if(!document.hidden){ resync(); subscribeAll(); }
     });
@@ -447,6 +449,23 @@ async function boot(){
 })();
 
 // ── REALTIME (best-effort, instant when it works; resync() above covers the gaps) ──
+// Real reconnection logic — the connection pill used to just relabel itself
+// "Reconnecting..." when a channel dropped and then do nothing further. If
+// the drop happened while the app stayed open and foregrounded (a brief
+// network blip, a carrier handoff, Supabase's realtime service hiccuping),
+// nothing ever actually retried — the two of you could sit on stale state
+// for as long as the connection stayed down, which is exactly what "we saw
+// different screens" looks like. This schedules a real resubscribe attempt
+// and does an immediate catch-up resync once it succeeds.
+let _reconnectTimer=null;
+function scheduleReconnect(){
+  if(_reconnectTimer)return; // one retry in flight at a time
+  _reconnectTimer=setTimeout(()=>{
+    _reconnectTimer=null;
+    if(!document.hidden) subscribeAll();
+  },2000);
+}
+
 function subscribeAll(){
   if(matchCh){try{sb.removeChannel(matchCh);}catch(e){}}
   if(secretsCh){try{sb.removeChannel(secretsCh);}catch(e){}}
@@ -457,9 +476,13 @@ function subscribeAll(){
     .on('postgres_changes',{event:'UPDATE',schema:'public',table:'wg_match',filter:'id=eq.1'},()=>resync())
     .subscribe(status=>{
       const el=document.getElementById('connStatus');
-      if(!el)return;
-      if(status==='SUBSCRIBED') el.innerHTML=`<span class="dot"></span> Connected`;
-      else{ el.className='pill warn'; el.innerHTML=`<span class="dot"></span> Reconnecting...`; }
+      if(status==='SUBSCRIBED'){
+        if(el){ el.className='pill'; el.innerHTML=`<span class="dot"></span> Connected`; }
+        resync(); // catch up on anything missed while this channel was down
+      }else if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'||status==='CLOSED'){
+        if(el){ el.className='pill warn'; el.innerHTML=`<span class="dot"></span> Reconnecting...`; }
+        scheduleReconnect();
+      }
     });
 
   secretsCh=sb.channel('wg-secrets-'+Date.now())
@@ -480,19 +503,30 @@ function subscribeAll(){
     .subscribe();
 }
 
+// Multiple things can trigger a resync close together — your own action,
+// the realtime channel firing, and the poll — and their responses can land
+// out of order. Without a guard, an older response landing after a newer
+// one would silently overwrite fresh state with stale state, which shows
+// up as a move or answer flickering or reverting. This tags each request
+// and only applies the result of the LATEST one issued.
+let _resyncSeq=0;
+
 // ── Central resync: the single source of truth pulled fresh from the server.
-//    Called on boot, on every realtime match ping, every 4s regardless, and
+//    Called on boot, on every realtime match ping, the fallback poll, and
 //    whenever the app comes back to the foreground. ──
 async function resyncOrThrow(){
+  const mySeq=++_resyncSeq;
   const{data:m,error:mErr}=await sb.from('wg_match').select('*').eq('id',1).maybeSingle();
   if(mErr) throw mErr;
   if(!m)return;
+  if(mySeq!==_resyncSeq)return; // a newer resync was issued while this one was in flight
   match=m;
   await loadMySecret();
   if(match.status==='over') await loadOppSecretIfRevealed();
   else oppSecret=null;
   await loadGuessCounts();
   if(match.status==='playing') await loadQuestions();
+  if(mySeq!==_resyncSeq)return; // re-check — one of the awaits above could have taken a while
   routeScreen();
 }
 

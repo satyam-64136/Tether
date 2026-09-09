@@ -315,9 +315,12 @@ async function boot(){
     await resyncOrThrow();
     subscribeAll();
 
-    // Same reliability net as WildGuess/Tether chat, but skipped while the
-    // tab is hidden — resuming happens instantly via visibilitychange below.
-    setInterval(()=>{ if(!document.hidden) resync(); },15000);
+    // Now backed by real reconnect logic above, so this is a light backstop
+    // rather than the primary sync path — kept quick (5s) since this is the
+    // most turn-by-turn of the three games and quota headroom is not a
+    // concern. Skipped while the tab is hidden — resuming happens instantly
+    // via visibilitychange below.
+    setInterval(()=>{ if(!document.hidden) resync(); },5000);
     document.addEventListener('visibilitychange',()=>{ if(!document.hidden){ resync(); subscribeAll(); } });
     window.addEventListener('online',()=>{ resync(); subscribeAll(); });
     window.addEventListener('pageshow',()=>{ resync(); subscribeAll(); });
@@ -331,22 +334,41 @@ async function boot(){
   boot();
 })();
 
+let _reconnectTimer=null;
+function scheduleReconnect(){
+  if(_reconnectTimer)return; // one retry in flight at a time
+  _reconnectTimer=setTimeout(()=>{
+    _reconnectTimer=null;
+    if(!document.hidden) subscribeAll();
+  },2000);
+}
+
 function subscribeAll(){
   if(matchCh){try{sb.removeChannel(matchCh);}catch(e){}}
   matchCh=sb.channel('ttt-match-'+Date.now())
     .on('postgres_changes',{event:'UPDATE',schema:'public',table:'ttt_match',filter:'id=eq.1'},()=>resync())
     .subscribe(status=>{
       const el=document.getElementById('connStatus');
-      if(!el)return;
-      if(status==='SUBSCRIBED'){ el.className='pill'; el.innerHTML='<span class="dot"></span> Connected'; }
-      else{ el.className='pill warn'; el.innerHTML='<span class="dot"></span> Reconnecting...'; }
+      if(status==='SUBSCRIBED'){
+        if(el){ el.className='pill'; el.innerHTML='<span class="dot"></span> Connected'; }
+        resync(); // catch up on any move missed while this channel was down
+      }else if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'||status==='CLOSED'){
+        if(el){ el.className='pill warn'; el.innerHTML='<span class="dot"></span> Reconnecting...'; }
+        scheduleReconnect();
+      }
     });
 }
 
+// See WildGuess/WhoAmI for why this guard exists: without it, an older
+// resync response landing after a newer one could silently overwrite a
+// just-made move with stale board state — a visible flicker/revert glitch.
+let _resyncSeq=0;
 async function resyncOrThrow(){
+  const mySeq=++_resyncSeq;
   const{data:m,error}=await sb.from('ttt_match').select('*').eq('id',1).maybeSingle();
   if(error) throw error;
   if(!m)return;
+  if(mySeq!==_resyncSeq)return;
   match=m;
   render();
 }
