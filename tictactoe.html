@@ -216,6 +216,10 @@ h1,h2{font-family:'Fraunces',serif}
           <div class="score-name"><span class="sym-badge" id="snksSymBadge">O</span> Snks</div>
         </div>
       </div>
+      <button class="pill" onclick="confirmResetSeries(this)" style="border:none;cursor:pointer;font-family:inherit;align-self:center;margin-top:2px">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px"><path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6"/></svg>
+        Reset score
+      </button>
       <div class="hint" id="seriesProgress" style="margin-top:-4px"></div>
       <div class="turn-banner" id="turnBanner">—</div>
     </div>
@@ -582,15 +586,27 @@ async function forceAlternateXPlayer(prevXPlayer){
   if(error) console.warn('could not force X-player alternation:',error);
 }
 
+// Manual reset, available any time during play (not just once a series
+// naturally finishes at 40 games) — for when you just don't want to keep
+// grinding through the same series. Confirms first since it's destructive
+// and can't be undone; reuses the exact same reset+redeal logic as the
+// natural end-of-series flow.
+function confirmResetSeries(btn){
+  if(!confirm("Reset the score to 0–0 and start a new series? This can't be undone.")) return;
+  if(btn) btn.disabled=true;
+  startNewSeries().finally(()=>{ if(btn) btn.disabled=false; });
+}
+
 async function startNewSeries(){
   const btn=document.querySelector('#s-series-over .btn');
   if(btn) btn.disabled=true;
   try{
     const prevXPlayer=match?.x_player;
-    // Resets the running score directly — same permissive-table-write pattern
-    // already used elsewhere in this app (no dedicated RPC exists for this
-    // specific reset, since a full series wasn't part of the original design).
-    const{error:resetErr}=await sb.from('ttt_match').update({wins_satyam:0,wins_snks:0}).eq('id',1);
+    // Resets the running score via a dedicated RPC (ttt_start_new_series) —
+    // a direct client-side table update on ttt_match was being blocked by
+    // RLS and causing failures, so the reset has to go through a
+    // security-definer function that's allowed to write it instead.
+    const{error:resetErr}=await withTimeout(sb.rpc('ttt_start_new_series'));
     if(resetErr) throw resetErr;
     const{error}=await withTimeout(sb.rpc('ttt_new_game'));
     if(error) throw error;
