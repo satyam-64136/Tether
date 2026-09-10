@@ -1054,8 +1054,8 @@ html,body{
 #lb{position:fixed;inset:0;background:rgba(0,0,0,0.93);z-index:800;display:none;align-items:center;justify-content:center;backdrop-filter:blur(5px);overflow:hidden;touch-action:none}
 #lb.on{display:flex}
 #lb-viewport{position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center;overflow:hidden}
-#lbimg{max-width:95vw;max-height:90vh;border-radius:10px;object-fit:contain;touch-action:none;will-change:transform;user-select:none;-webkit-user-drag:none;transition:transform 0.08s linear}
-#lbimg.snapping{transition:transform 0.25s cubic-bezier(.2,1,.3,1)}
+#lbimg,#lbvid{max-width:95vw;max-height:90vh;border-radius:10px;object-fit:contain;touch-action:none;will-change:transform;user-select:none;-webkit-user-drag:none;transition:transform 0.08s linear}
+#lbimg.snapping,#lbvid.snapping{transition:transform 0.25s cubic-bezier(.2,1,.3,1)}
 #lb-topbar{position:absolute;top:0;left:0;right:0;display:flex;align-items:center;justify-content:space-between;padding:16px 16px 0;z-index:2}
 #lbx,#lb-dl{background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2);color:white;width:38px;height:38px;border-radius:50%;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(12px);transition:transform 0.15s cubic-bezier(.34,1.56,.64,1)}
 #lbx:active,#lb-dl:active{transform:scale(0.85)}
@@ -1927,6 +1927,7 @@ html,body{
   <div id="lb-counter"></div>
   <div id="lb-viewport" onclick="lbBackgroundTap(event)">
     <img id="lbimg" src="" alt=""/>
+    <video id="lbvid" playsinline muted loop style="display:none"></video>
   </div>
   <div id="lb-prev" onclick="event.stopPropagation();lbNav(-1)">
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
@@ -4714,7 +4715,7 @@ function renderGalleryGrid(items){
   if(!items.length){grid.replaceChildren();empty.style.display='flex';return;}
   empty.style.display='none';
   grid.replaceChildren();
-  items.forEach(it=>{
+  items.forEach((it,i)=>{
     const tile=document.createElement('div');
     tile.className='gal-tile';
     if(it.video){
@@ -4732,7 +4733,13 @@ function renderGalleryGrid(items){
       const bd=document.createElement('span');bd.className='gal-bundle-badge';bd.textContent=it.album.length;
       tile.appendChild(bd);
     }
-    tile.onclick=()=>openLB(it.url,it.album,it.albumIndex);
+    // Pass the WHOLE flattened gallery list + this tile's position within
+    // it — not just it.album/it.albumIndex, which only cover the handful
+    // of photos bundled into this one specific message. That's what makes
+    // swipe/arrow navigation move through the entire gallery instead of
+    // dead-ending after 1 item for every message that wasn't a multi-photo
+    // bundle (i.e. almost all of them).
+    tile.onclick=()=>openLB(it.url,items,i);
     grid.appendChild(tile);
   });
 }
@@ -5006,14 +5013,32 @@ async function openViewOnce(id){
   }
 }
 
+let _lbIsVideo=false;
+function lbActiveEl(){ return document.getElementById(_lbIsVideo?'lbvid':'lbimg'); }
+function setLBMedia(item){
+  _lbIsVideo=!!item.video;
+  const img=document.getElementById('lbimg'),vid=document.getElementById('lbvid');
+  if(_lbIsVideo){
+    img.style.display='none';img.src='';
+    vid.style.display='';
+    vid.src=item.url;
+    vid.currentTime=0;
+    vid.play().catch(()=>{}); // autoplay can be rejected by the browser — fine, controls still show a paused frame
+  }else{
+    vid.pause();vid.style.display='none';vid.src='';
+    img.style.display='';
+    img.src=item.url;
+  }
+}
 function openLB(url,album,index){
   _lbAlbum=(album&&album.length>1)?album:null;
   _lbIndex=index||0;
   resetLBTransform();
-  document.getElementById('lbimg').src=_lbAlbum?_lbAlbum[_lbIndex].url:url;
+  setLBMedia(_lbAlbum?_lbAlbum[_lbIndex]:{url,video:false});
   document.getElementById('lb').classList.add('on');
   updateLBNav();
   const hint=document.getElementById('lb-hint');
+  hint.textContent=_lbAlbum?'Swipe for more · pinch to zoom':'Pinch or double-tap to zoom';
   hint.classList.remove('gone');
   clearTimeout(hint._t);
   hint._t=setTimeout(()=>hint.classList.add('gone'),2200);
@@ -5039,11 +5064,12 @@ function lbNav(dir){
   if(newIdx<0||newIdx>=_lbAlbum.length)return;
   _lbIndex=newIdx;
   resetLBTransform();
-  document.getElementById('lbimg').src=_lbAlbum[_lbIndex].url;
+  setLBMedia(_lbAlbum[_lbIndex]);
   updateLBNav();
 }
 function closeLB(){
   document.getElementById('lb').classList.remove('on');
+  document.getElementById('lbvid').pause();
   _lbAlbum=null;
   resetLBTransform();
 }
@@ -5052,13 +5078,15 @@ function resetLBTransform(){
   applyLBTransform(false);
 }
 function applyLBTransform(snap){
-  const img=document.getElementById('lbimg');
-  img.classList.toggle('snapping',!!snap);
-  img.style.transform=`translate(${_lbTx}px,${_lbTy}px) scale(${_lbScale})`;
+  const el=lbActiveEl();
+  el.classList.toggle('snapping',!!snap);
+  el.style.transform=`translate(${_lbTx}px,${_lbTy}px) scale(${_lbScale})`;
 }
 function downloadCurrentLB(){
-  const url=_lbAlbum?_lbAlbum[_lbIndex].url:document.getElementById('lbimg').src;
-  saveMedia(url,'image');
+  const item=_lbAlbum?_lbAlbum[_lbIndex]:null;
+  const isVideo=item?!!item.video:_lbIsVideo;
+  const url=item?item.url:lbActiveEl().src;
+  saveMedia(url,isVideo?'video':'image');
 }
 function lbBackgroundTap(e){
   if(_lbMoved){_lbMoved=false;return;}
@@ -5066,12 +5094,10 @@ function lbBackgroundTap(e){
 }
 
 (function initLightboxGestures(){
-  const img=document.getElementById('lbimg');
-  if(!img)return;
   const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 
-  img.addEventListener('pointerdown',e=>{
-    img.setPointerCapture(e.pointerId);
+  function onPointerDown(e){
+    e.currentTarget.setPointerCapture(e.pointerId);
     _lbPointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
     _lbMoved=false;
     if(_lbPointers.size===2){
@@ -5083,9 +5109,9 @@ function lbBackgroundTap(e){
       _lbPanStart={x:e.clientX,y:e.clientY,tx:_lbTx,ty:_lbTy};
       _lbSwipeActive=_lbScale<=1.02&&!!_lbAlbum&&_lbAlbum.length>1;
     }
-  });
+  }
 
-  img.addEventListener('pointermove',e=>{
+  function onPointerMove(e){
     if(!_lbPointers.has(e.pointerId))return;
     _lbPointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
 
@@ -5099,7 +5125,7 @@ function lbBackgroundTap(e){
       const dx=e.clientX-_lbPanStart.x,dy=e.clientY-_lbPanStart.y;
       if(_lbSwipeActive){
         // Rubber-band resistance at the ends of the album — dragging past
-        // the first or last photo should feel like hitting a soft limit,
+        // the first or last item should feel like hitting a soft limit,
         // not just do nothing.
         const atStart=_lbIndex===0,atEnd=_lbIndex===_lbAlbum.length-1;
         let swipeDx=dx;
@@ -5113,29 +5139,30 @@ function lbBackgroundTap(e){
       }
       if(Math.hypot(dx,dy)>10) _lbMoved=true;
     }
-  });
+  }
 
-  // Slides the current image the rest of the way off-screen, swaps to the
-  // next/prev photo positioned just off the opposite edge, then slides that
+  // Slides the current media the rest of the way off-screen, swaps to the
+  // next/prev item positioned just off the opposite edge, then slides that
   // one into center — a proper "swipe through" rather than an abrupt swap.
+  // Works the same whether the item is a photo or a video.
   function completeSwipe(dir){
     const vw=window.innerWidth;
     _lbTx=dir<0?-vw:vw;
     applyLBTransform(true); // eased slide the rest of the way off-screen (matches the 0.25s .snapping transition)
     setTimeout(()=>{
-      lbNav(dir); // advances _lbIndex, swaps src, and resets transform via resetLBTransform()
-      const img2=document.getElementById('lbimg');
-      // #lbimg has an always-on 80ms transition even without .snapping, so
-      // repositioning it off-screen for the entry point needs the
-      // transition explicitly killed first — otherwise you'd see a quick
-      // flash-slide across the middle before the real entrance animation.
-      img2.style.transition='none';
+      lbNav(dir); // advances _lbIndex, swaps media (possibly img<->video), resets transform
+      const el2=lbActiveEl();
+      // The active element has an always-on 80ms transition even without
+      // .snapping, so repositioning it off-screen for the entry point needs
+      // the transition explicitly killed first — otherwise you'd see a
+      // quick flash-slide across the middle before the real entrance plays.
+      el2.style.transition='none';
       _lbTx=dir<0?vw:-vw;
       applyLBTransform(false);
-      void img2.offsetWidth; // force layout so the transition:none above actually applies before it's cleared
-      img2.style.transition='';
+      void el2.offsetWidth; // force layout so the transition:none above actually applies before it's cleared
+      el2.style.transition='';
       requestAnimationFrame(()=>{
-        requestAnimationFrame(()=>{ // next frame: slide the new photo into center, eased
+        requestAnimationFrame(()=>{ // next frame: slide the new item into center, eased
           _lbTx=0;
           applyLBTransform(true);
         });
@@ -5149,7 +5176,7 @@ function lbBackgroundTap(e){
     // pan reference for that remaining finger — otherwise the next
     // pointermove computes its delta against wherever that finger happened
     // to be when the OTHER finger first touched down, possibly a while ago
-    // and a good distance away, causing the image to visibly jump/snap the
+    // and a good distance away, causing the media to visibly jump/snap the
     // instant the second finger lifts. This is the pinch-then-pan glitch.
     if(_lbPointers.size===1){
       const remaining=[..._lbPointers.values()][0];
@@ -5165,7 +5192,7 @@ function lbBackgroundTap(e){
         if(Math.abs(_lbTx)>=LB_SWIPE_THRESHOLD&&canNav){
           completeSwipe(dir);
         }else{
-          _lbTx=0;applyLBTransform(true); // didn't drag far enough, or already at the first/last photo — snap back to center
+          _lbTx=0;applyLBTransform(true); // didn't drag far enough, or already at the first/last item — snap back to center
         }
         _lbSwipeActive=false;
         _lbPanStart=null;
@@ -5176,7 +5203,7 @@ function lbBackgroundTap(e){
         const now=Date.now();
         const dt=now-_lbLastTapTime;
         const closeEnough=Math.abs(e.clientX-_lbLastTapX)<40&&Math.abs(e.clientY-_lbLastTapY)<40;
-        if(dt<320&&closeEnough){
+        if(dt<320&&closeEnough&&!_lbIsVideo){ // double-tap-to-zoom doesn't apply to video
           if(_lbScale>1){_lbScale=1;_lbTx=0;_lbTy=0;}
           else{_lbScale=2.4;}
           applyLBTransform(true);
@@ -5188,8 +5215,17 @@ function lbBackgroundTap(e){
       _lbPanStart=null;
     }
   }
-  img.addEventListener('pointerup',endPointer);
-  img.addEventListener('pointercancel',endPointer);
+
+  // Bind the exact same gesture set to both the image and video elements —
+  // swiping between gallery items should feel identical no matter which
+  // media type you land on.
+  [document.getElementById('lbimg'),document.getElementById('lbvid')].forEach(el=>{
+    if(!el)return;
+    el.addEventListener('pointerdown',onPointerDown);
+    el.addEventListener('pointermove',onPointerMove);
+    el.addEventListener('pointerup',endPointer);
+    el.addEventListener('pointercancel',endPointer);
+  });
 })();
 
 
