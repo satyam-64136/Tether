@@ -4710,7 +4710,7 @@ function renderGalleryGrid(items){
   const empty=document.getElementById('galleryEmpty');
   if(!items.length){grid.replaceChildren();empty.style.display='flex';return;}
   empty.style.display='none';
-  grid.replaceChildren();
+  const frag=document.createDocumentFragment(); // build off-DOM, then insert once — avoids up to 300 individual live-DOM writes
   items.forEach((it,i)=>{
     const tile=document.createElement('div');
     tile.className='gal-tile';
@@ -4738,15 +4738,27 @@ function renderGalleryGrid(items){
     // dead-ending after 1 item for every message that wasn't a multi-photo
     // bundle (i.e. almost all of them).
     tile.onclick=()=>openLB(it.url,items,i);
-    grid.appendChild(tile);
+    frag.appendChild(tile);
   });
+  grid.replaceChildren(frag);
 }
+let _galleryCache=null; // in-memory cache so reopening the gallery doesn't re-block on a fresh network round-trip every single time
 async function openGallery(){
   document.getElementById('galleryBg').classList.add('on');
   document.getElementById('galleryPanel').classList.add('on');
-  document.getElementById('galleryLoading').classList.add('on');
-  document.getElementById('galleryGrid').replaceChildren();
   document.getElementById('galleryEmpty').style.display='none';
+
+  if(_galleryCache){
+    // Show what we already have immediately — no spinner, no wait. This is
+    // what makes a reopen feel instant instead of refetching 300 rows from
+    // scratch every time, which was the real source of the multi-second
+    // delay before the gallery (and swiping through it) felt usable at all.
+    renderGalleryGrid(_galleryCache);
+  }else{
+    document.getElementById('galleryLoading').classList.add('on');
+    document.getElementById('galleryGrid').replaceChildren();
+  }
+
   try{
     const{data,error}=await sb.from('messages')
       .select('id,image_url,bundle,video,doc_name,voice,view_once,deleted,created_at')
@@ -4754,10 +4766,12 @@ async function openGallery(){
       .order('created_at',{ascending:false})
       .limit(300);
     if(error) throw error;
-    renderGalleryGrid(flattenGalleryItems(data||[]));
+    const items=flattenGalleryItems(data||[]);
+    _galleryCache=items;
+    renderGalleryGrid(items); // silently refreshes with anything new — invisible if nothing changed since the cached version
   }catch(e){
     console.error('gallery load failed:',e);
-    toast('Could not load gallery');
+    if(!_galleryCache) toast('Could not load gallery'); // don't bother the person with a toast if we already had something on screen to show
   }
   document.getElementById('galleryLoading').classList.remove('on');
 }

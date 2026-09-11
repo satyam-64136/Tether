@@ -132,6 +132,21 @@ h1,h2{font-family:'Fraunces',serif}
   box-shadow:0 10px 24px -8px rgba(233,48,214,0.3);
 }
 .cell.disabled{cursor:default}
+.cell.shake{animation:cellShake .35s ease}
+@keyframes cellShake{
+  0%,100%{transform:translateX(0)}
+  20%{transform:translateX(-5px)}
+  40%{transform:translateX(4px)}
+  60%{transform:translateX(-3px)}
+  80%{transform:translateX(2px)}
+}
+.cell.cell-enter{animation:cellEnter .45s cubic-bezier(.2,1.4,.4,1) both}
+@keyframes cellEnter{from{opacity:0;transform:scale(.55)}to{opacity:1;transform:scale(1)}}
+#boardCard.my-turn{animation:boardGlow 2.2s ease-in-out infinite}
+@keyframes boardGlow{
+  0%,100%{box-shadow:var(--shadow-lg)}
+  50%{box-shadow:var(--shadow-lg),0 0 0 1.5px var(--border-hi)}
+}
 
 .win-line{
   position:absolute;height:2.5px;border-radius:4px;top:0;left:0;
@@ -224,7 +239,7 @@ h1,h2{font-family:'Fraunces',serif}
       <div class="turn-banner" id="turnBanner">—</div>
     </div>
 
-    <div class="card">
+    <div class="card" id="boardCard">
       <div class="board" id="board"></div>
     </div>
   </div>
@@ -268,6 +283,8 @@ let match=null;
 let matchCh=null;
 let _prevScores={Satyam:0,Snks:0};
 let _wasPlaying=true; // guards the game-over haptic so it fires once per finished game, not on every poll
+let _prevBoardWasEmpty=null; // null until the first real render, so a fresh page load doesn't spuriously replay the entrance animation
+let _resultTransitionPending=false; // guards the brief pause before showing results so it can't double-fire from an overlapping render()
 
 function toast(msg){
   const t=document.getElementById('toast');
@@ -441,6 +458,9 @@ function render(){
 
   const board=document.getElementById('board');
   const cells=board.children;
+  const boardIsEmpty=match.board.every(v=>!v);
+  if(boardIsEmpty&&_prevBoardWasEmpty===false) staggerBoardIn();
+  _prevBoardWasEmpty=boardIsEmpty;
   const winSet=new Set(match.win_line||[]);
   for(let i=0;i<9;i++){
     const val=match.board[i];
@@ -462,28 +482,39 @@ function render(){
   }
 
   const banner=document.getElementById('turnBanner');
+  const boardCard=document.getElementById('boardCard');
   if(match.status==='playing'){
     const myTurn=match.turn===MY_NAME;
     banner.innerHTML=(myTurn?'<span class="tb-dot"></span> Your turn':`Waiting for ${OPP_NAME}...`);
     banner.className='turn-banner '+(myTurn?'mine':'theirs');
+    boardCard.classList.toggle('my-turn',myTurn);
     hideWinLine();
     _wasPlaying=true;
     showScreen('s-game');
   }else{
+    boardCard.classList.remove('my-turn');
     showScreen('s-game'); // keep board visible behind, then show result
+    const isFreshResult=_wasPlaying; // only true the first time we see this particular game as finished
     if(match.status!=='draw' && match.win_line&&match.win_line.length) drawWinLine(match.win_line);
-    if(_wasPlaying){
+    if(isFreshResult){
       // only the FIRST time we see this game as finished — not on every
       // subsequent poll/realtime tick while still parked on the result screen
       vibrate(match.status==='draw'?20:(match.winner_name===MY_NAME?[25,60,25,60,60]:[20,40,20]));
     }
     _wasPlaying=false;
-    if(seriesOver){
-      renderSeriesOver();
-      showScreen('s-series-over');
-    }else{
-      renderOver();
-      showScreen('s-over');
+    const showResultScreen=()=>{
+      if(seriesOver){ renderSeriesOver(); showScreen('s-series-over'); }
+      else{ renderOver(); showScreen('s-over'); }
+    };
+    if(isFreshResult&&!_resultTransitionPending){
+      // Give the winning line (and the win/draw haptic) a beat to actually
+      // register before jumping straight to the results screen — showing
+      // it instantly made a win feel rushed, like the game didn't pause to
+      // acknowledge what just happened.
+      _resultTransitionPending=true;
+      setTimeout(()=>{ _resultTransitionPending=false; showResultScreen(); },650);
+    }else if(!_resultTransitionPending){
+      showResultScreen(); // an already-seen result (e.g. a later poll while parked on this screen) — show immediately, no artificial delay
     }
   }
 }
@@ -619,10 +650,30 @@ async function startNewSeries(){
   if(btn) btn.disabled=false;
 }
 
+function shakeCell(i){
+  const cells=document.getElementById('board').children;
+  const cell=cells[i];
+  if(!cell)return;
+  cell.classList.remove('shake');void cell.offsetWidth;cell.classList.add('shake');
+  setTimeout(()=>cell.classList.remove('shake'),350);
+  vibrate(15);
+}
+
+function staggerBoardIn(){
+  const cells=document.getElementById('board').children;
+  for(let i=0;i<9;i++){
+    const cell=cells[i];
+    cell.classList.remove('cell-enter');
+    void cell.offsetWidth; // force reflow so re-adding the class restarts the animation
+    cell.style.animationDelay=(i*35)+'ms';
+    cell.classList.add('cell-enter');
+  }
+}
+
 async function makeMove(i){
   if(!match||match.status!=='playing')return;
-  if(match.turn!==MY_NAME){toast("It's not your turn yet");return;}
-  if(match.board[i]){return;}
+  if(match.turn!==MY_NAME){toast("It's not your turn yet");vibrate([12,40,12]);return;}
+  if(match.board[i]){shakeCell(i);return;}
 
   // optimistic paint so it feels instant
   vibrate(12);
