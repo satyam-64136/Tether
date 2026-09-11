@@ -1120,10 +1120,6 @@ html,body{
   position:absolute;bottom:4px;right:4px;background:rgba(0,0,0,0.55);color:#fff;
   border-radius:5px;padding:1px 5px;font-size:9px;display:flex;align-items:center;gap:2px;
 }
-.gal-tile .gal-bundle-badge{
-  position:absolute;top:4px;right:4px;background:rgba(0,0,0,0.55);color:#fff;
-  border-radius:5px;padding:1px 5px;font-size:9px;font-weight:600;
-}
 #galleryEmpty{
   display:flex;flex-direction:column;align-items:center;gap:8px;color:var(--text3);
   font-size:12.5px;text-align:center;padding:60px 20px;
@@ -4729,10 +4725,12 @@ function renderGalleryGrid(items){
       img.src=it.url;img.loading='lazy';img.alt='';
       tile.appendChild(img);
     }
-    if(it.album&&it.album.length>1){
-      const bd=document.createElement('span');bd.className='gal-bundle-badge';bd.textContent=it.album.length;
-      tile.appendChild(bd);
-    }
+    // Each photo/video from a multi-item message already gets its own
+    // separate tile here (see flattenGalleryItems below) — so there's
+    // nothing left to actually group. The old badge showing the bundle
+    // count used to repeat the same number on every tile from that
+    // message, which read as confusing/wrong rather than informative, so
+    // it's been removed.
     // Pass the WHOLE flattened gallery list + this tile's position within
     // it — not just it.album/it.albumIndex, which only cover the handful
     // of photos bundled into this one specific message. That's what makes
@@ -5147,7 +5145,12 @@ function lbBackgroundTap(e){
   // Works the same whether the item is a photo or a video.
   function completeSwipe(dir){
     const vw=window.innerWidth;
-    _lbTx=dir<0?-vw:vw;
+    // dir===1 means "next" (index+1), which happens when the drag moved
+    // left (negative _lbTx) — so the exit should continue in that same
+    // negative/left direction, not flip to positive. This was backwards
+    // before (used dir<0?-vw:vw, which sends "next" to the right and
+    // "prev" to the left — the opposite of the direction actually dragged).
+    _lbTx=dir<0?vw:-vw;
     applyLBTransform(true); // eased slide the rest of the way off-screen (matches the 0.25s .snapping transition)
     setTimeout(()=>{
       lbNav(dir); // advances _lbIndex, swaps media (possibly img<->video), resets transform
@@ -5157,7 +5160,7 @@ function lbBackgroundTap(e){
       // the transition explicitly killed first — otherwise you'd see a
       // quick flash-slide across the middle before the real entrance plays.
       el2.style.transition='none';
-      _lbTx=dir<0?vw:-vw;
+      _lbTx=dir<0?-vw:vw; // enters from the opposite edge of wherever the old one exited
       applyLBTransform(false);
       void el2.offsetWidth; // force layout so the transition:none above actually applies before it's cleared
       el2.style.transition='';
