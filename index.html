@@ -638,6 +638,7 @@ html,body{
   color:var(--text2);
   transition:transform 0.15s cubic-bezier(.34,1.56,.64,1),background 0.15s,border-color 0.15s,color 0.15s,width 0.2s cubic-bezier(.2,1,.3,1);
   position:relative;
+  touch-action:none; /* without this, the browser's own gesture recognizer can compete with the slide-to-cancel drag and fire a pointercancel mid-gesture — which is what was causing the recording to stop on its own and the cancel slide to feel broken */
 }
 .recbtn:active{transform:scale(0.86)}
 /* Instant feedback the moment a finger touches down — before getUserMedia
@@ -4247,6 +4248,7 @@ function initRecGestures(){
 
   btn.addEventListener('pointermove',e=>{
     if(!dragActive||!(mediaRec&&mediaRec.state==='recording'))return;
+    e.preventDefault();
     const dragLeft=Math.max(0,startX-e.clientX); // only leftward movement matters
     const progress=Math.min(dragLeft/REC_CANCEL_THRESHOLD,1);
     btn.style.transform=`translateX(${-Math.min(dragLeft,REC_CANCEL_THRESHOLD)*0.3}px) scale(1.1)`;
@@ -4691,6 +4693,8 @@ let _lbLastTapTime=0,_lbLastTapX=0,_lbLastTapY=0;
 let _lbMoved=false;
 let _lbSwipeActive=false; // true when a 1-finger drag at scale 1 is being treated as "swipe to next/prev image" rather than a pinch-pan
 const LB_SWIPE_THRESHOLD=70; // px of horizontal drag needed to commit to changing images
+let _lbGestureAxis=null; // null | 'h' | 'v' | 'pan' — which behavior a 1-finger drag has committed to for its duration
+const LB_DISMISS_THRESHOLD=110; // px of downward drag needed to commit to closing the lightbox
 
 // ── MEDIA GALLERY ──
 function flattenGalleryItems(rows){
@@ -5050,7 +5054,7 @@ function openLB(url,album,index){
   document.getElementById('lb').classList.add('on');
   updateLBNav();
   const hint=document.getElementById('lb-hint');
-  hint.textContent=_lbAlbum?'Swipe for more · pinch to zoom':'Pinch or double-tap to zoom';
+  hint.textContent=_lbAlbum?'Swipe for more · pinch to zoom · swipe down to close':'Pinch or double-tap to zoom · swipe down to close';
   hint.classList.remove('gone');
   clearTimeout(hint._t);
   hint._t=setTimeout(()=>hint.classList.add('gone'),2200);
@@ -5087,6 +5091,12 @@ function closeLB(){
 }
 function resetLBTransform(){
   _lbScale=1;_lbTx=0;_lbTy=0;
+  // Clear any leftover opacity from a swipe-down-to-dismiss drag on either
+  // element — belt-and-suspenders so a fresh open never inherits a stale
+  // faded state from whatever was last shown.
+  const img=document.getElementById('lbimg'),vid=document.getElementById('lbvid');
+  if(img)img.style.opacity='';
+  if(vid)vid.style.opacity='';
   applyLBTransform(false);
 }
 function applyLBTransform(snap){
@@ -5113,13 +5123,17 @@ function lbBackgroundTap(e){
     _lbPointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
     _lbMoved=false;
     if(_lbPointers.size===2){
-      _lbSwipeActive=false; // a second finger landing mid-swipe means it's a pinch now, not a swipe
+      _lbSwipeActive=false;_lbGestureAxis=null; // a second finger landing mid-swipe means it's a pinch now, not a swipe or dismiss
       const pts=[..._lbPointers.values()];
       _lbPinchStartDist=dist(pts[0],pts[1]);
       _lbPinchStartScale=_lbScale;
     }else if(_lbPointers.size===1){
       _lbPanStart={x:e.clientX,y:e.clientY,tx:_lbTx,ty:_lbTy};
-      _lbSwipeActive=_lbScale<=1.02&&!!_lbAlbum&&_lbAlbum.length>1;
+      if(_lbScale>1){
+        _lbGestureAxis='pan'; // already zoomed in — always pan, no swipe/dismiss while zoomed
+      }else{
+        _lbGestureAxis=null; // decide once real movement direction shows up (see onPointerMove)
+      }
     }
   }
 
@@ -5135,7 +5149,27 @@ function lbBackgroundTap(e){
       _lbMoved=true;
     }else if(_lbPointers.size===1&&_lbPanStart){
       const dx=e.clientX-_lbPanStart.x,dy=e.clientY-_lbPanStart.y;
-      if(_lbSwipeActive){
+
+      // Lock in the drag's dominant axis once it's clearly moved — a small
+      // deadzone avoids a barely-there tremor deciding the gesture before
+      // real intent shows. Once locked, stays locked for the rest of this
+      // drag so it can't flip-flop between swipe/dismiss mid-gesture.
+      if(_lbGestureAxis===null&&Math.hypot(dx,dy)>12){
+        _lbGestureAxis=Math.abs(dx)>Math.abs(dy)?'h':'v';
+        _lbSwipeActive=_lbGestureAxis==='h'&&!!_lbAlbum&&_lbAlbum.length>1;
+      }
+
+      if(_lbGestureAxis==='v'){
+        if(dy>0){ // only downward drag dismisses — upward drag does nothing
+          _lbTy=dy;
+          const fade=Math.max(0.35,1-dy/380);
+          const shrink=Math.max(0.82,1-dy/1500);
+          const el=lbActiveEl();
+          el.style.opacity=String(fade);
+          _lbScale=shrink;
+          applyLBTransform(false);
+        }
+      }else if(_lbSwipeActive){
         // Rubber-band resistance at the ends of the album — dragging past
         // the first or last item should feel like hitting a soft limit,
         // not just do nothing.
@@ -5199,10 +5233,30 @@ function lbBackgroundTap(e){
       const remaining=[..._lbPointers.values()][0];
       _lbPanStart={x:remaining.x,y:remaining.y,tx:_lbTx,ty:_lbTy};
     }
-    if(_lbPointers.size<2&&_lbScale<1.02&&!_lbSwipeActive){
+    if(_lbPointers.size<2&&_lbScale<1.02&&!_lbSwipeActive&&_lbGestureAxis!=='v'){
       _lbScale=1;_lbTx=0;_lbTy=0;applyLBTransform(true);
     }
     if(_lbPointers.size===0){
+      if(_lbGestureAxis==='v'){
+        const el=lbActiveEl();
+        if(_lbMoved&&_lbTy>=LB_DISMISS_THRESHOLD){
+          // Dragged down far enough — finish the motion out and actually close,
+          // rather than snapping back like a rejected drag.
+          el.classList.add('snapping');
+          _lbTy=window.innerHeight;
+          el.style.opacity='0';
+          applyLBTransform(true);
+          setTimeout(closeLB,250); // matches the .snapping transition duration (0.25s)
+        }else{
+          // Didn't drag far enough — spring back to normal size/position/opacity.
+          _lbTy=0;_lbScale=1;
+          el.style.opacity='';
+          applyLBTransform(true);
+        }
+        _lbGestureAxis=null;
+        _lbPanStart=null;
+        return;
+      }
       if(_lbSwipeActive&&_lbMoved){
         const dir=_lbTx<0?1:-1;
         const canNav=(dir===1&&_lbIndex<_lbAlbum.length-1)||(dir===-1&&_lbIndex>0);
@@ -5216,6 +5270,7 @@ function lbBackgroundTap(e){
         return;
       }
       _lbSwipeActive=false;
+      _lbGestureAxis=null;
       if(!_lbMoved){
         const now=Date.now();
         const dt=now-_lbLastTapTime;
