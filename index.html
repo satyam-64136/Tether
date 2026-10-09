@@ -2813,15 +2813,52 @@ async function loadOlderMsgs(){
   area.scrollTop=prevScrollTop+added;
 }
 
+// Shared date-divider logic used everywhere a message can appear — full
+// rebuilds (renderAll, prependMsgs) AND one-at-a-time live appends (new
+// sends, incoming realtime messages, catch-up after reopening). Previously
+// only the full-rebuild paths ever computed dividers at all, so a message
+// arriving live on a new calendar day (e.g. chatting across midnight, or
+// the first message of a new day landing while the app's already open)
+// would never get a divider until the next full reload.
+function dayKey(iso){
+  const d=new Date(iso);
+  return d.getFullYear()+'-'+d.getMonth()+'-'+d.getDate();
+}
+function formatDateDivider(iso){
+  const d=new Date(iso),now=new Date();
+  const startOfDay=x=>new Date(x.getFullYear(),x.getMonth(),x.getDate());
+  const diffDays=Math.round((startOfDay(now)-startOfDay(d))/86400000);
+  if(diffDays===0)return'Today';
+  if(diffDays===1)return'Yesterday';
+  // Only show the year when it's not the current one — avoids "5 Aug"
+  // being ambiguous once the chat has history spanning more than a year.
+  const opts=d.getFullYear()===now.getFullYear()
+    ?{day:'numeric',month:'short'}
+    :{day:'numeric',month:'short',year:'numeric'};
+  return d.toLocaleDateString('en-IN',opts);
+}
+let _lastRenderedDayKey=null; // the calendar day of whatever was last appended at the bottom of the list — lets a live append know whether it needs a fresh divider
+function appendMsgWithDivider(area,msg,animate){
+  const key=dayKey(msg.created_at);
+  if(key!==_lastRenderedDayKey){
+    _lastRenderedDayKey=key;
+    const d=document.createElement('div');d.className='datediv';d.textContent=formatDateDivider(msg.created_at);
+    area.appendChild(d);
+  }
+  const el=mkEl(msg,animate);
+  area.appendChild(el);
+  return el;
+}
+
 function prependMsgs(batch,area){
   const frag=document.createDocumentFragment();
   const firstExistingEl=area.querySelector('.mw,.datediv');
-  let lastDateSeen=null;
+  let lastKeySeen=null;
   batch.forEach((m,i)=>{
-    const ds=new Date(m.created_at).toLocaleDateString('en-IN',{day:'numeric',month:'short'});
-    if(ds!==lastDateSeen){
-      lastDateSeen=ds;
-      const d=document.createElement('div');d.className='datediv';d.textContent=ds;
+    const key=dayKey(m.created_at);
+    if(key!==lastKeySeen){
+      lastKeySeen=key;
+      const d=document.createElement('div');d.className='datediv';d.textContent=formatDateDivider(m.created_at);
       frag.appendChild(d);
     }
     const el=mkEl(m);
@@ -2848,12 +2885,12 @@ function renderAll(){
   empty.style.display=msgs.length?'none':'flex';
   // Build entire list in a fragment — single DOM insertion, one reflow
   const frag=document.createDocumentFragment();
-  let ld=null;
+  let lastKey=null;
   msgs.forEach(m=>{
-    const ds=new Date(m.created_at).toLocaleDateString('en-IN',{day:'numeric',month:'short'});
-    if(ds!==ld){
-      ld=ds;
-      const d=document.createElement('div');d.className='datediv';d.textContent=ds;
+    const key=dayKey(m.created_at);
+    if(key!==lastKey){
+      lastKey=key;
+      const d=document.createElement('div');d.className='datediv';d.textContent=formatDateDivider(m.created_at);
       frag.appendChild(d);
     }
     frag.appendChild(mkEl(m)); // no animation on initial render
@@ -2861,6 +2898,7 @@ function renderAll(){
   // Remove old bubbles and insert new ones in one operation
   area.querySelectorAll('.mw,.datediv').forEach(e=>e.remove());
   area.appendChild(frag);
+  _lastRenderedDayKey=msgs.length?dayKey(msgs[msgs.length-1].created_at):null;
 }
 
 function mkEl(msg,animate=false){
@@ -3277,7 +3315,7 @@ function subMsgs(){
         msgs.push(p.new);
         cacheUpdateOne(p.new); // write to cache
         document.getElementById('empty').style.display='none';
-        document.getElementById('msgs').appendChild(mkEl(p.new,true));
+        appendMsgWithDivider(document.getElementById('msgs'),p.new,true);
         // Only snap to the bottom if the user was already there (or it's
         // their own message going out). Otherwise a message arriving —
         // e.g. right as the app opens from a push notification — used to
@@ -3338,7 +3376,7 @@ async function catchupMsgs(){
       msgs.push(m);
       cacheUpdateOne(m); // persist to cache
       document.getElementById('empty').style.display='none';
-      area.appendChild(mkEl(m,true));
+      appendMsgWithDivider(area,m,true);
     });
     if(wasNearBottom) scrollBot(true); else updateScrollBtn(area);
   }
@@ -3506,7 +3544,7 @@ async function send(){
 
   msgs.push(tempMsg);
   document.getElementById('empty').style.display='none';
-  document.getElementById('msgs').appendChild(mkEl(tempMsg,true));
+  appendMsgWithDivider(document.getElementById('msgs'),tempMsg,true);
   scrollBot(true);
 
   async function attempt(){
@@ -3597,7 +3635,7 @@ async function sendBundle(files,txt){
   };
   msgs.push(tempMsg);
   document.getElementById('empty').style.display='none';
-  document.getElementById('msgs').appendChild(mkEl(tempMsg,true));
+  appendMsgWithDivider(document.getElementById('msgs'),tempMsg,true);
   scrollBot(true);
 
   async function attempt(){
@@ -4370,7 +4408,7 @@ async function sendVoice(blob,dur){
   };
   msgs.push(tempMsg);
   document.getElementById('empty').style.display='none';
-  document.getElementById('msgs').appendChild(mkEl(tempMsg,true));
+  appendMsgWithDivider(document.getElementById('msgs'),tempMsg,true);
   scrollBot(true);
 
   async function attempt(){
@@ -4567,7 +4605,7 @@ const _patchedSend=async function(){
     };
     msgs.push(tempMsg);
     document.getElementById('empty').style.display='none';
-    document.getElementById('msgs').appendChild(mkEl(tempMsg,true));
+    appendMsgWithDivider(document.getElementById('msgs'),tempMsg,true);
     scrollBot(true);
 
     async function attempt(){
