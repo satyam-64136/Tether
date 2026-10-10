@@ -1,6 +1,6 @@
-const CACHE = 'us-v8';
+const CACHE = 'us-v9';
 const BASE = '/Tether';
-const ASSETS = [`${BASE}/`, `${BASE}/index.html`, `${BASE}/manifest.json`];
+const ASSETS = [`${BASE}/`, `${BASE}/index.html`, `${BASE}/manifest.json`],`${BASE}/games.css`;
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS).catch(()=>{})));
