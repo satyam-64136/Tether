@@ -3,341 +3,183 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
-<meta name="theme-color" content="#060507"/>
+<meta name="theme-color" content="#fff4e6" media="(prefers-color-scheme: light)"/>
+<meta name="theme-color" content="#241a2d" media="(prefers-color-scheme: dark)"/>
 <title>Dots &amp; Boxes</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400..700&family=Figtree:wght@400..800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="games.css">
 <style>
-@layer reset, tokens, base, layout, components, board, sheets, motion, a11y;
-
-/* ═══════════════════ TOKENS ═══════════════════
-   Tier 1 literals → tier 2 semantics. Colours come from the reference frame:
-   black ground, crimson suit lines, bone-white rim light, ember backlight,
-   cool haze. */
-@layer tokens{
-  @property --glow{syntax:'<color>';inherits:true;initial-value:#ff8a2b}
-  @property --tick{syntax:'<color>';inherits:false;initial-value:#444}
-  @property --animation-reduced{syntax:'*';inherits:false;initial-value:none}
-  :root{
-    color-scheme:dark;
-    --ink-0:#060507; --ink-1:#0e0a10; --ink-2:#181119;
-    --bone:#f6e7cd; --crimson:#ff2d3a; --ember:#ff8a2b; --haze:#7f93b5;
-
-    --text:var(--bone);
-    --text-dim:color-mix(in oklab,var(--bone) 64%,transparent);
-    --text-faint:color-mix(in oklab,var(--bone) 52%,transparent);
-    --hairline:color-mix(in oklab,var(--bone) 16%,transparent);
-    --p1:var(--crimson);   /* Satyam */
-    --p2:var(--bone);      /* Snks   */
-    --accent:var(--ember);
-
-    --font:'Archivo',system-ui,-apple-system,'Segoe UI',sans-serif;
-    --ease-out:cubic-bezier(.2,.9,.2,1);
-    --ease-spring:cubic-bezier(.34,1.56,.64,1);
-    --cut:.7rem;
-  }
+/* Dots & Boxes only. Tokens, buttons, toast and base live in games.css. */
+body[data-game="dab"]{padding:0;display:block}
+.app{
+  --glow:var(--pink);
+  inline-size:min(100%,30rem);margin-inline:auto;min-block-size:100dvh;position:relative;z-index:1;
+  display:grid;grid-template-rows:auto auto minmax(0,1fr) auto;row-gap:.75rem;
+  padding:max(.6rem,env(safe-area-inset-top)) 1.1rem max(1rem,env(safe-area-inset-bottom));
+  transition:--glow .6s;
 }
+.app[data-active="Satyam"]{--glow:var(--satyam)}
+.app[data-active="Snks"]{--glow:var(--snks)}
 
-@layer reset{
-  *,*::before,*::after{box-sizing:border-box}
-  :where(h1,h2,p,ul,ol,dialog,form){margin:0;padding:0}
-  :where(button){font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
-  :where(ul,ol){list-style:none}
-  [hidden]{display:none!important}
+.bar{display:flex;align-items:center;gap:.6rem}
+.wordmark{flex:1;display:flex;align-items:center;justify-content:center;gap:.5rem;font-size:1.4rem;line-height:1;white-space:nowrap}
+.link-dot{inline-size:.6rem;block-size:.6rem;border-radius:50%;background:var(--mint);border:2px solid var(--line)}
+.app[data-link="down"] .link-dot{background:var(--peach)}
+.icon-btn{
+  inline-size:2.75rem;block-size:2.75rem;display:grid;place-items:center;flex:none;border-radius:50%;cursor:pointer;
+  color:var(--text);text-decoration:none;background:var(--card);border:2px solid var(--line);box-shadow:0 .18rem 0 var(--shadow);
+  transition:translate .12s,box-shadow .12s;
 }
+.icon-btn:active{translate:0 .18rem;box-shadow:0 0 0 var(--shadow)}
+.icon-btn svg{inline-size:1.3rem;block-size:1.3rem;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
 
-@layer base{
-  html{block-size:100%;-webkit-text-size-adjust:100%;text-size-adjust:100%}
-  body{
-    min-block-size:100dvh;overflow-x:clip;
-    font:500 1rem/1.4 var(--font);font-stretch:100%;
-    color:var(--text);
-    background:
-      radial-gradient(120% 80% at 50% 38%,transparent 40%,rgb(0 0 0/.65) 100%),
-      linear-gradient(180deg,var(--ink-1),var(--ink-0) 62%);
-    background-color:var(--ink-0);
-    overscroll-behavior:none;touch-action:manipulation;
-    -webkit-tap-highlight-color:transparent;
-  }
-  /* halftone corners, like the print in the reference */
-  body::before{
-    content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;
-    background:radial-gradient(circle at 1px 1px,color-mix(in oklab,var(--bone) 17%,transparent) 1px,transparent 1.7px) 0 0/13px 13px;
-    -webkit-mask:radial-gradient(115% 62% at 50% 52%,transparent 34%,#000 100%);
-            mask:radial-gradient(115% 62% at 50% 52%,transparent 34%,#000 100%);
-  }
-  .grain{
-    position:fixed;inset:0;z-index:40;pointer-events:none;opacity:.10;mix-blend-mode:overlay;
-    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
-  }
+/* score stickers: the player whose turn it is lifts up and fills with their colour */
+.scores{display:grid;grid-template-columns:1fr 1fr;gap:.8rem;padding-block-end:.3rem}
+.score{
+  --c:var(--satyam);
+  display:grid;grid-template-columns:auto 1fr;grid-template-areas:"num name" "num wins";align-items:center;column-gap:.65rem;
+  padding:.65rem .8rem;color:var(--text);
+  background:var(--card);border:var(--bw) solid var(--line);border-radius:var(--r-md);box-shadow:0 .22rem 0 var(--shadow);
+  transition:background-color .3s,translate .35s var(--ease-spring),box-shadow .35s var(--ease-spring);
 }
+.score.p2{--c:var(--snks)}
+.score .name{grid-area:name;display:flex;align-items:center;gap:.3rem;font:600 .9rem var(--font-display);align-self:end;white-space:nowrap}
+.score .you{font-style:normal;font-weight:500;font-size:.72rem;opacity:.75}
+.score .num{grid-area:num;font:700 2.4rem/1 var(--font-display);font-variant-numeric:tabular-nums;min-inline-size:1.1ch;text-align:center}
+.score .wins{grid-area:wins;font-size:.8rem;color:var(--text-dim);align-self:start}
+.glyph{font-size:.95rem;line-height:1}
+.p1 .glyph::before{content:'★'} .p2 .glyph::before{content:'♥'}
+.p1 .glyph{color:var(--satyam-d)} .p2 .glyph{color:var(--snks-d)}
+.score[data-active]{background:var(--c);color:var(--plum);translate:0 -.28rem;box-shadow:0 .5rem 0 var(--shadow)}
+.score[data-active] .wins{color:var(--plum);opacity:.8}
+.score[data-active] .glyph{color:var(--plum)}
+.num.bump{animation:bump .5s var(--ease-spring)}
 
-/* ═══════════════════ LAYOUT ═══════════════════ */
-@layer layout{
-  .app{
-    --glow:var(--ember);
-    inline-size:min(100%,30rem);margin-inline:auto;min-block-size:100dvh;
-    display:grid;grid-template-rows:auto auto minmax(0,1fr) auto;row-gap:.25rem;
-    padding:max(.5rem,env(safe-area-inset-top)) 1.1rem max(1rem,env(safe-area-inset-bottom));
-    transition:--glow .7s;
-  }
-  .app[data-active="Satyam"]{--glow:var(--p1)}
-  .app[data-active="Snks"]{--glow:var(--p2)}
-
-  .bar{display:flex;align-items:center;gap:.25rem;margin-inline:-.5rem}
-  .wordmark{flex:1;display:flex;align-items:center;gap:.55rem;font-size:.95rem;font-weight:800;font-stretch:78%;letter-spacing:.06em}
-  .link-dot{inline-size:.5rem;block-size:.5rem;border-radius:50%;background:#7ed6a5;box-shadow:0 0 0 3px color-mix(in oklab,#7ed6a5 22%,transparent)}
-  .app[data-link="down"] .link-dot{background:var(--ember);box-shadow:0 0 0 3px color-mix(in oklab,var(--ember) 28%,transparent)}
-
-  /* the stage owns the leftover height; the board is the largest square that fits */
-  .stage{position:relative;isolation:isolate;display:grid;place-items:center;container-type:size;min-block-size:0}
-  .stage::before{
-    content:'';position:absolute;inset:-6% -22%;z-index:-1;pointer-events:none;
-    background:radial-gradient(closest-side,color-mix(in oklab,var(--glow) 30%,transparent),transparent 74%);
-  }
-  .frame{
-    --m:1.15rem;--t:2px;--tick:var(--hairline);
-    position:relative;inline-size:min(100cqi,100cqb);aspect-ratio:1;
-    background:
-      linear-gradient(var(--tick),var(--tick)) 0 0/var(--m) var(--t) no-repeat,
-      linear-gradient(var(--tick),var(--tick)) 0 0/var(--t) var(--m) no-repeat,
-      linear-gradient(var(--tick),var(--tick)) 100% 0/var(--m) var(--t) no-repeat,
-      linear-gradient(var(--tick),var(--tick)) 100% 0/var(--t) var(--m) no-repeat,
-      linear-gradient(var(--tick),var(--tick)) 0 100%/var(--m) var(--t) no-repeat,
-      linear-gradient(var(--tick),var(--tick)) 0 100%/var(--t) var(--m) no-repeat,
-      linear-gradient(var(--tick),var(--tick)) 100% 100%/var(--m) var(--t) no-repeat,
-      linear-gradient(var(--tick),var(--tick)) 100% 100%/var(--t) var(--m) no-repeat;
-    transition:--tick .4s;
-  }
-  .app[data-turn="me"] .frame{--tick:var(--accent)}
-  .app[data-phase="loading"] .stage,.app[data-phase="error"] .stage{visibility:hidden}
-
-  .status{display:grid;align-content:start;gap:.5rem;min-block-size:9.4rem;padding-block-start:.4rem}
+/* the tray the board sits in */
+.stage{position:relative;isolation:isolate;display:grid;place-items:center;container-type:size;min-block-size:0}
+.stage::before{
+  content:'';position:absolute;inset:-4% -18%;z-index:-1;pointer-events:none;
+  background:radial-gradient(closest-side,color-mix(in oklab,var(--glow) 48%,transparent),transparent 76%);
 }
-
-/* ═══════════════════ COMPONENTS ═══════════════════ */
-@layer components{
-  .icon-btn{
-    inline-size:2.75rem;block-size:2.75rem;display:grid;place-items:center;border-radius:50%;
-    color:var(--text-dim);text-decoration:none;
-    transition:color .2s,scale .15s var(--ease-spring);
-  }
-  .icon-btn:hover{color:var(--text)}
-  .icon-btn:active{scale:.88}
-  .icon-btn svg{inline-size:1.4rem;block-size:1.4rem;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-
-  /* scores are poster type: flush to opposite edges, outline when idle, lit when it's their move */
-  .scores{display:grid;grid-template-columns:1fr 1fr;gap:1rem;align-items:end;padding-block-start:.25rem}
-  .score{--c:var(--p1);position:relative;display:grid;gap:.2rem;padding-block-end:.7rem}
-  .score.p2{--c:var(--p2);justify-items:end;text-align:end}
-  .score .name{display:flex;align-items:center;gap:.5rem;font-size:.85rem;font-weight:700;color:var(--text-dim);transition:color .3s}
-  .score.p2 .name{flex-direction:row-reverse}
-  .score .you{font-style:normal;font-weight:500;color:var(--text-faint)}
-  .glyph{inline-size:.62rem;block-size:.62rem;flex:none}
-  .p1 .glyph{background:var(--p1);rotate:45deg;scale:.9}
-  .p2 .glyph{border:2px solid var(--p2);border-radius:50%}
-  .num{
-    font-size:clamp(5rem,27vw,7.6rem);font-weight:900;font-stretch:62%;line-height:.82;
-    font-variant-numeric:tabular-nums;letter-spacing:-.01em;
-    color:transparent;-webkit-text-stroke:2px color-mix(in oklab,var(--c) 70%,transparent);
-    transition:color .35s,-webkit-text-stroke-color .35s,text-shadow .35s;
-  }
-  .wins{font-size:.8rem;color:var(--text-dim);font-weight:600}
-  .score::after{
-    content:'';position:absolute;inset-inline:0;inset-block-end:0;block-size:.22rem;background:var(--c);
-    box-shadow:0 0 14px var(--c);scale:0 1;transform-origin:left;transition:scale .4s var(--ease-out);
-  }
-  .score.p2::after{transform-origin:right}
-  .score[data-active] .name{color:var(--text)}
-  .score[data-active] .num{color:var(--c);-webkit-text-stroke-color:var(--c);text-shadow:0 0 36px color-mix(in oklab,var(--c) 55%,transparent)}
-  .score[data-active]::after{scale:1 1}
-  .num.bump{animation:bump .5s var(--ease-spring)}
-
-  .line{
-    font-size:clamp(2.2rem,11vw,3rem);font-weight:900;font-stretch:66%;line-height:.92;letter-spacing:-.005em;
-    color:var(--text-dim);transition:color .3s;
-  }
-  .app[data-turn="me"] .line{color:var(--accent)}
-  .app[data-phase="finished"] .line{color:var(--text)}
-  .app[data-phase="finished"][data-active="Satyam"] .line{color:var(--p1);text-shadow:0 0 40px color-mix(in oklab,var(--p1) 50%,transparent)}
-  .app[data-phase="finished"][data-active="Snks"] .line{color:var(--p2);text-shadow:0 0 40px color-mix(in oklab,var(--p2) 40%,transparent)}
-  .sub{font-size:.92rem;color:var(--text-dim);font-weight:500}
-
-  .actions{display:grid;grid-template-columns:auto 1fr;gap:.6rem;align-items:stretch;margin-block-start:.35rem}
-  .seg{display:inline-grid;grid-auto-flow:column;box-shadow:inset 0 0 0 1px var(--hairline)}
-  .seg button{padding:.6rem .95rem;min-inline-size:3.2rem;font-weight:800;font-stretch:80%;font-size:1.05rem;color:var(--text-dim);transition:background-color .2s,color .2s}
-  .seg button[aria-pressed="true"]{background:var(--bone);color:var(--ink-0)}
-
-  .btn{
-    min-block-size:3.1rem;padding:.7rem 1.4rem;background:var(--accent);color:var(--ink-0);
-    font-size:1.3rem;font-weight:900;font-stretch:72%;letter-spacing:.01em;
-    clip-path:polygon(var(--cut) 0,100% 0,100% calc(100% - var(--cut)),calc(100% - var(--cut)) 100%,0 100%,0 var(--cut));
-    transition:scale .15s var(--ease-spring),filter .2s;
-  }
-  .btn:hover{filter:brightness(1.08)}
-  .btn:active{scale:.96}
-  .btn:disabled{opacity:.45;pointer-events:none}
-  .btn.ghost{background:var(--ink-2);color:var(--text);box-shadow:inset 0 0 0 1px var(--hairline)}
-  .btn.danger{background:var(--crimson)}
-
-  .toast{
-    position:fixed;inset-inline:1rem;inset-block-end:max(1.2rem,env(safe-area-inset-bottom));z-index:60;
-    inline-size:fit-content;max-inline-size:min(24rem,100% - 2rem);margin-inline:auto;
-    padding:.8rem 1.2rem;background:var(--ink-2);color:var(--text);font-weight:700;font-size:.92rem;text-align:center;
-    box-shadow:inset 0 0 0 1px color-mix(in oklab,var(--accent) 55%,transparent);
-    clip-path:polygon(var(--cut) 0,100% 0,100% calc(100% - var(--cut)),calc(100% - var(--cut)) 100%,0 100%,0 var(--cut));
-    opacity:0;translate:0 1rem;pointer-events:none;transition:opacity .25s,translate .25s var(--ease-out);
-  }
-  .toast.on{opacity:1;translate:0 0}
+.app[data-turn="me"] .stage::before{animation:glowBreath 2.8s ease-in-out infinite}
+.frame{
+  position:relative;inline-size:min(100cqi,100cqb);aspect-ratio:1;padding:.3rem;
+  background:var(--card);border:var(--bw) solid var(--line);border-radius:var(--r-lg);box-shadow:0 var(--lift) 0 var(--shadow);
 }
+@supports (corner-shape:squircle){.frame{corner-shape:squircle;border-radius:2.4rem}}
+.app[data-phase="loading"] .stage,.app[data-phase="error"] .stage{visibility:hidden}
+.board{display:block;inline-size:100%;block-size:100%;overflow:visible;user-select:none;-webkit-user-select:none}
 
-/* ═══════════════════ BOARD ═══════════════════ */
-@layer board{
-  .board{display:block;inline-size:100%;block-size:100%;overflow:visible;user-select:none;-webkit-user-select:none}
+/* empty lines are dotted; the one under your finger lights up in your colour */
+.guide{fill:none;stroke:color-mix(in oklab,var(--text) 28%,transparent);stroke-width:3.4;stroke-linecap:round;stroke-dasharray:.1 12.4}
+.guide.press,.guide.kbd{stroke:var(--me);stroke-width:8;stroke-dasharray:none;opacity:.8}
+.glow,.edge{fill:none;stroke-linecap:round;stroke-dasharray:100;opacity:0}
+.glow{stroke:var(--line);stroke-width:15}        /* the sticker outline under every line */
+.edge{stroke:var(--c);stroke-width:8.5}
+.o1{--c:var(--satyam)} .o2{--c:var(--snks)}
+.edge.o1,.edge.o2,.glow.o1,.glow.o2{opacity:1}
+.glow.last{stroke:var(--butter);stroke-width:21}  /* the last line drawn gets a butter highlighter halo */
+.dot{fill:var(--line)}
 
-  /* empty lines are dotted, like paper; the line under your finger lights up */
-  .guide{fill:none;stroke:var(--hairline);stroke-width:3.2;stroke-linecap:round;stroke-dasharray:.1 12.4}
-  .guide.press,.guide.kbd{stroke:var(--accent);stroke-width:6;stroke-dasharray:none}
+/* claimed boxes: a coloured tile with polka dots and a star or a heart */
+.box{--c:transparent}
+.box.o1{--c:var(--satyam)} .box.o2{--c:var(--snks)}
+.pool{fill:var(--c);opacity:0}
+.tone{fill:url(#polka);opacity:0}
+.box:is(.o1,.o2) .pool{opacity:1}
+.box:is(.o1,.o2) .tone{opacity:.55}
+.m1,.m2{display:none;fill:#fff;stroke:var(--plum);stroke-width:3.2;stroke-linejoin:round;paint-order:stroke}
+.box.o1 .m1,.box.o2 .m2{display:block}
+.box :is(.pool,.tone,.m1,.m2,.ping){transform-box:fill-box;transform-origin:center}
 
-  .glow,.edge{fill:none;stroke:var(--c);stroke-linecap:round;stroke-dasharray:100;opacity:0}
-  .glow{stroke-width:20}
-  .edge{stroke-width:8}
-  .o1{--c:var(--p1)} .o2{--c:var(--p2)}
-  .edge.o1,.edge.o2{opacity:1}
-  .glow.o1,.glow.o2{opacity:.55}
-  .edge.last{stroke-width:10}
-  .glow.last{stroke-width:30;opacity:.95}
+.hint{fill:none;stroke:transparent;stroke-width:3;stroke-dasharray:9 7}
+.box.warn .hint{stroke:#ff8a3d;fill:color-mix(in oklab,var(--peach) 45%,transparent)}   /* this line hands them a box */
+.box.gain .hint{stroke:var(--text);fill:color-mix(in oklab,var(--mint) 60%,transparent)} /* this line wins you one */
+.ping{fill:var(--butter);stroke:var(--line);stroke-width:2.5;display:none}
+.app[data-turn="me"] .box.ready:not(.o1):not(.o2) .ping{display:block;animation:ping 1.7s ease-in-out infinite}
+.hit{fill:transparent;cursor:pointer;outline:none}
 
-  .halo{fill:url(#haloGrad)}
-  .dot{fill:var(--bone)}
-
-  /* a claimed box is a printed tile: flat colour, halftone, off-register outline */
-  .box{--c:transparent;--c2:transparent}
-  .box.o1{--c:var(--p1);--c2:var(--haze)}
-  .box.o2{--c:var(--p2);--c2:var(--ember)}
-  .pool{fill:var(--c);opacity:0}
-  .tone{fill:url(#halftone);opacity:0}
-  .reg{fill:none;stroke:var(--c2);stroke-width:2;opacity:0}
-  .box :is(.m1,.m2){display:none;fill:none;stroke:var(--ink-0)}
-  .box.o1 .m1{display:block;fill:var(--ink-0);stroke:none}
-  .box.o2 .m2{display:block;stroke-width:6}
-  .box:is(.o1,.o2) .pool{opacity:.93}
-  .box:is(.o1,.o2) .tone{opacity:.3}
-  .box:is(.o1,.o2) .reg{opacity:.85}
-  .box :is(.pool,.tone,.reg,.m1,.m2,.flare,.ping){transform-box:fill-box;transform-origin:center}
-
-  /* what a line would do, shown while you press it */
-  .hint{fill:none;stroke:transparent;stroke-width:3;stroke-dasharray:9 7}
-  .box.warn .hint{stroke:var(--accent);fill:color-mix(in oklab,var(--accent) 16%,transparent)}
-  .box.gain .hint{stroke:var(--bone);fill:color-mix(in oklab,var(--bone) 18%,transparent)}
-
-  .ping{fill:var(--accent);stroke:none;display:none}
-  .app[data-turn="me"] .box.ready:not(.o1):not(.o2) .ping{display:block}
-
-  .flare{fill:url(#streak);opacity:0}
-
-  .hit{fill:transparent;cursor:pointer;outline:none}
+/* the speech bubble under the board */
+.status{display:grid;align-content:start;justify-items:start;gap:.6rem;min-block-size:9.4rem;padding-block-start:.2rem}
+.line{
+  padding:.45rem 1.15rem;font:600 1.7rem/1.1 var(--font-display);color:var(--text);
+  background:var(--card);border:var(--bw) solid var(--line);border-radius:1.5rem;border-end-start-radius:.4rem;
+  box-shadow:0 .22rem 0 var(--shadow);transition:background-color .3s;
 }
+.app[data-turn="me"] .line{background:var(--me);color:var(--plum)}
+.app[data-phase="finished"] .line{background:var(--butter);color:var(--plum)}
+.sub{font-size:.92rem;color:var(--text-dim);padding-inline:.35rem}
+.actions{display:grid;grid-template-columns:auto 1fr;gap:.6rem;align-items:stretch;inline-size:100%;margin-block-start:.2rem}
+.seg{display:inline-grid;grid-auto-flow:column;gap:.2rem;padding:.2rem;background:var(--card);border:2px solid var(--line);border-radius:99px}
+.seg button{padding:.5rem .9rem;min-inline-size:3.2rem;font:600 1rem var(--font-display);color:var(--text-dim);background:none;border:0;border-radius:99px;cursor:pointer;transition:background-color .2s,color .2s}
+.seg button[aria-pressed="true"]{background:var(--butter);color:var(--plum);box-shadow:inset 0 0 0 2px var(--line)}
 
-/* ═══════════════════ SHEETS (native <dialog>) ═══════════════════ */
-@layer sheets{
-  dialog.sheet{
-    inline-size:min(100%,30rem);max-inline-size:none;margin:auto auto 0;padding:0;border:0;
-    background:var(--ink-2);color:var(--text);
-    clip-path:polygon(0 var(--cut),var(--cut) 0,100% 0,100% 100%,0 100%);
-    translate:0 100%;opacity:0;
-    transition:translate .38s var(--ease-out),opacity .22s,overlay .38s allow-discrete,display .38s allow-discrete;
-  }
-  dialog.sheet[open]{translate:0 0;opacity:1}
-  @starting-style{dialog.sheet[open]{translate:0 100%;opacity:0}}
-  dialog.sheet::backdrop{
-    background:rgb(0 0 0/0);backdrop-filter:blur(0);
-    transition:background-color .3s,backdrop-filter .3s,overlay .3s allow-discrete,display .3s allow-discrete;
-  }
-  dialog.sheet[open]::backdrop{background:rgb(0 0 0/.66);backdrop-filter:blur(3px)}
-  @starting-style{dialog.sheet[open]::backdrop{background:rgb(0 0 0/0);backdrop-filter:blur(0)}}
-
-  .sheet__body{display:grid;gap:1rem;padding:1.4rem 1.25rem max(1.25rem,env(safe-area-inset-bottom))}
-  .sheet__head{display:flex;align-items:center;justify-content:space-between}
-  .sheet h2{font-size:2rem;font-weight:900;font-stretch:66%;line-height:1}
-  .sheet p{color:var(--text-dim)}
-  .rows{display:grid}
-  .row{display:flex;align-items:center;justify-content:space-between;gap:1rem;min-block-size:3.3rem;border-block-start:1px solid var(--hairline);font-weight:600}
-  .row:first-child{border-block-start:0}
-  .link{font-weight:700;color:var(--text-dim);padding-block:.8rem}
-  .link.danger{color:var(--crimson)}
-  .how summary{cursor:pointer;min-block-size:3.3rem;display:flex;align-items:center;justify-content:space-between;font-weight:600;list-style:none}
-  .how summary::-webkit-details-marker{display:none}
-  .how summary::after{content:'+';font-size:1.5rem;font-weight:500;color:var(--text-dim);transition:rotate .25s var(--ease-out)}
-  .how[open] summary::after{rotate:45deg}
-  .how ol{display:grid;gap:.55rem;padding:0 0 1rem 1.2rem;list-style:decimal;color:var(--text-dim);font-size:.95rem}
-  .how li::marker{color:var(--accent);font-weight:800}
-  .actions2{display:grid;grid-template-columns:1fr 1fr;gap:.6rem}
-
-  .switch{
-    appearance:none;-webkit-appearance:none;flex:none;position:relative;inline-size:3rem;block-size:1.75rem;border-radius:99px;
-    background:var(--ink-0);box-shadow:inset 0 0 0 1px var(--hairline);cursor:pointer;transition:background-color .2s;
-  }
-  .switch::after{
-    content:'';position:absolute;inset-block:.25rem;inset-inline-start:.25rem;inline-size:1.25rem;border-radius:50%;
-    background:var(--text-dim);transition:translate .25s var(--ease-spring),background-color .2s;
-  }
-  .switch:checked{background:var(--accent)}
-  .switch:checked::after{translate:1.25rem 0;background:var(--ink-0)}
+/* settings sheets */
+dialog.sheet{
+  inline-size:min(100%,30rem);max-inline-size:none;margin:auto auto 0;padding:0;
+  background:var(--card);color:var(--text);border:var(--bw) solid var(--line);border-block-end:0;border-radius:var(--r-lg) var(--r-lg) 0 0;
+  translate:0 100%;opacity:0;
+  transition:translate .4s var(--ease-spring),opacity .2s,overlay .4s allow-discrete,display .4s allow-discrete;
 }
-
-@layer motion{
-  /* One orchestrated moment: the dots ignite outward from the centre when a board appears. */
-  .dot,.halo{animation:ignite .7s var(--ease-out) both;animation-delay:calc(var(--d,0)*55ms);transform-box:fill-box;transform-origin:center}
-  .guide{animation:fade .6s ease both;animation-delay:calc(var(--d,0)*55ms)}
-  .edge.draw,.glow.draw{animation:draw .34s var(--ease-out) both}
-  .box.claim .pool,.box.claim .tone,.box.claim :is(.m1,.m2){animation:pop .5s var(--ease-spring) both}
-  .box.claim .flare{animation:flare .85s ease-out both}
-  .app[data-turn="me"] .box.ready .ping{animation:ping 1.7s ease-out infinite}
-  .app[data-turn="me"] .stage::before{animation:breathe 2.8s ease-in-out infinite}
-
-  @keyframes ignite{from{opacity:0;scale:0}}
-  @keyframes fade{from{opacity:0}}
-  @keyframes draw{from{stroke-dashoffset:100}to{stroke-dashoffset:0}}
-  @keyframes pop{from{opacity:0;scale:.55}}
-  @keyframes flare{0%{opacity:0;scale:0 1}22%{opacity:1;scale:1 1}100%{opacity:0;scale:1.3 .15}}
-  @keyframes ping{50%{scale:1.7;opacity:.55}}
-  @keyframes bump{40%{scale:1.16}}
-  @keyframes breathe{50%{opacity:.55}}
-
-  /* reduced motion: static end states everywhere; short fades stay */
-  @media (prefers-reduced-motion:reduce){
-    *,*::before,*::after{animation:var(--animation-reduced)!important}
-    dialog.sheet{translate:0 0}
-  }
+dialog.sheet[open]{translate:0 0;opacity:1}
+@starting-style{dialog.sheet[open]{translate:0 100%;opacity:0}}
+dialog.sheet::backdrop{
+  background:rgb(59 42 69/0);backdrop-filter:blur(0);
+  transition:background-color .3s,backdrop-filter .3s,overlay .3s allow-discrete,display .3s allow-discrete;
 }
-
-@layer a11y{
-  .sr-only{position:absolute;inline-size:1px;block-size:1px;margin:-1px;padding:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
-  :where(a,button,input,summary):focus-visible{outline:3px solid var(--bone);outline-offset:3px}
-  .btn:focus-visible,.seg button:focus-visible{outline-offset:-6px;outline-color:var(--ink-0)}
-  .btn.ghost:focus-visible{outline-color:var(--bone)}
-  .hit:focus-visible{outline:none}
-  @media (forced-colors:active){
-    .edge.o1{stroke:Highlight} .edge.o2{stroke:LinkText}
-    .glow,.halo,.tone,.flare{display:none}
-    .dot{fill:CanvasText} .guide{stroke:GrayText}
-    .box.o1 .pool{fill:Highlight} .box.o2 .pool{fill:LinkText}
-    .score[data-active]::after{background:Highlight}
-  }
+dialog.sheet[open]::backdrop{background:rgb(59 42 69/.5);backdrop-filter:blur(3px)}
+@starting-style{dialog.sheet[open]::backdrop{background:rgb(59 42 69/0);backdrop-filter:blur(0)}}
+.sheet__body{display:grid;gap:1rem;padding:1.3rem 1.25rem max(1.25rem,env(safe-area-inset-bottom))}
+.sheet__head{display:flex;align-items:center;justify-content:space-between}
+.sheet h2{font-size:1.9rem;line-height:1}
+.sheet p{color:var(--text-dim)}
+.rows{display:grid}
+.row{display:flex;align-items:center;justify-content:space-between;gap:1rem;min-block-size:3.3rem;border-block-start:2px dashed color-mix(in oklab,var(--line) 28%,transparent);font-weight:600}
+.row:first-child{border-block-start:0}
+.link{font:600 1rem var(--font-display);color:var(--text-dim);padding-block:.8rem;background:none;border:0;cursor:pointer}
+.link.danger{color:color-mix(in oklab,var(--coral) 55%,var(--text))}
+.how summary{cursor:pointer;min-block-size:3.3rem;display:flex;align-items:center;justify-content:space-between;font-weight:600;list-style:none;border-block-start:2px dashed color-mix(in oklab,var(--line) 28%,transparent)}
+.how summary::-webkit-details-marker{display:none}
+.how summary::after{content:'+';font:600 1.6rem var(--font-display);color:var(--text-dim);transition:rotate .25s var(--ease-out)}
+.how[open] summary::after{rotate:45deg}
+.how ol{display:grid;gap:.6rem;padding:0 0 1rem 1.3rem;list-style:decimal;color:var(--text-dim);font-size:.95rem}
+.how li::marker{color:var(--pink-d);font-weight:800}
+.actions2{display:grid;grid-template-columns:1fr 1fr;gap:.6rem}
+.switch{
+  appearance:none;-webkit-appearance:none;flex:none;position:relative;inline-size:3.2rem;block-size:1.9rem;border-radius:99px;cursor:pointer;
+  background:var(--card);border:2px solid var(--line);box-shadow:inset 0 .16rem 0 color-mix(in oklab,var(--text) 10%,transparent);transition:background-color .2s;
 }
+.switch::after{
+  content:'';position:absolute;inset-block:.2rem;inset-inline-start:.22rem;inline-size:1.2rem;border-radius:50%;
+  background:#fff;border:2px solid var(--plum);transition:translate .28s var(--ease-spring);
+}
+.switch:checked{background:var(--mint)}
+.switch:checked::after{translate:1.3rem 0}
+.sr-only{position:absolute;inline-size:1px;block-size:1px;margin:-1px;padding:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+
+/* motion: dots pop in from the middle when a board appears */
+.dot{animation:ignite .65s var(--ease-spring) both;animation-delay:calc(var(--d,0)*55ms);transform-box:fill-box;transform-origin:center}
+.guide{animation:fade .6s ease both;animation-delay:calc(var(--d,0)*55ms)}
+.edge.draw,.glow.draw{animation:draw .34s var(--ease-out) both}
+.box.claim :is(.pool,.tone,.m1,.m2){animation:pop .55s var(--ease-spring) both}
+@keyframes ignite{from{opacity:0;scale:0}}
+@keyframes fade{from{opacity:0}}
+@keyframes draw{from{stroke-dashoffset:100}to{stroke-dashoffset:0}}
+@keyframes pop{from{opacity:0;scale:.45;rotate:-14deg}}
+@keyframes ping{50%{scale:1.6;opacity:.6}}
+@keyframes glowBreath{50%{opacity:.55}}
 </style>
 </head>
-<body>
-<div class="grain" aria-hidden="true"></div>
+<body data-game="dab">
 
 <div class="app" id="app" data-phase="loading" data-turn="none" data-link="ok">
   <header class="bar">
     <a class="icon-btn" href="index.html" aria-label="Back to Tether">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
     </a>
-    <h1 class="wordmark"><span class="link-dot" aria-hidden="true"></span>Dots &amp; Boxes</h1>
+    <h1 class="wordmark"><span aria-hidden="true">🍬</span>Dots &amp; Boxes<span class="link-dot" aria-hidden="true" title="Connection"></span></h1>
     <button class="icon-btn" id="menuBtn" type="button" aria-label="Settings" aria-haspopup="dialog">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
     </button>
@@ -364,7 +206,7 @@
   </main>
 
   <section class="status" aria-label="Game status">
-    <p class="line" id="line">Setting the board.</p>
+    <p class="line" id="line">Setting up the board…</p>
     <p class="sub" id="sub"></p>
     <div class="actions" id="actions" hidden>
       <div class="seg" role="group" aria-label="Next board size">
@@ -521,13 +363,13 @@ const Fx=(()=>{
     o.connect(a).connect(master);o.start(t);o.stop(t+d+.03);
   }
   const SOUNDS={
-    draw:t=>tone(520,t,.07,{type:'triangle',g:.07,to:340}),
-    opp:t=>tone(300,t,.1,{g:.05}),
-    claim:t=>{tone(659,t,.18,{type:'triangle',g:.09});tone(988,t+.07,.3,{g:.07})},
-    oppClaim:t=>{tone(392,t,.2,{type:'triangle',g:.06});tone(330,t+.08,.28,{g:.05})},
-    win:t=>[523,659,784,1047].forEach((f,i)=>tone(f,t+i*.09,.34,{type:'triangle',g:.08})),
-    lose:t=>{tone(330,t,.3,{g:.06});tone(247,t+.16,.45,{g:.06})},
-    tie:t=>tone(440,t,.4,{g:.06}),
+    draw:t=>tone(520,t,.09,{g:.08,to:880}),
+    opp:t=>tone(440,t,.12,{g:.05}),
+    claim:t=>{tone(784,t,.16,{type:'triangle',g:.08});tone(988,t+.07,.16,{type:'triangle',g:.07});tone(1319,t+.14,.34,{g:.07})},
+    oppClaim:t=>{tone(523,t,.18,{type:'triangle',g:.05});tone(659,t+.09,.3,{g:.05})},
+    win:t=>[523,659,784,1047,1319].forEach((f,i)=>tone(f,t+i*.09,.36,{type:'triangle',g:.08})),
+    lose:t=>{tone(392,t,.3,{g:.06});tone(330,t+.18,.5,{g:.06})},
+    tie:t=>{tone(523,t,.25,{g:.06});tone(523,t+.2,.4,{g:.06})},
   };
   return{
     sound(name){
@@ -536,6 +378,7 @@ const Fx=(()=>{
     },
     buzz(p){if(Settings.get('haptics')&&navigator.vibrate){try{navigator.vibrate(p)}catch{}}},
     say(text){
+      text=(text||'').replace(/[\u{1F300}-\u{1FAFF}\u2600-\u27BF\uFE0F]/gu,'').trim();
       if(!text||text===lastSaid)return;
       lastSaid=text;live.textContent='';
       requestAnimationFrame(()=>{live.textContent=text});
@@ -584,6 +427,8 @@ const Board=(()=>{
   const svg=$('#board'),NS='http://www.w3.org/2000/svg';
   const{S,PAD}=CFG;
   const px=i=>PAD+i*S;
+  const starPath=(cx,cy,R,r)=>{let d='';for(let i=0;i<10;i++){const a=-Math.PI/2+i*Math.PI/5,rad=i%2?r:R;d+=(i?'L':'M')+(cx+rad*Math.cos(a)).toFixed(1)+' '+(cy+rad*Math.sin(a)).toFixed(1)}return d+'Z'};
+  const heartPath=(cx,cy)=>`M${cx} ${cy+15}C${cx-27} ${cy-2} ${cx-15} ${cy-21} ${cx} ${cy-8}C${cx+15} ${cy-21} ${cx+27} ${cy-2} ${cx} ${cy+15}Z`;
   let n=0,edges={h:[],v:[]},glows={h:[],v:[],},guides={h:[],v:[]},hits=[],boxes=[],lastEl=[],cursor=null;
 
   const el=(tag,attrs,parent)=>{
@@ -599,12 +444,9 @@ const Board=(()=>{
     svg.setAttribute('viewBox',`0 0 ${W} ${W}`);
     svg.replaceChildren();
     svg.insertAdjacentHTML('afterbegin',`<defs>
-      <pattern id="halftone" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(32)"><circle cx="3.5" cy="3.5" r="1.7" fill="#000"/></pattern>
-      <radialGradient id="haloGrad"><stop offset="0" stop-color="#f6e7cd" stop-opacity=".3"/><stop offset="1" stop-color="#f6e7cd" stop-opacity="0"/></radialGradient>
-      <linearGradient id="streak"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
-      <filter id="bloom" x="-25%" y="-25%" width="150%" height="150%"><feGaussianBlur stdDeviation="7"/></filter>
+      <pattern id="polka" width="9" height="9" patternUnits="userSpaceOnUse"><circle cx="2.2" cy="2.2" r="1.3" fill="#fff"/><circle cx="6.7" cy="6.7" r="1.3" fill="#fff"/></pattern>
     </defs>`);
-    const gBoxes=el('g',{},svg),gGuides=el('g',{},svg),gGlow=el('g',{filter:'url(#bloom)'},svg),
+    const gBoxes=el('g',{},svg),gGuides=el('g',{},svg),gGlow=el('g',{},svg),
           gEdges=el('g',{},svg),gDots=el('g',{},svg),gHits=el('g',{},svg);
     edges={h:[],v:[]};glows={h:[],v:[]};guides={h:[],v:[]};hits=[];boxes=[];lastEl=[];cursor=null;
 
@@ -612,13 +454,11 @@ const Board=(()=>{
       const g=el('g',{class:'box'},gBoxes);
       const x=px(c)+9,y=px(r)+9,w=S-18,cx=px(c)+S/2,cy=px(r)+S/2;
       el('rect',{class:'hint',x,y,width:w,height:w,rx:6},g);
-      el('rect',{class:'reg',x:x+3,y:y+3,width:w,height:w,rx:6},g);
       el('rect',{class:'pool',x,y,width:w,height:w,rx:6},g);
       el('rect',{class:'tone',x,y,width:w,height:w,rx:6},g);
-      el('path',{class:'m1',d:`M${cx} ${cy-17}L${cx+17} ${cy}L${cx} ${cy+17}L${cx-17} ${cy}Z`},g);
-      el('circle',{class:'m2',cx,cy,r:14},g);
+      el('path',{class:'m1',d:starPath(cx,cy,19,8.6)},g);      // Satyam's mark
+      el('path',{class:'m2',d:heartPath(cx,cy)},g);            // Snks's mark
       el('circle',{class:'ping',cx,cy,r:7},g);
-      el('rect',{class:'flare',x:x-34,y:cy-3.5,width:w+68,height:7},g);
       g.dataset.o='0';
       boxes.push(g);
     }
@@ -648,9 +488,8 @@ const Board=(()=>{
 
     for(let r=0;r<=n;r++)for(let c=0;c<=n;c++){
       const d=Math.hypot(c-mid,r-mid).toFixed(2);
-      const h=el('circle',{class:'halo',cx:px(c),cy:px(r),r:17},gDots);
-      const o=el('circle',{class:'dot',cx:px(c),cy:px(r),r:5.6},gDots);
-      h.style.setProperty('--d',d);o.style.setProperty('--d',d);
+      const o=el('circle',{class:'dot',cx:px(c),cy:px(r),r:6.4},gDots);
+      o.style.setProperty('--d',d);
     }
     svg.setAttribute('aria-label',`Game board, ${n} by ${n} boxes. Arrow keys move between lines, Enter or Space draws the line.`);
   }
@@ -844,13 +683,13 @@ const UI=(()=>{
     if(playing){
       const again=m.last_completed>0&&m.last_by===m.turn;
       const left=m.boxes.filter(v=>!v).length;
-      text=mine?(again?'Box. Go again.':'Your move.'):(again?`${opp} goes again.`:`${opp}'s move.`);
+      text=mine?(again?'Box! Go again ✨':'Your turn!'):(again?`${opp} goes again!`:`${opp} is thinking…`);
       subText=left+(left===1?' box left':' boxes left');
     }else if(!resultOn){
-      text='Last box.';subText='';
+      text='Last box…';subText='';
     }else{
       const myN=me==='Satyam'?m.score_satyam:m.score_snks,opN=me==='Satyam'?m.score_snks:m.score_satyam;
-      text=!m.winner_name?'Dead level.':m.winner_name===me?'You win.':`${opp} wins.`;
+      text=!m.winner_name?"It's a tie!":m.winner_name===me?'You win! 🎉':`${opp} wins! 💕`;
       subText=`${myN} to ${opN} in boxes`;
     }
     line.textContent=text;sub.textContent=subText;
@@ -874,7 +713,7 @@ const Game={
   async boot(){
     try{
       await Net.connect();
-      this.me=Net.name;this.opp=other(this.me);
+      this.me=Net.name;this.opp=other(this.me);document.body.dataset.me=this.me;
       UI.identify(this.me);
       const m=await Net.fetch();
       if(!m)return UI.fatal('Not set up yet.','Run dots_and_boxes.sql in Supabase, then reopen this page.');
