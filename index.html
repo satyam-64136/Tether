@@ -1837,6 +1837,10 @@ html,body{
         <span style="font-size:16px">💭</span>
         Play Who Am I To You
       </button>
+      <button class="wg-menu-btn" id="dabMenuBtn" onclick="openDAB()" style="margin-top:8px">
+        <span style="font-size:16px">🍬</span>
+        Play Dots &amp; Boxes
+      </button>
     </div>
     <div>
       <div class="msec-ttl">Storage</div>
@@ -5622,7 +5626,12 @@ if('serviceWorker'in navigator){
   }).catch(()=>{});
 
   navigator.serviceWorker.addEventListener('controllerchange',()=>{
-    if(hadController) window.location.reload();
+    if(!hadController) return;
+    // A new version took over. Reload to use it, but never under the user's
+    // fingers: wait until the app is in the background, so a draft, a voice note
+    // or a photo being viewed is never yanked away mid-use.
+    if(document.hidden){ window.location.reload(); return; }
+    document.addEventListener('visibilitychange',()=>{ if(document.hidden) window.location.reload(); },{once:true});
   });
 }
 
@@ -5677,6 +5686,9 @@ function openTTT(){
 }
 function openWhoAmI(){
   location.href='whoami.html';
+}
+function openDAB(){
+  location.href='dotsandboxes.html';
 }
 // ── STORAGE CLEANUP — manual, on-demand only. Never runs automatically;
 //    always shows exactly what it found and asks before deleting anything. ──

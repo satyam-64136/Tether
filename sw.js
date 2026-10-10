@@ -1,6 +1,6 @@
 const CACHE = 'us-v9';
 const BASE = '/Tether';
-const ASSETS = [`${BASE}/`, `${BASE}/index.html`, `${BASE}/manifest.json`],`${BASE}/games.css`;
+const ASSETS = [`${BASE}/`, `${BASE}/index.html`, `${BASE}/manifest.json`, `${BASE}/games.css`, `${BASE}/games-live.js`];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS).catch(()=>{})));
@@ -23,6 +23,15 @@ self.addEventListener('activate', e => {
 // the device.
 function isStorageAsset(url){
   return url.pathname.includes('/storage/v1/object/');
+}
+
+// Live data: Supabase REST, RPC, auth and realtime. This must NEVER be cached or
+// replayed from cache. The old catch-all handler stored every API response and,
+// whenever the network blipped, answered with that stale copy as if it were
+// current, so a game could silently roll back to an old board. Uploaded media
+// (isStorageAsset) is the one Supabase thing that is safe to cache.
+function isLiveApi(url){
+  return url.hostname.endsWith('.supabase.co') || url.hostname.endsWith('.supabase.in');
 }
 
 // Keep the media cache from growing forever. Cache Storage has no built-in
@@ -64,13 +73,17 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  // Everything else (app shell, Supabase REST/API calls, realtime long-polls)
-  // stays network-first — that data changes constantly and needs to be fresh.
-  // Cache is only a fallback for when the network is unavailable.
+  // Live API traffic goes straight to the network, untouched by the cache.
+  if(isLiveApi(url)) return;
+
+  // Everything else (app shell, game pages, scripts, fonts) is network-first,
+  // with the cache as an offline fallback. Only good responses are stored.
   e.respondWith(
     fetch(e.request).then(res => {
-      const clone = res.clone();
-      caches.open(CACHE).then(c => c.put(e.request, clone));
+      if(res && (res.ok || res.type === 'opaque')){
+        const clone = res.clone();
+        caches.open(CACHE).then(c => c.put(e.request, clone));
+      }
       return res;
     }).catch(() => caches.match(e.request))
   );
