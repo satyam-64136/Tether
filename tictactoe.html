@@ -2,43 +2,71 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"/>
 <meta name="theme-color" content="#fff4e6" media="(prefers-color-scheme: light)"/>
 <meta name="theme-color" content="#241a2d" media="(prefers-color-scheme: dark)"/>
 <title>Tic Tac Toe</title>
+<!-- tether:page declaration. The home screen builds its menu from these lines (see tether-pages.js). -->
+<meta name="tether:page" content="game"/>
+<meta name="tether:title" content="Tic Tac Toe"/>
+<meta name="tether:icon" content="g-ttt"/>
+<meta name="tether:blurb" content="Three in a row"/>
+<meta name="tether:order" content="20"/>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400..700&family=Figtree:wght@400..800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="games.css">
+<script src="games-ui.js"></script>
 <style>
 /* Tic Tac Toe only. Everything shared lives in games.css. */
-.sym-badge{display:inline-grid;place-items:center;inline-size:1.3rem;block-size:1.3rem;border:2px solid var(--line);border-radius:.45rem;background:var(--card);color:var(--plum);font:700 .74rem var(--font-display)}
-#satyamSymBadge{background:var(--satyam)} #snksSymBadge{background:var(--snks)} #mySymBadge{background:var(--me)}
+#s-game{gap:.55rem}
+.sym-badge{display:inline-grid;place-items:center;flex:none;inline-size:1.3rem;block-size:1.3rem;border:2px solid var(--line);border-radius:.45rem;background:var(--card);color:var(--plum);font:700 .74rem var(--font-display)}
+#satyamSymBadge{background:var(--satyam)} #snksSymBadge{background:var(--snks)}
 
-.score-row{display:grid;grid-template-columns:1fr auto 1fr;align-items:stretch;gap:.6rem}
-.score-col{display:flex;flex-direction:column;align-items:center;gap:.25rem;padding:.7rem .5rem .65rem;color:var(--plum);border:var(--bw) solid var(--line);border-radius:var(--r-md);box-shadow:0 .22rem 0 var(--shadow)}
+.score-card{gap:.5rem;padding:.7rem}
+.score-row{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:.5rem}
+.score-col{display:flex;align-items:center;gap:.45rem;min-inline-size:0;padding:.4rem .65rem;color:var(--plum);border:var(--bw) solid var(--line);border-radius:1rem;box-shadow:0 .2rem 0 var(--shadow)}
 .score-col:nth-child(1){background:var(--satyam)}
-.score-col:nth-child(3){background:var(--snks)}
-.score-num{font:700 2.7rem/1 var(--font-display)}
+.score-col:nth-child(3){background:var(--snks);flex-direction:row-reverse}
+.score-name{flex:1;min-inline-size:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:600 .9rem var(--font-display)}
+.score-col:nth-child(3) .score-name{text-align:end}
+.score-num{font:700 2rem/1 var(--font-display);font-variant-numeric:tabular-nums}
 .score-num.bump{animation:bump .5s var(--ease-spring)}
-.score-name{display:flex;align-items:center;gap:.35rem;font:600 .88rem var(--font-display)}
-.score-divider{align-self:center;font:600 1rem var(--font-display);color:var(--text-faint)}
+.score-divider{font:600 .95rem var(--font-display);color:var(--text-faint)}
 .score-divider::before{content:'vs'}
 
+.meta-row{display:flex;align-items:center;justify-content:space-between;gap:.6rem}
 .turn-banner{
-  align-self:center;display:inline-flex;align-items:center;gap:.5rem;padding:.45rem 1.2rem;
-  font:600 1.2rem var(--font-display);color:var(--text);
+  display:inline-flex;align-items:center;gap:.5rem;padding:.35rem 1rem;
+  font:600 1.1rem var(--font-display);color:var(--text);
   background:var(--card);border:2px solid var(--line);border-radius:99px;box-shadow:0 .2rem 0 var(--shadow);
   transition:background-color .3s;
 }
 .turn-banner.mine{background:var(--me);color:var(--plum)}
 .turn-banner .tb-dot{inline-size:.6rem;block-size:.6rem;border-radius:50%;background:currentColor;animation:breathe 1.4s ease-in-out infinite}
+#seriesProgress{margin:0;font-size:.85rem;color:var(--text-dim);white-space:nowrap}
+@media (max-width:360px){
+  .score-col{padding:.35rem .5rem;gap:.3rem}
+  .score-name{font-size:.8rem}
+  .score-num{font-size:1.7rem}
+  .sym-badge{inline-size:1.1rem;block-size:1.1rem;font-size:.65rem}
+}
 
-/* the board: nine squishy buttons */
-.board{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);gap:.7rem;aspect-ratio:1;inline-size:100%;position:relative}
+/* the stage takes whatever height is left; the board card is the biggest square that fits it */
+.board-stage{flex:1 1 0;min-block-size:0;display:grid;place-items:center;container-type:size}
+#boardCard{inline-size:min(100cqi,100cqb);aspect-ratio:1;padding:.6rem;display:grid}
+.board{inline-size:100%;block-size:100%;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);gap:.6rem;position:relative}
+
+/* "your turn" ring: its own element and only opacity/scale animate, so it can never
+   interfere with the card's entrance animation (it used to replace it, and the whole
+   board slid in again every time the ring switched off) */
+#boardCard::after{content:'';position:absolute;inset:-.3rem;border-radius:inherit;border:3px solid var(--me);opacity:0;pointer-events:none;transition:opacity .3s}
+#boardCard.my-turn::after{animation:ringPulse 2.2s ease-in-out infinite}
+@keyframes ringPulse{0%,100%{opacity:.25;scale:1}50%{opacity:.75;scale:1.012}}
+
 .cell{
   position:relative;display:grid;place-items:center;cursor:pointer;user-select:none;-webkit-user-select:none;
-  background:var(--card);border:var(--bw) solid var(--line);border-radius:1.15rem;box-shadow:0 .26rem 0 var(--shadow);
+  background:var(--card);border:var(--bw) solid var(--line);border-radius:1.1rem;box-shadow:0 .26rem 0 var(--shadow);
   transition:translate .12s var(--ease-out),box-shadow .12s var(--ease-out),background-color .3s;
 }
 .cell:not(.disabled):hover{background:color-mix(in oklab,var(--tint) 38%,var(--card))}
@@ -48,15 +76,14 @@
 .cell.by-snks{background:var(--snks)}
 .cell.win{background:var(--butter);animation:wiggle .6s ease 2}
 .cell svg{inline-size:66%;block-size:66%;overflow:visible}
+.cell.placed svg{animation:markPop .45s var(--ease-spring)}
 .mk-ink{stroke:var(--plum);stroke-width:5.8;fill:none}
 .mk-in{stroke:#fff;stroke-width:2.8;fill:none}
 .cell.shake{animation:cellShake .35s ease}
-@keyframes cellShake{20%{translate:-5px 0}40%{translate:4px 0}60%{translate:-3px 0}80%{translate:2px 0}}
 .cell.cell-enter{animation:cellEnter .45s var(--ease-spring) both}
+@keyframes markPop{from{scale:.55;rotate:-14deg}}
+@keyframes cellShake{20%{translate:-5px 0}40%{translate:4px 0}60%{translate:-3px 0}80%{translate:2px 0}}
 @keyframes cellEnter{from{opacity:0;scale:.55}}
-
-#boardCard.my-turn{animation:boardGlow 2.2s ease-in-out infinite}
-@keyframes boardGlow{50%{box-shadow:0 var(--lift) 0 var(--shadow),0 0 0 .4rem color-mix(in oklab,var(--me) 60%,transparent)}}
 
 .win-line{
   position:absolute;top:0;left:0;block-size:.6rem;inline-size:0;opacity:0;z-index:5;pointer-events:none;
@@ -72,11 +99,12 @@
   <div class="topbar">
     <a class="backlink" href="index.html">
       <svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
-      Tether
+      <span class="sr-only">Back to Tether</span>
     </a>
     <div class="brand">
-      <span class="ic" aria-hidden="true">✨</span>
+      <span class="ic" aria-hidden="true"><svg class="i"><use href="#i-g-ttt"/></svg></span>
       <h1>Tic Tac Toe</h1>
+      <span id="connStatus" class="conn" role="status" aria-label="Connected"></span>
     </div>
     <div style="width:64px"></div>
   </div>
@@ -91,33 +119,32 @@
 
   <!-- GAME -->
   <div class="screen" id="s-game">
-    <div class="card">
-      <div class="status-row">
-        <span class="pill"><b id="whoamiName"></b> <span class="sym-badge" id="mySymBadge"></span></span>
-        <span id="connStatus" class="pill"><span class="dot"></span> Connected</span>
-      </div>
+    <div class="card tight score-card">
       <div class="score-row">
         <div class="score-col">
-          <div class="score-num" id="scoreSatyam">0</div>
-          <div class="score-name"><span class="sym-badge" id="satyamSymBadge">X</span> Satyam</div>
+          <span class="sym-badge" id="satyamSymBadge">X</span>
+          <span class="score-name">Satyam</span>
+          <span class="score-num" id="scoreSatyam">0</span>
         </div>
         <div class="score-divider"></div>
         <div class="score-col">
-          <div class="score-num" id="scoreSnks">0</div>
-          <div class="score-name"><span class="sym-badge" id="snksSymBadge">O</span> Snks</div>
+          <span class="sym-badge" id="snksSymBadge">O</span>
+          <span class="score-name">Snks</span>
+          <span class="score-num" id="scoreSnks">0</span>
         </div>
       </div>
-      <button class="pill" onclick="confirmResetSeries(this)" style="cursor:pointer;align-self:center">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px"><path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6"/></svg>
-        Reset score
-      </button>
-      <div class="hint" id="seriesProgress" style="margin-top:-4px"></div>
-      <div class="turn-banner" id="turnBanner">—</div>
+      <div class="meta-row">
+        <div class="turn-banner" id="turnBanner">—</div>
+        <div class="hint" id="seriesProgress"></div>
+      </div>
     </div>
 
-    <div class="card" id="boardCard">
-      <div class="board" id="board"></div>
+    <div class="board-stage">
+      <div class="card" id="boardCard">
+        <div class="board" id="board"></div>
+      </div>
     </div>
+    <span class="sr-only"><b id="whoamiName"></b> <span id="mySymBadge"></span></span>
   </div>
 
   <!-- OVER (single game, series still in progress) -->
@@ -151,7 +178,12 @@
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="games-live.js"></script>
 <script>
+let _sfxArmed=false;
+const sfx=name=>{ if(_sfxArmed) TetherUI.sfx.play(name); };   // reactions to what happened on the other phone
+const sfxNow=name=>TetherUI.sfx.play(name);                     // reactions to something I just did
+
 const SU='https://ggfxdeuwifmqulyhchtv.supabase.co';
 const SK='sb_publishable_DMMJ2sFnGlFWogBs30qowg_-N0zk3OI';
 let sb, MY_UID=null, MY_NAME=null, OPP_NAME=null;
@@ -210,17 +242,15 @@ async function boot(){
     // Throwing variant for the first load only, so a real failure surfaces
     // an actual error instead of leaving "Getting things ready" up forever.
     await resyncOrThrow();
-    subscribeAll();
-
-    // Now backed by real reconnect logic above, so this is a light backstop
-    // rather than the primary sync path — kept quick (5s) since this is the
-    // most turn-by-turn of the three games and quota headroom is not a
-    // concern. Skipped while the tab is hidden — resuming happens instantly
-    // via visibilitychange below.
-    setInterval(()=>{ if(!document.hidden) resync(); },5000);
-    document.addEventListener('visibilitychange',()=>{ if(!document.hidden){ resync(); subscribeAll(); } });
-    window.addEventListener('online',()=>{ resync(); subscribeAll(); });
-    window.addEventListener('pageshow',()=>{ resync(); subscribeAll(); });
+    _sfxArmed=true;   // from here on, incoming events make sound
+    // Live sync lives in one shared, tested helper (games-live.js): one channel,
+    // sane reconnects, wake-up handling and a slow backstop poll.
+    live=TetherLive.hub(sb,{
+      name:'ttt',
+      bindings:[{event:'UPDATE',table:'ttt_match',filter:'id=eq.1',cb:()=>resync()}],
+      onCatchup:resync, onStatus:setConn, pollLiveMs:8000,
+    });
+    live.start();
   }catch(e){
     console.error(e);
     showLoadingError('Something went wrong: '+(e.message||'unknown error'));
@@ -231,52 +261,34 @@ async function boot(){
   boot();
 })();
 
-let _reconnectTimer=null;
-function scheduleReconnect(){
-  if(_reconnectTimer)return; // one retry in flight at a time
-  _reconnectTimer=setTimeout(()=>{
-    _reconnectTimer=null;
-    if(!document.hidden) subscribeAll();
-  },2000);
+let live=null;   // the shared sync hub (games-live.js)
+function setConn(isLive){
+  const el=document.getElementById('connStatus');
+  if(!el) return;
+  el.className=isLive?'conn':'conn warn';
+  el.setAttribute('aria-label',isLive?'Connected':'Reconnecting');
 }
 
-function subscribeAll(){
-  if(matchCh){try{sb.removeChannel(matchCh);}catch(e){}}
-  matchCh=sb.channel('ttt-match-'+Date.now())
-    .on('postgres_changes',{event:'UPDATE',schema:'public',table:'ttt_match',filter:'id=eq.1'},()=>resync())
-    .subscribe(status=>{
-      const el=document.getElementById('connStatus');
-      if(status==='SUBSCRIBED'){
-        if(el){ el.className='pill'; el.innerHTML='<span class="dot"></span> Connected'; }
-        resync(); // catch up on any move missed while this channel was down
-      }else if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'||status==='CLOSED'){
-        if(el){ el.className='pill warn'; el.innerHTML='<span class="dot"></span> Reconnecting...'; }
-        scheduleReconnect();
-      }
-    });
-}
-
-// See WildGuess/WhoAmI for why this guard exists: without it, an older
-// resync response landing after a newer one could silently overwrite a
-// just-made move with stale board state — a visible flicker/revert glitch.
-let _resyncSeq=0;
+// Server state is only repainted when it actually changed. Polls, reconnect
+// catch-ups and our own echo used to re-render identical data every few
+// seconds, which replayed animations and looked like the page refreshing.
+let _lastMatchJson='';
+let _moveInFlight=false; // while our own move is travelling, a fetch that began before it would repaint the old board over it
 async function resyncOrThrow(){
-  const mySeq=++_resyncSeq;
   const{data:m,error}=await sb.from('ttt_match').select('*').eq('id',1).maybeSingle();
   if(error) throw error;
-  if(!m)return;
-  if(mySeq!==_resyncSeq)return;
+  if(!m||_moveInFlight) return;
+  const json=JSON.stringify(m);
+  if(json===_lastMatchJson) return;
+  _lastMatchJson=json;
   match=m;
   render();
 }
-
-async function resync(){
-  try{
-    await resyncOrThrow();
-  }catch(e){
-    console.warn('resync failed (will retry):',e);
-  }
-}
+const _resyncRun=TetherLive.coalesce(async()=>{
+  try{ await resyncOrThrow(); }
+  catch(e){ console.warn('resync failed (will retry):',e); }
+});
+function resync(){ return _resyncRun(); }   // one at a time; a burst of events folds into a single follow-up
 
 // Sticker marks: a plum outline stroke under a white stroke. Both paths are
 // drawn on together with the stroke-dasharray/dashoffset trick.
@@ -287,8 +299,8 @@ function animateMark(cell){
   cell.querySelectorAll('.mark-path').forEach(path=>{
     let len;
     try{ len=path.getTotalLength(); }catch(e){ return; } // not rendered yet (screen still hidden): nothing to animate
-    path.style.strokeDasharray=len;
-    path.style.strokeDashoffset=len;
+    path.style.strokeDasharray=len+' '+(len+20);
+    path.style.strokeDashoffset=(len+10); // start inside the gap so a round cap never flashes a dot before the stroke draws on
     path.getBoundingClientRect(); // force reflow so the transition below actually animates
     path.style.transition='stroke-dashoffset .38s cubic-bezier(.2,1,.3,1)';
     requestAnimationFrame(()=>{ path.style.strokeDashoffset='0'; });
@@ -349,13 +361,22 @@ function render(){
     const hadVal=cell.dataset.filled==='1';
     // colour follows the PLAYER, not the symbol, so Satyam is always sky and Snks always pink
     const owner=val?(val==='X'?match.x_player:(match.x_player==='Satyam'?'Snks':'Satyam')):'';
-    cell.className='cell'+(val?' '+val.toLowerCase():'')+(owner?' by-'+owner.toLowerCase():'')+(winSet.has(i)?' win':'')+(match.status!=='playing'||val?' disabled':'');
+    // Toggle only the STATE classes. Reassigning className used to wipe the board's entrance
+    // animation, the invalid-move shake and the mark pop on every sync.
+    const want=['x','o','by-satyam','by-snks','win','disabled'].filter(c=>
+      (c==='x'||c==='o')?(val&&val.toLowerCase()===c):
+      c==='by-satyam'?owner==='Satyam':c==='by-snks'?owner==='Snks':
+      c==='win'?winSet.has(i):(match.status!=='playing'||!!val));
+    ['x','o','by-satyam','by-snks','win','disabled'].forEach(c=>cell.classList.toggle(c,want.includes(c)));
     if(val){
       // a cell's value never changes once set, so once painted just leave it —
       // this also avoids re-triggering the draw-on animation every resync
       if(!hadVal){
         cell.innerHTML=markHtml(val);
         animateMark(cell);
+        cell.classList.add('placed');
+        setTimeout(()=>cell.classList.remove('placed'),600);
+        if(owner!==MY_NAME) sfx('opp');   // the other player's mark landing
       }
       cell.dataset.filled='1';
     }else{
@@ -382,6 +403,7 @@ function render(){
     if(isFreshResult){
       // only the FIRST time we see this game as finished — not on every
       // subsequent poll/realtime tick while still parked on the result screen
+      sfxNow(match.status==='draw'?'tie':(match.winner_name===MY_NAME?'win':'lose'));
       vibrate(match.status==='draw'?20:(match.winner_name===MY_NAME?[25,60,25,60,60]:[20,40,20]));
     }
     _wasPlaying=false;
@@ -402,19 +424,25 @@ function render(){
   }
 }
 
-function vibrate(pattern){
-  if(navigator.vibrate){ try{navigator.vibrate(pattern);}catch(e){} }
-}
+function vibrate(pattern){ TetherUI.haptic(pattern); }   // honours the Vibration switch in Settings
 
+let _winLineKey='';
 function hideWinLine(){
   const line=document.getElementById('winLine');
   if(line) line.classList.remove('show');
+  _winLineKey='';
 }
 
-// Draws the connecting line straight from live DOM geometry (not hardcoded
-// percentages), so it lines up correctly no matter the board's rendered size.
-function drawWinLine(indices){
+// Positions the win line from LAYOUT coordinates (offsetLeft/offsetTop), not
+// getBoundingClientRect(). Bounding rects include every transform in play (the
+// card sliding in, the winning cells wiggling), which knocked the line off the
+// row. The overhang is also applied along the line's own direction; it used to
+// be added to x only, which pushed diagonals ~13% too far down and slid vertical
+// lines half an overhang to the left.
+function placeWinLine(indices,animate){
   const board=document.getElementById('board');
+  const first=board.children[indices[0]], last=board.children[indices[2]];
+  if(!first||!last) return;
   let line=document.getElementById('winLine');
   if(!line){
     line=document.createElement('div');
@@ -422,27 +450,42 @@ function drawWinLine(indices){
     line.className='win-line';
     board.appendChild(line);
   }
-  const boardRect=board.getBoundingClientRect();
-  const centerOf=i=>{
-    const r=board.children[i].getBoundingClientRect();
-    return{x:r.left+r.width/2-boardRect.left,y:r.top+r.height/2-boardRect.top};
-  };
-  const a=centerOf(indices[0]), b=centerOf(indices[2]);
-  const dx=b.x-a.x, dy=b.y-a.y;
-  const dist=Math.sqrt(dx*dx+dy*dy);
-  const overhang=dist*0.18; // slight overhang past the end cells looks more finished
+  const ctr=c=>({x:c.offsetLeft+c.offsetWidth/2,y:c.offsetTop+c.offsetHeight/2});
+  const a=ctr(first), b=ctr(last);
+  const dx=b.x-a.x, dy=b.y-a.y, dist=Math.hypot(dx,dy);
+  if(!dist) return; // board is not laid out (hidden screen)
+  const ux=dx/dist, uy=dy/dist;
+  const over=Math.min(first.offsetWidth*0.3,28);
+  const len=dist+over*2;
   const angle=Math.atan2(dy,dx)*180/Math.PI;
-  line.style.left=(a.x-overhang/2)+'px';
-  line.style.top=a.y+'px';
-  line.style.transform=`translateY(-50%) rotate(${angle}deg)`;
-  line.style.width='0px';
-  line.classList.remove('show');
-  requestAnimationFrame(()=>{
-    requestAnimationFrame(()=>{
-      line.style.width=(dist+overhang)+'px';
+  const key=indices.join()+'|'+Math.round(a.x)+'|'+Math.round(a.y)+'|'+Math.round(len);
+  if(key===_winLineKey&&line.classList.contains('show')) return; // already drawn exactly here
+  _winLineKey=key;
+  const h=line.offsetHeight||10;
+  line.style.left=(a.x-ux*over)+'px';
+  line.style.top=(a.y-uy*over-h/2)+'px';   // rotation pivots on the left-centre, so this point is the true start
+  line.style.transform=`rotate(${angle}deg)`;
+  if(animate){
+    line.style.width='0px';
+    line.classList.remove('show');
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{
+      line.style.width=len+'px';
       line.classList.add('show');
-    });
-  });
+    }));
+  }else{
+    line.style.width=len+'px';
+    line.classList.add('show');
+  }
+}
+function drawWinLine(indices){ placeWinLine(indices,true); }
+
+// keep the line glued to the row if the board changes size (rotation, resize)
+if(window.ResizeObserver){
+  new ResizeObserver(()=>{
+    if(match&&match.status!=='playing'&&match.status!=='draw'&&match.win_line&&match.win_line.length){
+      _winLineKey=''; placeWinLine(match.win_line,false);
+    }
+  }).observe(document.getElementById('board'));
 }
 
 function bumpEl(el){
@@ -506,9 +549,11 @@ async function forceAlternateXPlayer(prevXPlayer){
 // and can't be undone; reuses the exact same reset+redeal logic as the
 // natural end-of-series flow.
 function confirmResetSeries(btn){
-  if(!confirm("Reset the score to 0–0 and start a new series? This can't be undone.")) return;
-  if(btn) btn.disabled=true;
-  startNewSeries().finally(()=>{ if(btn) btn.disabled=false; });
+  TetherUI.confirm({title:'Reset the score?',text:"The score goes back to 0–0 and a new series starts. This can't be undone.",ok:'Reset'}).then(ok=>{
+    if(!ok) return;
+    if(btn) btn.disabled=true;
+    startNewSeries().finally(()=>{ if(btn) btn.disabled=false; });
+  });
 }
 
 async function startNewSeries(){
@@ -540,9 +585,11 @@ function shakeCell(i){
   cell.classList.remove('shake');void cell.offsetWidth;cell.classList.add('shake');
   setTimeout(()=>cell.classList.remove('shake'),350);
   vibrate(15);
+  sfxNow('error');
 }
 
 function staggerBoardIn(){
+  sfx('start');
   const cells=document.getElementById('board').children;
   for(let i=0;i<9;i++){
     const cell=cells[i];
@@ -550,31 +597,40 @@ function staggerBoardIn(){
     void cell.offsetWidth; // force reflow so re-adding the class restarts the animation
     cell.style.animationDelay=(i*35)+'ms';
     cell.classList.add('cell-enter');
+    setTimeout(()=>{ cell.classList.remove('cell-enter'); cell.style.animationDelay=''; },900); // don't leave a stale delay behind for later animations
   }
 }
 
 async function makeMove(i){
   if(!match||match.status!=='playing')return;
-  if(match.turn!==MY_NAME){toast("It's not your turn yet");vibrate([12,40,12]);return;}
+  if(match.turn!==MY_NAME){toast("It's not your turn yet");vibrate([12,40,12]);sfxNow('error');return;}
   if(match.board[i]){shakeCell(i);return;}
 
   // optimistic paint so it feels instant
   vibrate(12);
   const cells=document.getElementById('board').children;
   const mySymbol=match.x_player===MY_NAME?'X':'O';
-  cells[i].className='cell '+mySymbol.toLowerCase()+' by-'+MY_NAME.toLowerCase()+' disabled';
-  cells[i].innerHTML=markHtml(mySymbol);
-  animateMark(cells[i]);
+  const mine=cells[i];
+  ['x','o'].forEach(k=>mine.classList.toggle(k,k===mySymbol.toLowerCase()));
+  mine.classList.add('by-'+MY_NAME.toLowerCase(),'disabled','placed');
+  setTimeout(()=>mine.classList.remove('placed'),600);
+  mine.innerHTML=markHtml(mySymbol);
+  animateMark(mine);
+  sfxNow('place');
   cells[i].dataset.filled='1'; // prevents render() from replaying the draw-on animation a second time once resync() confirms this same move
 
+  _moveInFlight=true;
   try{
     const{error}=await withTimeout(sb.rpc('ttt_make_move',{p_index:i}));
     if(error) throw error;
+    _moveInFlight=false;
     await resync();
   }catch(e){
     console.error('move failed:',e);
     toast('Move failed: '+(e.message||'try again'));
-    await resync(); // undo optimistic paint by pulling real state
+    _moveInFlight=false;
+    _lastMatchJson=''; // force a repaint so the optimistic mark is rolled back
+    await resync();
   }
 }
 
@@ -592,6 +648,13 @@ async function newGame(){
   }
   if(btn) btn.disabled=false;
 }
+
+// ── settings sheet + gear button (shared: games-ui.js) ──
+TetherUI.mount({extras:[
+  `<details class="how"><summary>How to play</summary><ol><li>Take turns placing your mark in a square.</li><li>Three in a row wins the game.</li><li>Whoever wins the most of the 15 games takes the series.</li></ol></details>`,
+  `<button type="button" class="link danger" id="tuiReset">${TetherUI.icon('reset')} Reset score…</button>`
+]});
+document.getElementById('tuiReset').addEventListener('click',()=>{ TetherUI.settings.close(); confirmResetSeries(null); });
 </script>
 </body>
 </html>

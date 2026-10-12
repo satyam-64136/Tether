@@ -2,14 +2,21 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"/>
 <meta name="theme-color" content="#fff4e6" media="(prefers-color-scheme: light)"/>
 <meta name="theme-color" content="#241a2d" media="(prefers-color-scheme: dark)"/>
 <title>Who Am I To You</title>
+<!-- tether:page declaration. The home screen builds its menu from these lines (see tether-pages.js). -->
+<meta name="tether:page" content="game"/>
+<meta name="tether:title" content="Who Am I To You"/>
+<meta name="tether:icon" content="g-thought"/>
+<meta name="tether:blurb" content="Clues and guesses"/>
+<meta name="tether:order" content="30"/>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400..700&family=Figtree:wght@400..800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="games.css">
+<script src="games-ui.js"></script>
 
 </head>
 <body data-game="who">
@@ -17,11 +24,12 @@
   <div class="topbar">
     <a class="backlink" href="index.html">
       <svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
-      Tether
+      <span class="sr-only">Back to Tether</span>
     </a>
     <div class="brand">
-      <span class="ic" aria-hidden="true">💭</span>
+      <span class="ic" aria-hidden="true"><svg class="i"><use href="#i-g-thought"/></svg></span>
       <h1>Who Am I To You</h1>
+      <span id="connStatus" class="conn" role="status" aria-label="Connected"></span>
     </div>
     <div style="width:64px"></div>
   </div>
@@ -38,30 +46,31 @@
   <div class="screen" id="s-playing">
     <div class="card tight">
       <div class="status-row">
-        <span class="whoami-inline"><span class="avatar-sm" id="avatarSm">?</span> Playing as <b id="myNameLbl"></b></span>
-        <span id="connStatus" class="pill"><span class="dot"></span> Connected</span>
+        <span class="whoami-inline"><span class="avatar-sm" id="avatarSm">?</span> <b id="myNameLbl"></b></span>
+        <span class="hint" id="seriesProgress" style="margin:0"></span>
       </div>
-      <div id="roleBannerWrap" style="display:flex;flex-direction:column;gap:8px;align-items:center"></div>
-      <div class="hint" id="seriesProgress" style="margin-top:-4px"></div>
+      <div id="roleBannerWrap" class="role-wrap"></div>
     </div>
 
-    <div class="card tight">
-      <div class="gc-title">Guesses this round</div>
-      <div class="hint" id="guessCount" style="font-size:18px;font-weight:700;color:var(--text)">0</div>
+    <div class="card tight grow">
+      <div class="gc-line">
+        <span class="gc-title">Guesses this round</span>
+        <span class="guess-total" id="guessCount">0</span>
+      </div>
       <div id="feed"></div>
     </div>
 
     <div class="card tight" id="clueCard" style="display:none">
       <div class="feed-ask-row">
-        <input type="text" id="clueInput" placeholder="Type a clue... (don't say the word!)" maxlength="140" onkeydown="if(event.key==='Enter')sendClue()"/>
-        <button class="btn sm" onclick="sendClue()"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg></button>
+        <input type="text" id="clueInput" placeholder="Type a clue... (don't say the word!)" maxlength="140" autocomplete="off" enterkeyhint="send" onkeydown="if(event.key==='Enter')sendClue()"/>
+        <button class="btn sm" onclick="sendClue()" aria-label="Send clue"><svg class="i"><use href="#i-send"/></svg></button>
       </div>
     </div>
 
     <div class="card tight" id="guessCard" style="display:none">
       <div class="feed-ask-row">
-        <input type="text" id="guessInput" placeholder="Guess the word..." maxlength="40" onkeydown="if(event.key==='Enter')submitGuess()"/>
-        <button class="btn sm" onclick="submitGuess()"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.2"/></svg></button>
+        <input type="text" id="guessInput" placeholder="Guess the word..." maxlength="40" autocomplete="off" enterkeyhint="go" onkeydown="if(event.key==='Enter')submitGuess()"/>
+        <button class="btn sm" onclick="submitGuess()" aria-label="Submit guess"><svg class="i"><use href="#i-target"/></svg></button>
       </div>
       <div class="err" id="guessErr"></div>
     </div>
@@ -100,7 +109,12 @@
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="games-live.js"></script>
 <script>
+let _sfxArmed=false;
+const sfx=name=>{ if(_sfxArmed) TetherUI.sfx.play(name); };   // reactions to what happened on the other phone
+const sfxNow=name=>TetherUI.sfx.play(name);                     // reactions to something I just did
+
 const SU='https://ggfxdeuwifmqulyhchtv.supabase.co';
 const SK='sb_publishable_DMMJ2sFnGlFWogBs30qowg_-N0zk3OI';
 let sb, MY_UID=null, MY_NAME=null, OPP_NAME=null;
@@ -194,9 +208,7 @@ function withTimeout(promise,ms=12000){
     new Promise((_,reject)=>setTimeout(()=>reject(new Error('Timed out — check your connection')),ms))
   ]);
 }
-function vibrate(pattern){
-  if(navigator.vibrate){ try{navigator.vibrate(pattern);}catch(e){} }
-}
+function vibrate(pattern){ TetherUI.haptic(pattern); }   // honours the Vibration switch in Settings
 
 // ── BOOT ──
 async function boot(){
@@ -231,17 +243,16 @@ async function boot(){
     // The 15s background poll further down uses the quiet resync() instead,
     // since we don't want a transient blip to interrupt an active game.
     await resyncOrThrow();
-    subscribeAll();
-
-    // Now backed by real reconnect logic above, so this is a light backstop
-    // rather than the primary sync path. Kept quick (6s) since quota
-    // headroom is not a concern here.
-    setInterval(()=>{ if(!document.hidden) resync(); },6000);
-    document.addEventListener('visibilitychange',()=>{
-      if(!document.hidden){ resync(); subscribeAll(); }
+    _sfxArmed=true;   // from here on, incoming events make sound
+    live=TetherLive.hub(sb,{
+      name:'whoami',
+      bindings:[
+        {event:'UPDATE',table:'whoami_match',filter:'id=eq.1',cb:()=>resync()},
+        {event:'*',table:'whoami_log',cb:()=>resync()},
+      ],
+      onCatchup:resync, onStatus:setConn, pollLiveMs:10000,
     });
-    window.addEventListener('online',()=>{ resync(); subscribeAll(); });
-    window.addEventListener('pageshow',()=>{ resync(); subscribeAll(); });
+    live.start();
   }catch(e){
     console.error(e);
     showLoadingError('Something went wrong: '+(e.message||'unknown error'));
@@ -253,93 +264,64 @@ async function boot(){
   boot();
 })();
 
-let _reconnectTimer=null;
-function scheduleReconnect(){
-  if(_reconnectTimer)return; // one retry in flight at a time
-  _reconnectTimer=setTimeout(()=>{
-    _reconnectTimer=null;
-    if(!document.hidden) subscribeAll();
-  },2000);
+let live=null;   // the shared sync hub (games-live.js)
+function setConn(isLive){
+  const el=document.getElementById('connStatus');
+  if(!el) return;
+  el.className=isLive?'conn':'conn warn';
+  el.setAttribute('aria-label',isLive?'Connected':'Reconnecting');
 }
 
-function subscribeAll(){
-  if(matchCh){try{sb.removeChannel(matchCh);}catch(e){}}
-  if(logCh){try{sb.removeChannel(logCh);}catch(e){}}
-
-  matchCh=sb.channel('whoami-match-'+Date.now())
-    .on('postgres_changes',{event:'UPDATE',schema:'public',table:'whoami_match',filter:'id=eq.1'},()=>resync())
-    .subscribe(status=>{
-      const el=document.getElementById('connStatus');
-      if(status==='SUBSCRIBED'){
-        if(el){ el.className='pill'; el.innerHTML=`<span class="dot"></span> Connected`; }
-        resync(); // catch up on anything missed while this channel was down
-      }else if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'||status==='CLOSED'){
-        if(el){ el.className='pill warn'; el.innerHTML=`<span class="dot"></span> Reconnecting...`; }
-        scheduleReconnect();
-      }
-    });
-
-  logCh=sb.channel('whoami-log-'+Date.now())
-    .on('postgres_changes',{event:'*',schema:'public',table:'whoami_log'},()=>resync())
-    .subscribe();
-}
-
-// Multiple things can trigger a resync close together — your own action,
-// the realtime channel firing, and the 15s poll — and their network
-// responses can land out of order. Without a guard, an older response
-// landing after a newer one would silently overwrite fresh state with
-// stale state, which is exactly what a "my message disappeared" symptom
-// looks like. This tags each request and only ever applies the result of
-// the LATEST one issued, discarding anything older that resolves late.
-let _resyncSeq=0;
+// Only repaint when the server's answer actually differs from what is on screen.
+let _lastJson='';
 async function resyncOrThrow(){
-  const mySeq=++_resyncSeq;
   const{data,error}=await withTimeout(sb.rpc('whoami_resync'));
   if(error) throw error;
-  if(mySeq!==_resyncSeq) return; // a newer resync was issued while this one was in flight — drop this stale result
+  const json=JSON.stringify(data);
+  if(json===_lastJson) return;
+  _lastJson=json;
   match=data.match;
   myWord=data.my_word;
   log=data.log||[];
   renderFeed();
   routeScreen();
 }
-
-async function resync(){
-  try{
-    await resyncOrThrow();
-  }catch(e){
-    console.warn('resync failed (will retry):',e);
-  }
-}
+const _resyncRun=TetherLive.coalesce(async()=>{
+  try{ await resyncOrThrow(); }
+  catch(e){ console.warn('resync failed (will retry):',e); }
+});
+function resync(){ return _resyncRun(); }   // one at a time; a burst of events folds into a single follow-up
 
 const SERIES_ROUNDS_PER_PLAYER=20;
 const SERIES_LENGTH=SERIES_ROUNDS_PER_PLAYER*2; // 40 total rounds = 20 each as guesser, since describer strictly alternates every round
 
+function setHtml(el,html){ if(el.dataset.h!==html){ el.innerHTML=html; el.dataset.h=html; } }
 function routeScreen(){
   if(!match)return;
   const iAmDescriber=match.describer===MY_NAME;
 
   if(match.status==='playing'){
     const wrap=document.getElementById('roleBannerWrap');
-    wrap.innerHTML='';
     if(iAmDescriber){
-      wrap.innerHTML=`
-        <div class="role-banner">You're describing this round</div>
-        <div class="hidden-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg> Hidden from ${OPP_NAME}</div>
+      setHtml(wrap,`
+        <div class="role-row">
+          <div class="role-banner">You're describing</div>
+          <div class="hidden-badge"><svg class="i"><use href="#i-lock"/></svg> Hidden from ${OPP_NAME}</div>
+        </div>
         <div class="secret-word">${escHtml(myWord||'…')}</div>
-        <div class="hint">Describe it without saying the word — think "who/what am I to you" style clues.</div>`;
+        <div class="hint hint-long">Describe it without saying the word. Think "who/what am I to you" clues.</div>`);
       document.getElementById('clueCard').style.display='flex';
       document.getElementById('guessCard').style.display='none';
     }else{
-      wrap.innerHTML=`
-        <div class="role-banner guesser">${OPP_NAME} is describing — you're guessing</div>
-        <div class="hint">Read the clues below and guess the word!</div>`;
+      setHtml(wrap,`
+        <div class="role-banner guesser">${OPP_NAME} is describing. You're guessing</div>
+        <div class="hint hint-long">Read the clues below and guess the word!</div>`);
       document.getElementById('clueCard').style.display='none';
       document.getElementById('guessCard').style.display='flex';
     }
     document.getElementById('guessCount').textContent=match.guess_count||0;
     document.getElementById('seriesProgress').textContent=
-      `Round ${Math.min(match.round+1,SERIES_LENGTH)} of ${SERIES_LENGTH}  ·  fewest total guesses wins the series`;
+      `Round ${Math.min(match.round+1,SERIES_LENGTH)} of ${SERIES_LENGTH}`;
     if(_lastRoutedStatus!=='playing'){
       document.getElementById('clueInput').value='';
       document.getElementById('guessInput').value='';
@@ -360,38 +342,57 @@ function escHtml(s){
   const d=document.createElement('div');d.textContent=s??'';return d.innerHTML;
 }
 
+function feedRow(item){
+  const isMine=item.sender===MY_NAME;
+  const row=document.createElement('div');
+  row.className='f-row '+(isMine?'mine':'theirs');
+  const bubble=document.createElement('div');
+  bubble.className='f-bubble'+(item.kind==='guess'?(item.correct?' right':' wrong'):'');
+  const tag=document.createElement('div');
+  tag.className='f-tag';
+  tag.textContent=(isMine?'You':item.sender)+(item.kind==='guess'?' guessed':' said');
+  const text=document.createElement('div');
+  text.className='f-text';
+  text.textContent=item.kind==='guess'?`"${item.content}"${item.correct?' — correct':' — not quite'}`:item.content;
+  bubble.append(tag,text);
+  row.appendChild(bubble);
+  return row;
+}
+let _feedCount=0,_feedSig='';
 function renderFeed(){
   const el=document.getElementById('feed');
   if(!el)return;
   if(!log.length){
     el.innerHTML='<div class="f-empty">No clues yet — describer, go ahead</div>';
+    _feedCount=0;_feedSig='';
     return;
   }
-  el.innerHTML='';
-  log.forEach(item=>{
-    const isMine=item.sender===MY_NAME;
-    const row=document.createElement('div');
-    row.className='f-row '+(isMine?'mine':'theirs');
-    const bubble=document.createElement('div');
-    bubble.className='f-bubble'+(item.kind==='guess'?(item.correct?' right':' wrong'):'');
-    const tag=document.createElement('div');
-    tag.className='f-tag';
-    tag.textContent=(isMine?'You':item.sender)+(item.kind==='guess'?' guessed':' said');
-    const text=document.createElement('div');
-    text.className='f-text';
-    text.textContent=item.kind==='guess'?`"${item.content}"${item.correct?' — correct':' — not quite'}`:item.content;
-    bubble.append(tag,text);
-    row.appendChild(bubble);
-    el.appendChild(row);
-  });
+  const sigOf=item=>item.sender+'|'+item.kind+'|'+item.content+'|'+item.correct;
+  const sameStart=_feedCount>0&&_feedCount<=log.length&&log.slice(0,_feedCount).map(sigOf).join('\n')===_feedSig;
+  if(sameStart){
+    const empty=el.querySelector('.f-empty'); if(empty) empty.remove();
+  }else{
+    el.innerHTML='';
+    _feedCount=0;
+  }
+  const before=_feedCount;
+  for(let i=_feedCount;i<log.length;i++) el.appendChild(feedRow(log[i])); // existing bubbles are left completely alone
+  if(before<log.length){                       // something new arrived from the other phone
+    const last=log[log.length-1];
+    if(last.sender!==MY_NAME) sfx(last.kind==='guess'?(last.correct?'right':'wrong'):'ping');
+  }
+  _feedCount=log.length;
+  _feedSig=log.map(sigOf).join('\n');
   el.scrollTop=el.scrollHeight;
 }
 
 const TROPHY_ICON='<path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0V4z"/><path d="M7 5H4a1 1 0 0 0-1 1c0 2.5 1.5 4.5 4 5M17 5h3a1 1 0 0 1 1 1c0 2.5-1.5 4.5-4 5"/>';
 const LOSS_ICON='<circle cx="12" cy="12" r="9"/><path d="M9 15l6-6M9 9l6 6"/>';
 
+const _overSfxFor=new Set();
 function renderOver(){
   const iWon=match.winner===MY_NAME;
+  if(!_overSfxFor.has(match.updated_at)){ _overSfxFor.add(match.updated_at); sfx(iWon?'win':'lose'); }
   document.getElementById('overTrophy').innerHTML=iWon?TROPHY_ICON:LOSS_ICON;
   document.getElementById('finalWinnerName').textContent=match.winner
     ? (iWon?'You got it!':`${OPP_NAME} got it!`)
@@ -453,6 +454,7 @@ async function sendClue(){
   if(!val)return;
   input.value='';
   vibrate(12);
+  sfxNow('send');
   try{
     const{error}=await withTimeout(sb.rpc('whoami_add_clue',{p_text:val}));
     if(error) throw error;
@@ -470,13 +472,16 @@ async function submitGuess(){
   if(!val)return;
   document.getElementById('guessErr').textContent='';
   vibrate(12);
+  sfxNow('send');
   try{
     const{data,error}=await withTimeout(sb.rpc('whoami_submit_guess',{p_guess:val}));
     if(error) throw error;
     input.value='';
     if(data.won){
+      sfxNow('right');
       toast('Correct!');
     }else{
+      sfxNow('wrong');
       document.getElementById('guessErr').textContent='Not quite — keep guessing';
     }
     await resync();
@@ -523,6 +528,11 @@ async function startNewSeries(){
   }
   if(btn) btn.disabled=false;
 }
+
+// ── settings sheet + gear button (shared: games-ui.js) ──
+TetherUI.mount({extras:[
+  `<details class="how"><summary>How to play</summary><ol><li>One of you gets a secret word and describes it with clues, without saying it.</li><li>The other guesses. Roles swap every round.</li><li>After 40 rounds, the fewest total guesses wins the series.</li></ol></details>`
+]});
 </script>
 </body>
 </html>

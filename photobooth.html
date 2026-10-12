@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"/>
+<meta name="theme-color" content="#fff4e6" media="(prefers-color-scheme: light)"/>
+<meta name="theme-color" content="#241a2d" media="(prefers-color-scheme: dark)"/>
+<title>Photo Booth</title>
+<!-- tether:page declaration. The home screen builds its menu from these lines (see tether-pages.js). -->
+<meta name="tether:page" content="tool"/>
+<meta name="tether:title" content="Photo Booth"/>
+<meta name="tether:icon" content="g-booth"/>
+<meta name="tether:blurb" content="Vintage film-strip collages"/>
+<meta name="tether:order" content="10"/>
+<meta name="tether:action" content="Open"/>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400..700&family=Figtree:wght@400..800&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="games.css">
+<script src="games-ui.js"></script>
+<style>
+/* Photo Booth only. Tokens, buttons, cards, sheets, icons live in games.css / games-ui.js. */
+body[data-game="booth"]{--tint:var(--peach);--tint2:var(--lilac)}
+.booth{flex:1 1 auto;min-block-size:0;display:flex;flex-direction:column;gap:.6rem}
+
+/* the stage takes the free height; whatever is on it is the biggest thing that fits */
+.viewport{flex:1 1 0;min-block-size:0;container-type:size;display:grid;place-items:center}
+.viewport>*{grid-area:1/1}
+.idle,.cam,#result{display:none}
+.booth[data-state="idle"] .idle{display:grid}
+.booth:is([data-state="camera"],[data-state="shooting"]) .cam{display:block}
+.booth[data-state="result"] #result{display:block}
+
+.idle{
+  inline-size:min(100cqi,100cqb);aspect-ratio:1;place-items:center;align-content:center;gap:.7rem;text-align:center;padding:1.2rem;
+  background:var(--card);border:var(--bw) dashed var(--line);border-radius:var(--r-lg);color:var(--text-dim);
+}
+.idle .big{display:grid;place-items:center;inline-size:5rem;block-size:5rem;border-radius:1.6rem;background:var(--butter);color:var(--plum);border:var(--bw) solid var(--line);box-shadow:0 var(--lift) 0 var(--shadow);rotate:-4deg}
+.idle .big .i{inline-size:2.6rem;block-size:2.6rem}
+.idle h2{font-size:1.5rem;color:var(--text)}
+.idle p{font-size:.92rem;max-inline-size:17rem}
+
+.cam{
+  position:relative;inline-size:min(100cqi,100cqb);aspect-ratio:1;overflow:hidden;background:#120c14;
+  border:var(--bw) solid var(--line);border-radius:var(--r-lg);box-shadow:0 var(--lift) 0 var(--shadow);
+}
+.cam video{position:absolute;inset:0;inline-size:100%;block-size:100%;object-fit:cover;filter:var(--live,none)}
+.cam[data-facing="user"] video{scale:-1 1}
+.cam::after{content:'';position:absolute;inset:0;pointer-events:none;background:radial-gradient(closest-side,transparent 62%,rgb(20 8 0/.45));}
+.count{position:absolute;inset:0;display:grid;place-items:center;pointer-events:none;font:700 9rem/1 var(--font-display);color:#fff;-webkit-text-stroke:3px var(--plum);paint-order:stroke fill;text-shadow:0 .4rem 0 var(--plum);z-index:2}
+.count.tick{animation:countPop .8s var(--ease-out) both}
+@keyframes countPop{0%{opacity:0;scale:1.6}25%{opacity:1;scale:1}85%{opacity:1}100%{opacity:0;scale:.9}}
+.flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:3}
+.flash.go{animation:flash .45s ease-out}
+@keyframes flash{0%{opacity:.95}100%{opacity:0}}
+.shots{position:absolute;inset-inline:0;inset-block-end:.6rem;display:flex;gap:.4rem;justify-content:center;z-index:2}
+.shots span{inline-size:2.1rem;block-size:2.1rem;border-radius:.55rem;border:2px solid #fff;background:rgb(0 0 0/.35);background-size:cover;background-position:center;box-shadow:0 .1rem 0 rgb(0 0 0/.4)}
+.shots span.on{outline:3px solid var(--butter)}
+
+#result{inline-size:auto;block-size:auto;max-inline-size:100cqi;max-block-size:100cqb;border-radius:.5rem;box-shadow:0 .3rem 0 var(--shadow),0 0 0 2px var(--line);animation:resultIn .5s var(--ease-spring) both}
+@keyframes resultIn{from{opacity:0;scale:.9;rotate:-2deg}}
+
+.controls{gap:.55rem;padding:.7rem}
+.ctl{display:flex;flex-direction:column;gap:.25rem}
+.ctl>span{font:600 .8rem var(--font-display);color:var(--text-dim)}
+.seg.fill{display:grid;grid-auto-flow:column;grid-auto-columns:1fr}
+.seg.fill button{min-inline-size:0;padding:.4rem .2rem;font-size:.86rem}
+.acts{display:flex;gap:.5rem}
+.acts .btn{flex:1;min-inline-size:0;padding-inline:.6rem;font-size:1rem}
+.acts .btn.sm{flex:none}
+.acts .btn[disabled]{opacity:.5}
+.picker-label{display:contents}
+@media (max-height:640px){ .idle .big{inline-size:3.6rem;block-size:3.6rem} .idle p{display:none} .count{font-size:6rem} }
+</style>
+</head>
+<body data-game="booth">
+<div class="wrap">
+  <div class="topbar">
+    <a class="backlink" href="index.html" aria-label="Back to Tether">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+      <span class="sr-only">Back to Tether</span>
+    </a>
+    <div class="brand">
+      <span class="ic" aria-hidden="true"><svg class="i"><use href="#i-g-booth"/></svg></span>
+      <h1>Photo Booth</h1>
+    </div>
+    <div style="width:2.75rem"></div>
+  </div>
+
+  <main class="booth" id="booth" data-state="idle">
+    <div class="viewport">
+      <div class="idle" id="idle">
+        <span class="big" aria-hidden="true"><svg class="i"><use href="#i-camera"/></svg></span>
+        <h2>Say cheese!</h2>
+        <p>Pick a layout and a film look, then take four photos or use ones you already have.</p>
+      </div>
+      <div class="cam" id="cam" data-facing="user">
+        <video id="video" playsinline muted autoplay></video>
+        <div class="count" id="count" aria-hidden="true"></div>
+        <div class="flash" id="flash"></div>
+        <div class="shots" id="shots" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+      </div>
+      <canvas id="result" role="img" aria-label="Your finished photo collage"></canvas>
+    </div>
+
+    <div class="card tight controls">
+      <div class="ctl">
+        <span id="tplLabel">Layout</span>
+        <div class="seg fill" id="segTpl" role="group" aria-labelledby="tplLabel">
+          <button type="button" data-tpl="film" aria-pressed="true">Film strip</button>
+          <button type="button" data-tpl="polaroid" aria-pressed="false">Polaroids</button>
+          <button type="button" data-tpl="booth" aria-pressed="false">Booth</button>
+        </div>
+      </div>
+      <div class="ctl">
+        <span id="lookLabel">Film look</span>
+        <div class="seg fill" id="segLook" role="group" aria-labelledby="lookLabel">
+          <button type="button" data-look="kodak" aria-pressed="true">Warm</button>
+          <button type="button" data-look="faded" aria-pressed="false">Faded</button>
+          <button type="button" data-look="mono" aria-pressed="false">Mono</button>
+          <button type="button" data-look="sepia" aria-pressed="false">Sepia</button>
+        </div>
+      </div>
+      <div class="acts" id="acts"></div>
+    </div>
+  </main>
+</div>
+
+<input type="file" id="picker" accept="image/*" multiple hidden>
+<div class="toast" id="toast" aria-hidden="true"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+(()=>{
+'use strict';
+const $=s=>document.querySelector(s);
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const TICK=new URLSearchParams(location.search).has('fast')?110:1000;   // ?fast=1 shortens the countdown (used for testing)
+const SHOTS=4;
+const SU='https://ggfxdeuwifmqulyhchtv.supabase.co';
+const SK='sb_publishable_DMMJ2sFnGlFWogBs30qowg_-N0zk3OI';
+
+/* ═══════════════ state ═══════════════ */
+const prefs={tpl:'film',look:'kodak'};
+try{Object.assign(prefs,JSON.parse(localStorage.getItem('booth:prefs')||'{}'))}catch{}
+const S={stream:null,facing:'user',frames:[],busy:false,cancel:false,sent:false,composeToken:0};
+const booth=$('#booth'),video=$('#video'),result=$('#result'),acts=$('#acts');
+
+function setState(st){booth.dataset.state=st;renderActions()}
+function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('on');TetherUI.say(msg);clearTimeout(toast._t);toast._t=setTimeout(()=>t.classList.remove('on'),2600)}
+
+/* ═══════════════ looks: a tiny film emulator ═══════════════ */
+// Each look is a recipe: saturation, contrast, colour balance, lifted blacks, grain, vignette, light leak.
+const LOOKS={
+  kodak:{sat:1.18,contrast:1.10,mul:[1.06,1.00,.90],shadow:[.02,0,-.02],lift:.03,grain:.07,vignette:.42,leak:.30,live:'contrast(1.1) saturate(1.2) sepia(.15)'},
+  faded:{sat:.80,contrast:.90,mul:[1.02,1.00,1.00],shadow:[-.01,.03,.05],lift:.11,grain:.06,vignette:.32,leak:.16,live:'contrast(.92) saturate(.8) brightness(1.06) sepia(.1) hue-rotate(-8deg)'},
+  mono: {sat:0,  contrast:1.24,mul:[1.02,1.00,.96],shadow:[0,0,0],lift:.05,grain:.10,vignette:.50,leak:0,live:'grayscale(1) contrast(1.2)'},
+  sepia:{sat:0,  contrast:1.10,mul:[1.12,.98,.78],shadow:[.03,.01,-.03],lift:.06,grain:.08,vignette:.50,leak:.12,live:'sepia(.9) contrast(1.05)'},
+};
+function rng(seed){let a=seed>>>0;return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const clamp=v=>v<0?0:v>1?1:v;
+
+function cover(ctx,src,size){            // centre-crop any image/canvas/bitmap to a square
+  const w=src.videoWidth||src.width,h=src.videoHeight||src.height,s=Math.min(w,h);
+  ctx.drawImage(src,(w-s)/2,(h-s)/2,s,s,0,0,size,size);
+}
+function tone(src,size,lookName,seed){
+  const L=LOOKS[lookName],rand=rng(seed*7919+13);
+  const c=document.createElement('canvas');c.width=c.height=size;
+  const x=c.getContext('2d',{willReadFrequently:true});
+  cover(x,src,size);
+  const img=x.getImageData(0,0,size,size),d=img.data;
+  for(let i=0;i<d.length;i+=4){
+    let r=d[i]/255,g=d[i+1]/255,b=d[i+2]/255;
+    const y=.2126*r+.7152*g+.0722*b;
+    r=y+(r-y)*L.sat;g=y+(g-y)*L.sat;b=y+(b-y)*L.sat;                    // saturation
+    r=(r-.5)*L.contrast+.5;g=(g-.5)*L.contrast+.5;b=(b-.5)*L.contrast+.5; // contrast
+    r=r*L.mul[0]+L.shadow[0]*(1-y);g=g*L.mul[1]+L.shadow[1]*(1-y);b=b*L.mul[2]+L.shadow[2]*(1-y); // colour balance, tinted shadows
+    r=L.lift+(1-L.lift)*r;g=L.lift+(1-L.lift)*g;b=L.lift+(1-L.lift)*b;   // lifted blacks
+    const n=(rand()-.5)*L.grain;                                          // film grain
+    d[i]=clamp(r+n)*255;d[i+1]=clamp(g+n)*255;d[i+2]=clamp(b+n)*255;
+  }
+  x.putImageData(img,0,0);
+  const v=x.createRadialGradient(size/2,size/2,size*.34,size/2,size/2,size*.78);   // vignette
+  v.addColorStop(0,'rgba(0,0,0,0)');v.addColorStop(1,`rgba(24,8,0,${L.vignette})`);
+  x.fillStyle=v;x.fillRect(0,0,size,size);
+  if(L.leak>0){                                                          // light leak from a random edge
+    const side=Math.floor(rand()*4);                                     // 0 left, 1 right, 2 bottom, 3 top
+    const [x0,y0,x1,y1]=[[0,0,size*.5,0],[size,0,size*.5,0],[0,size,0,size*.5],[0,0,0,size*.5]][side];
+    const grad=x.createLinearGradient(x0,y0,x1,y1);
+    grad.addColorStop(0,`rgba(255,122,48,${L.leak})`);grad.addColorStop(.5,`rgba(255,60,110,${L.leak*.4})`);grad.addColorStop(1,'rgba(255,60,110,0)');
+    x.globalCompositeOperation='screen';x.fillStyle=grad;x.fillRect(0,0,size,size);x.globalCompositeOperation='source-over';
+  }
+  x.fillStyle='rgba(255,250,235,.55)';                                   // dust
+  for(let i=0;i<14;i++){const px=rand()*size,py=rand()*size,pr=.6+rand()*1.6;x.beginPath();x.arc(px,py,pr,0,6.283);x.fill()}
+  x.strokeStyle='rgba(255,250,235,.18)';x.lineWidth=1;                   // a couple of hairline scratches
+  for(let i=0;i<2;i++){const px=rand()*size;x.beginPath();x.moveTo(px,0);x.lineTo(px+(rand()-.5)*12,size);x.stroke()}
+  return c;
+}
+
+/* ═══════════════ layouts ═══════════════ */
+const dateText=()=>new Date().toLocaleDateString(undefined,{day:'numeric',month:'short',year:'2-digit'});
+function rr(x,X,Y,W,H,R){x.beginPath();x.roundRect?x.roundRect(X,Y,W,H,R):x.rect(X,Y,W,H)}
+const HEART=new Path2D('M0 15C-27-2-15-21 0-8C15-21 27-2 0 15Z');
+const STAR=(()=>{const p=new Path2D();for(let i=0;i<10;i++){const a=-Math.PI/2+i*Math.PI/5,r=i%2?8:19;p[i?'lineTo':'moveTo'](r*Math.cos(a),r*Math.sin(a))}p.closePath();return p})();
+
+const TEMPLATES={
+  film:{size:460,draw(frames){
+    const FW=460,GAP=26,TOP=46,SIDE=80,W=FW+SIDE*2,H=TOP*2+SHOTS*FW+(SHOTS-1)*GAP;
+    const c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');
+    x.fillStyle='#17110d';x.fillRect(0,0,W,H);
+    x.fillStyle='rgba(255,255,255,.035)';for(let i=0;i<500;i++)x.fillRect(Math.random()*W,Math.random()*H,1.5,1.5);
+    x.fillStyle='#efe6d6';                                              // sprocket holes
+    for(let y=16;y<H-20;y+=54){rr(x,24,y,28,36,7);x.fill();rr(x,W-24-28,y,28,36,7);x.fill()}
+    frames.forEach((f,i)=>{
+      const y=TOP+i*(FW+GAP);
+      x.save();rr(x,SIDE,y,FW,FW,6);x.clip();x.drawImage(f,SIDE,y,FW,FW);x.restore();
+      x.fillStyle='#e8892b';x.font='600 17px Figtree,sans-serif';x.textAlign='left';
+      x.fillText(`${i+1}`,W-SIDE+10,y+22);x.fillText(`${i+1}A`,W-SIDE+10,y+FW-8);
+      x.save();x.translate(SIDE-14,y+FW-14);x.rotate(-Math.PI/2);x.font='600 15px Figtree,sans-serif';x.fillText('TETHER 400',0,0);x.restore();
+      x.beginPath();x.moveTo(SIDE-12,y+FW/2-7);x.lineTo(SIDE-12,y+FW/2+7);x.lineTo(SIDE-2,y+FW/2);x.closePath();x.fill();
+    });
+    return c}},
+  polaroid:{size:440,draw(frames){
+    const W=1200,H=1300;const c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');
+    x.fillStyle='#f1e7d3';x.fillRect(0,0,W,H);
+    const r=rng(5);x.fillStyle='rgba(120,90,50,.05)';for(let i=0;i<900;i++)x.fillRect(r()*W,r()*H,2,2);
+    const spots=[[78,48,-4],[630,78,3.2],[96,668,2.6],[612,648,-3.4]];   // rows far enough apart that no polaroid covers another's caption
+    const caps=[dateText(),'just us','again!','the best'];
+    frames.forEach((f,i)=>{
+      const [px,py,deg]=spots[i],PW=500,PH=585;
+      x.save();x.translate(px+PW/2,py+PH/2);x.rotate(deg*Math.PI/180);x.translate(-PW/2,-PH/2);
+      x.shadowColor='rgba(40,20,10,.28)';x.shadowBlur=28;x.shadowOffsetY=12;x.fillStyle='#fffdf7';x.fillRect(0,0,PW,PH);
+      x.shadowColor='transparent';x.drawImage(f,30,30,440,440);
+      x.strokeStyle='rgba(0,0,0,.06)';x.lineWidth=2;x.strokeRect(30,30,440,440);
+      x.fillStyle='#3b2a45';x.font='700 50px Caveat,cursive';x.textAlign='center';x.fillText(caps[i],PW/2,PH-52);
+      x.restore();
+    });
+    [[590,660,'#ff9cc0',HEART,1.1],[1140,52,'#8ccfff',STAR,1.2],[58,1245,'#ffe27a',STAR,1.1],[1138,1250,'#ff9cc0',HEART,1.3]].forEach(([sx,sy,col,path,sc])=>{
+      x.save();x.translate(sx,sy);x.scale(sc,sc);x.rotate(.2);x.fillStyle=col;x.strokeStyle='#3b2a45';x.lineWidth=3.2;x.lineJoin='round';x.fill(path);x.stroke(path);x.restore();
+    });
+    return c}},
+  booth:{size:440,draw(frames){
+    const FW=440,PAD=28,W=FW+PAD*2,FOOT=150,H=PAD+SHOTS*(FW+PAD)+FOOT-PAD;
+    const c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');
+    x.fillStyle='#fffaf0';x.fillRect(0,0,W,H);
+    x.strokeStyle='#3b2a45';x.lineWidth=8;x.strokeRect(4,4,W-8,H-8);
+    frames.forEach((f,i)=>{
+      const y=PAD+i*(FW+PAD);
+      x.drawImage(f,PAD,y,FW,FW);x.strokeStyle='#3b2a45';x.lineWidth=4;x.strokeRect(PAD,y,FW,FW);
+    });
+    const fy=PAD+SHOTS*(FW+PAD);
+    x.fillStyle='#3b2a45';x.textAlign='center';x.font='700 34px Fredoka,sans-serif';x.fillText('TETHER PHOTO BOOTH',W/2,fy+34);
+    x.font='600 24px Fredoka,sans-serif';x.fillText(dateText(),W/2,fy+72);
+    x.save();x.translate(W/2,fy+104);x.fillStyle='#ff9cc0';x.strokeStyle='#3b2a45';x.lineWidth=3;x.lineJoin='round';x.scale(.9,.9);x.fill(HEART);x.stroke(HEART);x.restore();
+    return c}},
+};
+
+/* ═══════════════ compose: tone every frame in the chosen look, lay them out, show the result ═══════════════ */
+async function compose(){
+  const token=++S.composeToken;
+  try{await Promise.all(['700 40px Caveat','600 30px Fredoka','600 16px Figtree'].map(f=>document.fonts.load(f)))}catch(e){/* fall back to system fonts */}
+  const T=TEMPLATES[prefs.tpl];
+  const toned=[];
+  for(let i=0;i<SHOTS;i++){
+    toned.push(tone(S.frames[i%S.frames.length],T.size,prefs.look,i+1));
+    if(i%2===1) await sleep(0);                                            // let the UI breathe between frames
+    if(token!==S.composeToken) return;                                    // the user changed look/layout meanwhile
+  }
+  const out=T.draw(toned);
+  result.width=out.width;result.height=out.height;
+  result.getContext('2d').drawImage(out,0,0);
+}
+
+/* ═══════════════ camera ═══════════════ */
+async function startCamera(){
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){toast('This browser has no camera access. Pick photos instead.');return}
+  try{
+    stopCamera();
+    S.stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:S.facing,width:{ideal:1280},height:{ideal:960}},audio:false});
+    video.srcObject=S.stream;
+    await video.play().catch(()=>{});
+    $('#cam').dataset.facing=S.facing;
+    applyLive();setState('camera');
+  }catch(e){
+    const denied=e&&(e.name==='NotAllowedError'||e.name==='SecurityError');
+    toast(denied?'Camera blocked. Allow it in your browser, or pick photos.':'No camera found. Pick photos instead.');
+    setState('idle');
+  }
+}
+function stopCamera(){if(S.stream){S.stream.getTracks().forEach(t=>t.stop());S.stream=null}video.srcObject=null}
+function applyLive(){$('#cam').style.setProperty('--live',LOOKS[prefs.look].live)}
+function grab(){
+  const w=video.videoWidth,h=video.videoHeight,s=Math.min(w,h),size=Math.min(s,1080);
+  const c=document.createElement('canvas');c.width=c.height=size;const x=c.getContext('2d');
+  if(S.facing==='user'){x.translate(size,0);x.scale(-1,1)}                  // selfie view is mirrored, so the photo matches what you saw
+  x.drawImage(video,(w-s)/2,(h-s)/2,s,s,0,0,size,size);
+  return c;
+}
+
+async function shoot(){
+  if(S.busy) return;
+  S.busy=true;S.cancel=false;S.frames=[];S.sent=false;
+  setState('shooting');
+  const dots=[...document.querySelectorAll('#shots span')];
+  dots.forEach(d=>{d.style.backgroundImage='';d.classList.remove('on')});
+  const count=$('#count'),flash=$('#flash');
+  for(let i=0;i<SHOTS&&!S.cancel;i++){
+    dots[i].classList.add('on');
+    for(let n=3;n>=1&&!S.cancel;n--){
+      count.textContent=n;count.classList.remove('tick');void count.offsetWidth;count.classList.add('tick');
+      TetherUI.sfx.play('count');TetherUI.haptic(10);
+      await sleep(TICK);
+    }
+    if(S.cancel)break;
+    count.textContent='';
+    flash.classList.remove('go');void flash.offsetWidth;flash.classList.add('go');
+    TetherUI.sfx.play('shutter');TetherUI.haptic([30,40,30]);
+    const f=grab();S.frames.push(f);
+    dots[i].classList.remove('on');dots[i].style.backgroundImage=`url(${f.toDataURL('image/jpeg',.4)})`;
+    await sleep(TICK*.7);
+  }
+  S.busy=false;
+  if(S.cancel||S.frames.length<SHOTS){stopCamera();setState('idle');return}
+  stopCamera();
+  setState('result');
+  await compose();
+  TetherUI.sfx.play('claim');
+}
+
+/* ═══════════════ from the photo library ═══════════════ */
+async function fromFiles(files){
+  const list=[...files].filter(f=>f.type.startsWith('image/')).slice(0,SHOTS);
+  if(!list.length) return;
+  try{
+    const frames=[];
+    for(const f of list){
+      const bmp=await createImageBitmap(f,{imageOrientation:'from-image'});
+      const size=Math.min(1080,Math.min(bmp.width,bmp.height));
+      const c=document.createElement('canvas');c.width=c.height=size;cover(c.getContext('2d'),bmp,size);frames.push(c);
+      if(bmp.close) bmp.close();
+    }
+    S.frames=frames;S.sent=false;
+    stopCamera();setState('result');await compose();
+    TetherUI.sfx.play('claim');
+    if(list.length<SHOTS) toast(`Used your ${list.length} photo${list.length>1?'s':''} to fill all ${SHOTS} spots`);
+  }catch(e){console.error(e);toast('Could not read that photo. Try another.')}
+}
+
+/* ═══════════════ output: save, share, send to chat ═══════════════ */
+const toBlob=()=>new Promise(res=>result.toBlob(res,'image/jpeg',.92));
+async function save(){
+  const blob=await toBlob();
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`tether-photobooth-${Date.now()}.jpg`;
+  document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+  TetherUI.sfx.play('send');toast('Saved to your device');
+}
+async function share(){
+  const blob=await toBlob();const file=new File([blob],'photobooth.jpg',{type:'image/jpeg'});
+  try{await navigator.share({files:[file],title:'Photo Booth'})}catch(e){if(e&&e.name!=='AbortError')toast('Sharing is not available here')}
+}
+let _sb=null;
+async function send(btn){
+  const user=localStorage.getItem('us_user');
+  if(!user){toast('Open the chat once first so I know who you are');return}
+  btn.disabled=true;const label=btn.innerHTML;btn.innerHTML=TetherUI.icon('send')+' Sending';
+  try{
+    _sb=_sb||supabase.createClient(SU,SK);
+    const blob=await toBlob();
+    const path=`photobooth_${Date.now()}.jpg`;
+    const up=await _sb.storage.from('images').upload(path,blob,{upsert:true,contentType:'image/jpeg'});
+    if(up.error) throw up.error;
+    const url=_sb.storage.from('images').getPublicUrl(path).data.publicUrl;
+    const ins=await _sb.from('messages').insert({sender:user,content:null,image_url:url,reply_to:null,seen:false,reactions:{}});
+    if(ins.error) throw ins.error;
+    S.sent=true;TetherUI.sfx.play('win');TetherUI.haptic([20,50,20]);toast('Sent to the chat');
+    renderActions();
+  }catch(e){
+    console.error(e);toast('Could not send: '+(e.message||'try again'));
+    btn.disabled=false;btn.innerHTML=label;
+  }
+}
+
+/* ═══════════════ controls ═══════════════ */
+function renderActions(){
+  const st=booth.dataset.state,ic=n=>TetherUI.icon(n);
+  const canShare=!!(navigator.canShare&&navigator.canShare({files:[new File([''],'x.jpg',{type:'image/jpeg'})]}));
+  acts.innerHTML=
+    st==='idle'?`<button class="btn" data-act="camera">${ic('camera')} Start camera</button><button class="btn ghost" data-act="pick">${ic('image')} My photos</button>`:
+    st==='camera'?`<button class="btn sm" data-act="flip" aria-label="Switch camera">${ic('swap')}</button><button class="btn go" data-act="shoot">${ic('camera')} Take ${SHOTS} photos</button><button class="btn sm ghost" data-act="stop" aria-label="Close camera">${ic('close')}</button>`:
+    st==='shooting'?`<button class="btn ghost" data-act="cancel">${ic('close')} Cancel</button>`:
+    `<button class="btn ghost" data-act="again">${ic('reset')} Retake</button><button class="btn" data-act="save">${ic('download')} Save</button>${canShare?`<button class="btn sm ghost" data-act="share" aria-label="Share">${ic('share')}</button>`:''}<button class="btn go" data-act="send" aria-label="Send to chat"${S.sent?' disabled':''}>${ic(S.sent?'check':'send')} ${S.sent?'Sent':'Send'}</button>`;
+}
+acts.addEventListener('click',e=>{
+  const b=e.target.closest('button[data-act]');if(!b)return;
+  TetherUI.unlock();
+  ({camera:startCamera,pick:()=>$('#picker').click(),flip:()=>{S.facing=S.facing==='user'?'environment':'user';startCamera()},
+    shoot,cancel:()=>{S.cancel=true},stop:()=>{stopCamera();setState('idle')},
+    again:()=>{S.frames=[];setState('idle')},save,share,send:()=>send(b)})[b.dataset.act]();
+});
+$('#picker').addEventListener('change',e=>{fromFiles(e.target.files);e.target.value=''});
+
+function syncSegs(){
+  document.querySelectorAll('#segTpl button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.tpl===prefs.tpl)));
+  document.querySelectorAll('#segLook button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.look===prefs.look)));
+}
+function savePrefs(){try{localStorage.setItem('booth:prefs',JSON.stringify(prefs))}catch(e){}}
+$('#segTpl').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;prefs.tpl=b.dataset.tpl;savePrefs();syncSegs();TetherUI.sfx.play('tap');if(booth.dataset.state==='result')compose()});
+$('#segLook').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;prefs.look=b.dataset.look;savePrefs();syncSegs();applyLive();TetherUI.sfx.play('tap');if(booth.dataset.state==='result')compose()});
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&booth.dataset.state==='camera'){stopCamera();setState('idle')}});   // never keep the camera on in the background
+addEventListener('pagehide',stopCamera);
+
+syncSegs();setState('idle');
+TetherUI.mount({extras:[
+  `<details class="how"><summary>How it works</summary><ol><li>Pick a layout and a film look.</li><li>Start the camera. It counts down and takes ${SHOTS} photos, or choose photos you already have.</li><li>Change the layout or look any time on the result, then save it or send it to the chat.</li></ol></details>`
+]});
+})();
+</script>
+</body>
+</html>

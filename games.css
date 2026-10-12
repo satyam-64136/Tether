@@ -57,9 +57,10 @@
     --accent:var(--pink); --accent-soft:var(--pink-d);
   }
 
-  /* night mode: same sweets on a plum evening */
+  /* night mode: same sweets on a plum evening. Follows the OS unless the
+     player picked Light or Dark in Settings (html[data-theme]). */
   @media (prefers-color-scheme:dark){
-    :root{
+    :root:not([data-theme="light"]){
       --paper:#241a2d; --card:#34263f;
       --text:#fff1e4;
       --text-dim:color-mix(in oklab,#fff1e4 78%,#241a2d);
@@ -69,6 +70,17 @@
       --dots:color-mix(in oklab,#fff1e4 9%,transparent);
     }
   }
+  :root[data-theme="dark"]{
+    color-scheme:dark;
+      --paper:#241a2d; --card:#34263f;
+      --text:#fff1e4;
+      --text-dim:color-mix(in oklab,#fff1e4 78%,#241a2d);
+      --text-faint:color-mix(in oklab,#fff1e4 58%,#241a2d);
+      --line:color-mix(in oklab,#fff1e4 88%,transparent);
+      --shadow:#0e0813;
+      --dots:color-mix(in oklab,#fff1e4 9%,transparent);
+  }
+  :root[data-theme="light"]{color-scheme:light}
 
   body[data-me="Satyam"]{--me:var(--satyam);--them:var(--snks)}
   body[data-me="Snks"]{--me:var(--snks);--them:var(--satyam)}
@@ -88,18 +100,20 @@
 
 /* ───────────── BASE ───────────── */
 @layer base{
-  html{block-size:100%;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+  html{block-size:100%;overflow:hidden;overscroll-behavior:none;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+  /* Pinned to the *visual* viewport (games-ui.js keeps --vvh/--vvt current), so the
+     keyboard opening or iOS rubber-banding can never push the page around. */
   body{
-    margin:0;min-block-size:100dvh;overflow-x:clip;
+    position:fixed;left:0;right:0;top:var(--vvt,0px);height:var(--vvh,100dvh);
+    margin:0;overflow:hidden;overscroll-behavior:none;
     display:flex;flex-direction:column;align-items:center;
-    padding:max(1rem,env(safe-area-inset-top)) 1.1rem max(1rem,env(safe-area-inset-bottom));
+    padding:max(.6rem,env(safe-area-inset-top)) 1rem max(.8rem,env(safe-area-inset-bottom));
     font:500 1rem/1.45 var(--font-body);color:var(--text);
     background:
       radial-gradient(circle at 1.5px 1.5px,var(--dots) 1.5px,transparent 2.2px) 0 0/22px 22px,
       radial-gradient(60% 38% at 100% 0%,color-mix(in oklab,var(--tint) 46%,transparent),transparent 72%),
       radial-gradient(55% 34% at 0% 100%,color-mix(in oklab,var(--tint2) 42%,transparent),transparent 72%),
       var(--paper);
-    background-attachment:fixed;
     touch-action:manipulation;-webkit-tap-highlight-color:transparent;
   }
   :where(h1,h2,.disp){font-family:var(--font-display);font-weight:600}
@@ -108,25 +122,26 @@
 
 /* ───────────── SHELL: the frame every game shares ───────────── */
 @layer shell{
-  .wrap{inline-size:100%;max-inline-size:26.5rem;margin:auto;display:flex;flex-direction:column;gap:.9rem;padding:.4rem 0 1.25rem;position:relative;z-index:1}
-  .topbar{display:flex;align-items:center;justify-content:space-between;gap:.5rem}
+  .wrap{flex:1 1 auto;min-block-size:0;inline-size:100%;max-inline-size:26.5rem;margin-inline:auto;display:flex;flex-direction:column;gap:.55rem;position:relative;z-index:1}
+  .topbar{flex:none;display:flex;align-items:center;justify-content:space-between;gap:.5rem}
 
-  .backlink{
-    display:flex;align-items:center;gap:.3rem;padding:.45rem .9rem .45rem .6rem;
-    font:600 .88rem var(--font-display);color:var(--text);text-decoration:none;
-    background:var(--card);border:2px solid var(--line);border-radius:99px;box-shadow:0 .18rem 0 var(--shadow);
-    transition:translate .12s,box-shadow .12s;
+  .brand{flex:1;min-inline-size:0;display:flex;align-items:center;justify-content:center;gap:.5rem}
+  .brand h1{font-size:clamp(1.05rem,5.2vw,1.4rem);line-height:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .brand .ic{
+    display:grid;place-items:center;flex:none;inline-size:2rem;block-size:2rem;border-radius:.7rem;color:var(--plum);
+    background:var(--tint);border:2px solid var(--line);box-shadow:0 .14rem 0 var(--shadow);
   }
-  .backlink svg{inline-size:.95rem;block-size:.95rem;fill:none;stroke:currentColor}
-  .backlink:active{translate:0 .18rem;box-shadow:0 0 0 var(--shadow)}
+  .brand .ic .i{inline-size:1.2rem;block-size:1.2rem}
 
-  .topbar>div:empty{display:none}
-  .brand{flex:1;display:flex;align-items:center;justify-content:center;gap:.5rem;min-inline-size:0}
-  .brand h1{font-size:1.4rem;line-height:1;white-space:nowrap}
-  .brand .ic{font-size:1.6rem;line-height:1;filter:drop-shadow(0 .14rem 0 color-mix(in oklab,var(--shadow) 28%,transparent))}
-
-  .screen{display:none;flex-direction:column;gap:.9rem}
-  .screen.on{display:flex}
+  .screen{display:none;flex-direction:column;gap:.7rem}
+  .screen.on{
+    display:flex;flex:1 1 auto;min-block-size:0;
+    overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none;
+    padding:.3rem .4rem .8rem;margin-inline:-.4rem;   /* room for hard shadows and glow rings */
+  }
+  .screen.on::-webkit-scrollbar{display:none}
+  .screen.on>.card{flex:none}
+  .screen.on>.card.grow{flex:1 1 0;min-block-size:7rem;display:flex;flex-direction:column}
 }
 
 /* ───────────── COMPONENTS ───────────── */
@@ -270,10 +285,75 @@
   .toast.on{opacity:1;translate:0 0}
 }
 
+@layer components{
+  .i{inline-size:1.25em;block-size:1.25em;flex:none;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;vertical-align:-.22em}
+  .i.fill{fill:currentColor}
+  .icon-btn,.backlink{
+    inline-size:2.75rem;block-size:2.75rem;display:grid;place-items:center;flex:none;padding:0;cursor:pointer;
+    font-size:0;color:var(--text);text-decoration:none;
+    background:var(--card);border:2px solid var(--line);border-radius:50%;box-shadow:0 .18rem 0 var(--shadow);
+    transition:translate .12s,box-shadow .12s;
+  }
+  .icon-btn:active,.backlink:active{translate:0 .18rem;box-shadow:0 0 0 var(--shadow)}
+  .icon-btn .i{inline-size:1.3rem;block-size:1.3rem}
+  .backlink svg{inline-size:1.3rem;block-size:1.3rem;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+
+  .conn{inline-size:.7rem;block-size:.7rem;flex:none;border-radius:50%;background:var(--mint);border:2px solid var(--line);transition:background-color .3s}
+  .conn.warn{background:var(--peach)}
+
+  /* settings sheet (native <dialog>) */
+  dialog.sheet{
+    inline-size:min(100%,30rem);max-inline-size:none;margin:auto auto 0;padding:0;
+    background:var(--card);color:var(--text);border:var(--bw) solid var(--line);border-block-end:0;border-radius:var(--r-lg) var(--r-lg) 0 0;
+    max-block-size:min(88dvh,100% - 1rem);overflow-y:auto;
+    translate:0 100%;opacity:0;
+    transition:translate .4s var(--ease-spring),opacity .2s,overlay .4s allow-discrete,display .4s allow-discrete;
+  }
+  dialog.sheet[open]{translate:0 0;opacity:1}
+  @starting-style{dialog.sheet[open]{translate:0 100%;opacity:0}}
+  dialog.sheet::backdrop{
+    background:rgb(59 42 69/0);backdrop-filter:blur(0);
+    transition:background-color .3s,backdrop-filter .3s,overlay .3s allow-discrete,display .3s allow-discrete;
+  }
+  dialog.sheet[open]::backdrop{background:rgb(59 42 69/.5);backdrop-filter:blur(3px)}
+  @starting-style{dialog.sheet[open]::backdrop{background:rgb(59 42 69/0);backdrop-filter:blur(0)}}
+  .sheet__body{display:grid;gap:.9rem;padding:1.2rem 1.25rem max(1.25rem,env(safe-area-inset-bottom))}
+  .sheet__head{display:flex;align-items:center;justify-content:space-between}
+  .sheet h2{font-size:1.8rem;line-height:1}
+  .sheet p{color:var(--text-dim)}
+  .rows{display:grid}
+  .row{display:flex;align-items:center;justify-content:space-between;gap:1rem;min-block-size:3.2rem;border-block-start:2px dashed color-mix(in oklab,var(--line) 28%,transparent);font-weight:600}
+  .row:first-child{border-block-start:0}
+  .link{font:600 1rem var(--font-display);color:var(--text-dim);padding-block:.8rem;background:none;border:0;cursor:pointer;display:inline-flex;align-items:center;gap:.5rem}
+  .link.danger{color:color-mix(in oklab,var(--coral) 55%,var(--text))}
+  .how summary{cursor:pointer;min-block-size:3.2rem;display:flex;align-items:center;justify-content:space-between;font-weight:600;list-style:none;border-block-start:2px dashed color-mix(in oklab,var(--line) 28%,transparent)}
+  .how summary::-webkit-details-marker{display:none}
+  .how summary::after{content:'+';font:600 1.6rem var(--font-display);color:var(--text-dim);transition:rotate .25s var(--ease-out)}
+  .how[open] summary::after{rotate:45deg}
+  .how ol{display:grid;gap:.6rem;padding:0 0 1rem 1.3rem;list-style:decimal;color:var(--text-dim);font-size:.95rem}
+  .how li::marker{color:var(--pink-d);font-weight:800}
+  .actions2{display:grid;grid-template-columns:1fr 1fr;gap:.6rem}
+  .switch{
+    appearance:none;-webkit-appearance:none;flex:none;position:relative;inline-size:3.2rem;block-size:1.9rem;border-radius:99px;cursor:pointer;
+    background:var(--card);border:2px solid var(--line);box-shadow:inset 0 .16rem 0 color-mix(in oklab,var(--text) 10%,transparent);transition:background-color .2s;
+  }
+  .switch::after{
+    content:'';position:absolute;inset-block:.2rem;inset-inline-start:.22rem;inline-size:1.2rem;border-radius:50%;
+    background:#fff;border:2px solid var(--plum);transition:translate .28s var(--ease-spring);
+  }
+  .switch:checked{background:var(--mint)}
+  .switch:checked::after{translate:1.3rem 0}
+  .range{inline-size:8.5rem;accent-color:var(--pink-d);cursor:pointer}
+  .range:disabled{opacity:.4;cursor:default}
+  .seg{display:inline-grid;grid-auto-flow:column;gap:.2rem;padding:.2rem;background:var(--card);border:2px solid var(--line);border-radius:99px}
+  .seg button{padding:.45rem .85rem;min-inline-size:3rem;font:600 .95rem var(--font-display);color:var(--text-dim);background:none;border:0;border-radius:99px;cursor:pointer;transition:background-color .2s,color .2s}
+  .seg button[aria-pressed="true"]{background:var(--butter);color:var(--plum);box-shadow:inset 0 0 0 2px var(--line)}
+}
+
 /* ───────────── CHAT TRANSCRIPTS (WildGuess questions, Who Am I clues) ───────────── */
 @layer chat{
-  :is(#qHistory,#feed){display:flex;flex-direction:column;gap:.55rem;max-block-size:13.5rem;overflow-y:auto;padding:.8rem .15rem .4rem;scroll-behavior:smooth;overscroll-behavior:contain;
-    -webkit-mask-image:linear-gradient(to bottom,transparent,#000 .8rem);mask-image:linear-gradient(to bottom,transparent,#000 .8rem)}
+  :is(#qHistory,#feed){display:flex;flex-direction:column;gap:.55rem;flex:1 1 0;min-block-size:3rem;overflow-y:auto;padding:.8rem .15rem .4rem;scroll-behavior:smooth;overscroll-behavior:contain;
+    -webkit-mask-image:linear-gradient(to bottom,transparent .4rem,#000 1.3rem);mask-image:linear-gradient(to bottom,transparent .4rem,#000 1.3rem)}
   .q-ask-row,.feed-ask-row{display:flex;gap:.55rem;align-items:center}
   .q-ask-row input,.feed-ask-row input{flex:1;min-inline-size:0}
   :is(.q-row,.f-row){display:flex;animation:bubbleIn .35s var(--ease-spring) both}
@@ -305,7 +385,26 @@
   .q-pending .wait-dot{inline-size:.35rem;block-size:.35rem;border-radius:50%;background:currentColor;animation:breathe 1.2s ease-in-out infinite}
 }
 
-/* ───────────── MOTION ───────────── */
+/* ───────────── PLAYING-SCREEN LAYOUT: compact headers, one flexible area that scrolls ───────────── */
+    @layer chat{
+      .role-wrap{display:flex;flex-direction:column;gap:.5rem;align-items:center}
+      .role-row{display:flex;flex-wrap:wrap;gap:.4rem;justify-content:center}
+      .gc-line{display:flex;align-items:center;justify-content:space-between;gap:.6rem}
+      .gc-line .gc-row{gap:.7rem}
+      .gc-line .gc-col{flex-direction:row;align-items:center;gap:.4rem}
+      .gc-line .gc-badge{inline-size:2.3rem;block-size:2.3rem;box-shadow:0 .14rem 0 var(--shadow)}
+      .gc-line .gc-num{font-size:1.1rem}
+      .gc-line .gc-name{order:-1}
+      .gc-line .gc-col:last-child .gc-name{order:2}
+      .gc-line .gc-vs{display:none}
+      .guess-total{font:700 1.15rem var(--font-display);color:var(--text)}
+      .q-row.still,.f-row.still{animation:none}
+      .card.tight .hint{padding-inline:0}
+      .secret-word{font-size:1.65rem}
+      @media (max-height:700px){ .hint-long{display:none} .secret-word{font-size:1.4rem} }
+    }
+
+    /* ───────────── MOTION ───────────── */
 @layer motion{
   .card{animation:cardIn .5s var(--ease-out) both}
   .card:nth-child(2){animation-delay:.06s}
@@ -322,12 +421,16 @@
   @keyframes confettiFall{to{translate:0 110vh;rotate:540deg;opacity:0}}
   @keyframes wiggle{25%{rotate:-5deg}75%{rotate:5deg}}
 
+  html[data-motion="off"] *,html[data-motion="off"] *::before,html[data-motion="off"] *::after{
+    animation:none!important;transition-duration:.01ms!important;transition-delay:0s!important;
+  }
   @media (prefers-reduced-motion:reduce){
     *,*::before,*::after{animation:var(--animation-reduced)!important}
   }
 }
 
 @layer a11y{
+  .sr-only{position:absolute;inline-size:1px;block-size:1px;margin:-1px;padding:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
   :where(a,button,input,summary,[tabindex]):focus-visible{outline:3px solid var(--sky-d);outline-offset:3px}
   @media (forced-colors:active){
     .card,.btn,.pill,.cell{border:2px solid CanvasText}

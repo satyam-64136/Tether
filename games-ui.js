@@ -183,10 +183,15 @@
   /* ───────────── viewport fitting ───────────── */
   function fitViewport() {
     const vv = global.visualViewport, root = document.documentElement;
+    let relay = null;     // set when the home screen forwards its visual viewport (iframes often can't see the keyboard)
     const set = () => {
-      root.style.setProperty('--vvh', (vv ? vv.height : global.innerHeight) + 'px');
-      root.style.setProperty('--vvt', (vv ? vv.offsetTop : 0) + 'px');
+      root.style.setProperty('--vvh', (relay ? relay.h : (vv ? vv.height : global.innerHeight)) + 'px');
+      root.style.setProperty('--vvt', (relay ? relay.top : (vv ? vv.offsetTop : 0)) + 'px');
     };
+    global.addEventListener('message', (e) => {
+      if (e.origin !== global.location.origin || !e.data || e.data.type !== 'tether:vv') return;
+      relay = { h: e.data.h, top: e.data.top }; set();
+    });
     set();
     if (vv) { vv.addEventListener('resize', set); vv.addEventListener('scroll', set); }
     global.addEventListener('orientationchange', () => setTimeout(set, 250));
@@ -204,7 +209,7 @@
     opts = opts || {};
     if (sheet) return api.settings;
     // gear button: takes the empty spacer slot in the top bar
-    const bar = document.querySelector('.topbar');
+    const bar = document.querySelector('.topbar, .bar');
     const gear = document.createElement('button');
     gear.type = 'button'; gear.className = 'icon-btn'; gear.id = 'tuiGear';
     gear.setAttribute('aria-label', 'Settings'); gear.setAttribute('aria-haspopup', 'dialog');
@@ -242,16 +247,58 @@
     return api.settings;
   }
 
+  /* ───────────── confirm sheet (replaces the browser's confirm() popup) ───────────── */
+  let confirmDlg = null;
+  function confirmSheet(o) {
+    o = o || {};
+    return new Promise((resolve) => {
+      if (!confirmDlg) {
+        confirmDlg = document.createElement('dialog');
+        confirmDlg.className = 'sheet';
+        confirmDlg.setAttribute('aria-labelledby', 'tuiCTitle');
+        confirmDlg.setAttribute('aria-describedby', 'tuiCText');
+        confirmDlg.innerHTML = '<form method="dialog" class="sheet__body"><h2 id="tuiCTitle"></h2><p id="tuiCText"></p>' +
+          '<div class="actions2"><button class="btn ghost" value="cancel" id="tuiCNo"></button><button class="btn danger" value="ok" id="tuiCYes"></button></div></form>';
+        document.body.appendChild(confirmDlg);
+        confirmDlg.addEventListener('click', (e) => { if (e.target === confirmDlg) confirmDlg.close('cancel'); });
+      }
+      confirmDlg.querySelector('#tuiCTitle').textContent = o.title || 'Are you sure?';
+      confirmDlg.querySelector('#tuiCText').textContent = o.text || '';
+      confirmDlg.querySelector('#tuiCNo').textContent = o.cancel || 'Keep playing';
+      const yes = confirmDlg.querySelector('#tuiCYes');
+      yes.textContent = o.ok || 'Confirm';
+      yes.className = 'btn ' + (o.danger === false ? '' : 'danger');
+      confirmDlg.returnValue = '';
+      confirmDlg.addEventListener('close', () => resolve(confirmDlg.returnValue === 'ok'), { once: true });
+      confirmDlg.showModal();
+    });
+  }
+
+  /* ───────────── running inside the home screen's overlay ───────────── */
+  const embedded = global.parent !== global;
+  function tellParent(msg) { try { global.parent.postMessage(msg, global.location.origin); } catch (e) { /* cross-origin parent: ignore */ } }
+  function embedSetup() {
+    if (!embedded) return;
+    // The back arrow closes the overlay instead of navigating, so the chat underneath never reloads.
+    document.addEventListener('click', (e) => {
+      const a = e.target.closest && e.target.closest('a.backlink');
+      if (a) { e.preventDefault(); tellParent({ type: 'tether:close' }); }
+    }, true);
+    // Reveal only once the page has real styles and fonts, so the overlay never shows a flash of unstyled content.
+    const fontsReady = (document.fonts && document.fonts.ready) ? Promise.race([document.fonts.ready, new Promise((r) => setTimeout(r, 1500))]) : Promise.resolve();
+    fontsReady.then(() => requestAnimationFrame(() => requestAnimationFrame(() => tellParent({ type: 'tether:ready' }))));
+  }
+
   /* ───────────── boot ───────────── */
   applyPrefs();                           // theme + motion before first paint
-  function ready() { injectSprite(); hydrate(); fitViewport(); }
+  function ready() { injectSprite(); hydrate(); fitViewport(); embedSetup(); }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ready); else ready();
 
   const api = {
     prefs, setPref, onPref: (f) => listeners.add(f),
     sfx, haptic, say, unlock,
     icon, hydrate, icons: Object.keys(I),
-    mount,
+    mount, confirm: confirmSheet, embedded,
     settings: { open() { if (sheet) sheet.showModal(); }, close() { if (sheet) sheet.close(); }, get dialog() { return sheet; } },
   };
   global.TetherUI = api;

@@ -2,57 +2,53 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"/>
 <meta name="theme-color" content="#fff4e6" media="(prefers-color-scheme: light)"/>
 <meta name="theme-color" content="#241a2d" media="(prefers-color-scheme: dark)"/>
 <title>Dots &amp; Boxes</title>
+<!-- tether:page declaration. The home screen builds its menu from these lines (see tether-pages.js). -->
+<meta name="tether:page" content="game"/>
+<meta name="tether:title" content="Dots &amp; Boxes"/>
+<meta name="tether:icon" content="g-dab"/>
+<meta name="tether:blurb" content="Close the boxes"/>
+<meta name="tether:order" content="40"/>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400..700&family=Figtree:wght@400..800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="games.css">
+<script src="games-ui.js"></script>
 <style>
-/* Dots & Boxes only. Tokens, buttons, toast and base live in games.css. */
+/* Dots & Boxes only. Tokens, sheets, switches, buttons and icons live in games.css / games-ui.js. */
 body[data-game="dab"]{padding:0;display:block}
 .app{
   --glow:var(--pink);
-  inline-size:min(100%,30rem);margin-inline:auto;min-block-size:100dvh;position:relative;z-index:1;
-  display:grid;grid-template-rows:auto auto minmax(0,1fr) auto;row-gap:.75rem;
-  padding:max(.6rem,env(safe-area-inset-top)) 1.1rem max(1rem,env(safe-area-inset-bottom));
+  inline-size:min(100%,30rem);margin-inline:auto;block-size:100%;position:relative;z-index:1;
+  display:grid;grid-template-rows:auto auto minmax(0,1fr) auto;row-gap:.6rem;
+  padding:max(.6rem,env(safe-area-inset-top)) 1rem max(.8rem,env(safe-area-inset-bottom));
   transition:--glow .6s;
 }
 .app[data-active="Satyam"]{--glow:var(--satyam)}
 .app[data-active="Snks"]{--glow:var(--snks)}
-
-.bar{display:flex;align-items:center;gap:.6rem}
-.wordmark{flex:1;display:flex;align-items:center;justify-content:center;gap:.5rem;font-size:1.4rem;line-height:1;white-space:nowrap}
-.link-dot{inline-size:.6rem;block-size:.6rem;border-radius:50%;background:var(--mint);border:2px solid var(--line)}
-.app[data-link="down"] .link-dot{background:var(--peach)}
-.icon-btn{
-  inline-size:2.75rem;block-size:2.75rem;display:grid;place-items:center;flex:none;border-radius:50%;cursor:pointer;
-  color:var(--text);text-decoration:none;background:var(--card);border:2px solid var(--line);box-shadow:0 .18rem 0 var(--shadow);
-  transition:translate .12s,box-shadow .12s;
-}
-.icon-btn:active{translate:0 .18rem;box-shadow:0 0 0 var(--shadow)}
-.icon-btn svg{inline-size:1.3rem;block-size:1.3rem;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.bar{display:flex;align-items:center;gap:.5rem}
 
 /* score stickers: the player whose turn it is lifts up and fills with their colour */
-.scores{display:grid;grid-template-columns:1fr 1fr;gap:.8rem;padding-block-end:.3rem}
+.scores{display:grid;grid-template-columns:1fr 1fr;gap:.7rem;padding-block-end:.25rem}
 .score{
   --c:var(--satyam);
-  display:grid;grid-template-columns:auto 1fr;grid-template-areas:"num name" "num wins";align-items:center;column-gap:.65rem;
-  padding:.65rem .8rem;color:var(--text);
+  display:grid;grid-template-columns:auto 1fr;grid-template-areas:"num name" "num wins";align-items:center;column-gap:.6rem;min-inline-size:0;
+  padding:.55rem .75rem;color:var(--text);
   background:var(--card);border:var(--bw) solid var(--line);border-radius:var(--r-md);box-shadow:0 .22rem 0 var(--shadow);
   transition:background-color .3s,translate .35s var(--ease-spring),box-shadow .35s var(--ease-spring);
 }
 .score.p2{--c:var(--snks)}
-.score .name{grid-area:name;display:flex;align-items:center;gap:.3rem;font:600 .9rem var(--font-display);align-self:end;white-space:nowrap}
+.score .name{grid-area:name;display:flex;align-items:center;gap:.3rem;font:600 .88rem var(--font-display);align-self:end;white-space:nowrap;min-inline-size:0}
 .score .you{font-style:normal;font-weight:500;font-size:.72rem;opacity:.75}
-.score .num{grid-area:num;font:700 2.4rem/1 var(--font-display);font-variant-numeric:tabular-nums;min-inline-size:1.1ch;text-align:center}
-.score .wins{grid-area:wins;font-size:.8rem;color:var(--text-dim);align-self:start}
-.glyph{font-size:.95rem;line-height:1}
-.p1 .glyph::before{content:'★'} .p2 .glyph::before{content:'♥'}
+.score .num{grid-area:num;font:700 2.3rem/1 var(--font-display);font-variant-numeric:tabular-nums;min-inline-size:1.1ch;text-align:center}
+.score .wins{grid-area:wins;font-size:.78rem;color:var(--text-dim);align-self:start}
+.glyph{display:inline-grid;flex:none}
+.glyph .i{inline-size:.95rem;block-size:.95rem}
 .p1 .glyph{color:var(--satyam-d)} .p2 .glyph{color:var(--snks-d)}
-.score[data-active]{background:var(--c);color:var(--plum);translate:0 -.28rem;box-shadow:0 .5rem 0 var(--shadow)}
+.score[data-active]{background:var(--c);color:var(--plum);translate:0 -.26rem;box-shadow:0 .48rem 0 var(--shadow)}
 .score[data-active] .wins{color:var(--plum);opacity:.8}
 .score[data-active] .glyph{color:var(--plum)}
 .num.bump{animation:bump .5s var(--ease-spring)}
@@ -76,11 +72,11 @@ body[data-game="dab"]{padding:0;display:block}
 .guide{fill:none;stroke:color-mix(in oklab,var(--text) 28%,transparent);stroke-width:3.4;stroke-linecap:round;stroke-dasharray:.1 12.4}
 .guide.press,.guide.kbd{stroke:var(--me);stroke-width:8;stroke-dasharray:none;opacity:.8}
 .glow,.edge{fill:none;stroke-linecap:round;stroke-dasharray:100;opacity:0}
-.glow{stroke:var(--line);stroke-width:15}        /* the sticker outline under every line */
+.glow{stroke:var(--line);stroke-width:15}
 .edge{stroke:var(--c);stroke-width:8.5}
 .o1{--c:var(--satyam)} .o2{--c:var(--snks)}
 .edge.o1,.edge.o2,.glow.o1,.glow.o2{opacity:1}
-.glow.last{stroke:var(--butter);stroke-width:21}  /* the last line drawn gets a butter highlighter halo */
+.glow.last{stroke:var(--butter);stroke-width:21}
 .dot{fill:var(--line)}
 
 /* claimed boxes: a coloured tile with polka dots and a star or a heart */
@@ -93,71 +89,25 @@ body[data-game="dab"]{padding:0;display:block}
 .m1,.m2{display:none;fill:#fff;stroke:var(--plum);stroke-width:3.2;stroke-linejoin:round;paint-order:stroke}
 .box.o1 .m1,.box.o2 .m2{display:block}
 .box :is(.pool,.tone,.m1,.m2,.ping){transform-box:fill-box;transform-origin:center}
-
 .hint{fill:none;stroke:transparent;stroke-width:3;stroke-dasharray:9 7}
-.box.warn .hint{stroke:#ff8a3d;fill:color-mix(in oklab,var(--peach) 45%,transparent)}   /* this line hands them a box */
-.box.gain .hint{stroke:var(--text);fill:color-mix(in oklab,var(--mint) 60%,transparent)} /* this line wins you one */
+.box.warn .hint{stroke:#ff8a3d;fill:color-mix(in oklab,var(--peach) 45%,transparent)}
+.box.gain .hint{stroke:var(--text);fill:color-mix(in oklab,var(--mint) 60%,transparent)}
 .ping{fill:var(--butter);stroke:var(--line);stroke-width:2.5;display:none}
 .app[data-turn="me"] .box.ready:not(.o1):not(.o2) .ping{display:block;animation:ping 1.7s ease-in-out infinite}
 .hit{fill:transparent;cursor:pointer;outline:none}
 
 /* the speech bubble under the board */
-.status{display:grid;align-content:start;justify-items:start;gap:.6rem;min-block-size:9.4rem;padding-block-start:.2rem}
+.status{display:grid;align-content:start;justify-items:start;gap:.5rem;min-block-size:8.4rem;padding-block-start:.1rem}
 .line{
-  padding:.45rem 1.15rem;font:600 1.7rem/1.1 var(--font-display);color:var(--text);
+  padding:.4rem 1.05rem;font:600 1.55rem/1.1 var(--font-display);color:var(--text);
   background:var(--card);border:var(--bw) solid var(--line);border-radius:1.5rem;border-end-start-radius:.4rem;
   box-shadow:0 .22rem 0 var(--shadow);transition:background-color .3s;
 }
+.line .i{inline-size:1.1em;block-size:1.1em;vertical-align:-.15em}
 .app[data-turn="me"] .line{background:var(--me);color:var(--plum)}
 .app[data-phase="finished"] .line{background:var(--butter);color:var(--plum)}
-.sub{font-size:.92rem;color:var(--text-dim);padding-inline:.35rem}
-.actions{display:grid;grid-template-columns:auto 1fr;gap:.6rem;align-items:stretch;inline-size:100%;margin-block-start:.2rem}
-.seg{display:inline-grid;grid-auto-flow:column;gap:.2rem;padding:.2rem;background:var(--card);border:2px solid var(--line);border-radius:99px}
-.seg button{padding:.5rem .9rem;min-inline-size:3.2rem;font:600 1rem var(--font-display);color:var(--text-dim);background:none;border:0;border-radius:99px;cursor:pointer;transition:background-color .2s,color .2s}
-.seg button[aria-pressed="true"]{background:var(--butter);color:var(--plum);box-shadow:inset 0 0 0 2px var(--line)}
-
-/* settings sheets */
-dialog.sheet{
-  inline-size:min(100%,30rem);max-inline-size:none;margin:auto auto 0;padding:0;
-  background:var(--card);color:var(--text);border:var(--bw) solid var(--line);border-block-end:0;border-radius:var(--r-lg) var(--r-lg) 0 0;
-  translate:0 100%;opacity:0;
-  transition:translate .4s var(--ease-spring),opacity .2s,overlay .4s allow-discrete,display .4s allow-discrete;
-}
-dialog.sheet[open]{translate:0 0;opacity:1}
-@starting-style{dialog.sheet[open]{translate:0 100%;opacity:0}}
-dialog.sheet::backdrop{
-  background:rgb(59 42 69/0);backdrop-filter:blur(0);
-  transition:background-color .3s,backdrop-filter .3s,overlay .3s allow-discrete,display .3s allow-discrete;
-}
-dialog.sheet[open]::backdrop{background:rgb(59 42 69/.5);backdrop-filter:blur(3px)}
-@starting-style{dialog.sheet[open]::backdrop{background:rgb(59 42 69/0);backdrop-filter:blur(0)}}
-.sheet__body{display:grid;gap:1rem;padding:1.3rem 1.25rem max(1.25rem,env(safe-area-inset-bottom))}
-.sheet__head{display:flex;align-items:center;justify-content:space-between}
-.sheet h2{font-size:1.9rem;line-height:1}
-.sheet p{color:var(--text-dim)}
-.rows{display:grid}
-.row{display:flex;align-items:center;justify-content:space-between;gap:1rem;min-block-size:3.3rem;border-block-start:2px dashed color-mix(in oklab,var(--line) 28%,transparent);font-weight:600}
-.row:first-child{border-block-start:0}
-.link{font:600 1rem var(--font-display);color:var(--text-dim);padding-block:.8rem;background:none;border:0;cursor:pointer}
-.link.danger{color:color-mix(in oklab,var(--coral) 55%,var(--text))}
-.how summary{cursor:pointer;min-block-size:3.3rem;display:flex;align-items:center;justify-content:space-between;font-weight:600;list-style:none;border-block-start:2px dashed color-mix(in oklab,var(--line) 28%,transparent)}
-.how summary::-webkit-details-marker{display:none}
-.how summary::after{content:'+';font:600 1.6rem var(--font-display);color:var(--text-dim);transition:rotate .25s var(--ease-out)}
-.how[open] summary::after{rotate:45deg}
-.how ol{display:grid;gap:.6rem;padding:0 0 1rem 1.3rem;list-style:decimal;color:var(--text-dim);font-size:.95rem}
-.how li::marker{color:var(--pink-d);font-weight:800}
-.actions2{display:grid;grid-template-columns:1fr 1fr;gap:.6rem}
-.switch{
-  appearance:none;-webkit-appearance:none;flex:none;position:relative;inline-size:3.2rem;block-size:1.9rem;border-radius:99px;cursor:pointer;
-  background:var(--card);border:2px solid var(--line);box-shadow:inset 0 .16rem 0 color-mix(in oklab,var(--text) 10%,transparent);transition:background-color .2s;
-}
-.switch::after{
-  content:'';position:absolute;inset-block:.2rem;inset-inline-start:.22rem;inline-size:1.2rem;border-radius:50%;
-  background:#fff;border:2px solid var(--plum);transition:translate .28s var(--ease-spring);
-}
-.switch:checked{background:var(--mint)}
-.switch:checked::after{translate:1.3rem 0}
-.sr-only{position:absolute;inline-size:1px;block-size:1px;margin:-1px;padding:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.sub{font-size:.9rem;color:var(--text-dim);padding-inline:.35rem}
+.actions{display:grid;grid-template-columns:auto 1fr;gap:.6rem;align-items:stretch;inline-size:100%;margin-block-start:.1rem}
 
 /* motion: dots pop in from the middle when a board appears */
 .dot{animation:ignite .65s var(--ease-spring) both;animation-delay:calc(var(--d,0)*55ms);transform-box:fill-box;transform-origin:center}
@@ -176,23 +126,25 @@ dialog.sheet[open]::backdrop{background:rgb(59 42 69/.5);backdrop-filter:blur(3p
 
 <div class="app" id="app" data-phase="loading" data-turn="none" data-link="ok">
   <header class="bar">
-    <a class="icon-btn" href="index.html" aria-label="Back to Tether">
+    <a class="backlink" href="index.html" aria-label="Back to Tether">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
     </a>
-    <h1 class="wordmark"><span aria-hidden="true">🍬</span>Dots &amp; Boxes<span class="link-dot" aria-hidden="true" title="Connection"></span></h1>
-    <button class="icon-btn" id="menuBtn" type="button" aria-label="Settings" aria-haspopup="dialog">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
-    </button>
+    <div class="brand">
+      <span class="ic" aria-hidden="true"><svg class="i"><use href="#i-g-dab"/></svg></span>
+      <h1>Dots &amp; Boxes</h1>
+      <span id="connStatus" class="conn" role="status" aria-label="Connected"></span>
+    </div>
+    <div style="width:2.75rem"></div>
   </header>
 
   <section class="scores" aria-label="Score">
     <div class="score p1" id="score1">
-      <p class="name"><span class="glyph" aria-hidden="true"></span><span>Satyam<em class="you" hidden> (you)</em></span></p>
+      <p class="name"><span class="glyph" aria-hidden="true"><svg class="i fill"><use href="#i-star"/></svg></span><span>Satyam<em class="you" hidden> (you)</em></span></p>
       <span class="num" id="n1">0</span>
       <p class="wins" id="w1">0 wins</p>
     </div>
     <div class="score p2" id="score2">
-      <p class="name"><span class="glyph" aria-hidden="true"></span><span>Snks<em class="you" hidden> (you)</em></span></p>
+      <p class="name"><span class="glyph" aria-hidden="true"><svg class="i fill"><use href="#i-heart"/></svg></span><span>Snks<em class="you" hidden> (you)</em></span></p>
       <span class="num" id="n2">0</span>
       <p class="wins" id="w2">0 wins</p>
     </div>
@@ -218,54 +170,10 @@ dialog.sheet[open]::backdrop{background:rgb(59 42 69/.5);backdrop-filter:blur(3p
   </section>
 </div>
 
-<div id="announcer" class="sr-only" aria-live="polite" aria-atomic="true"></div>
 <div class="toast" id="toast" aria-hidden="true"></div>
 
-<dialog id="menuDlg" class="sheet" aria-labelledby="menuTitle">
-  <div class="sheet__body">
-    <div class="sheet__head">
-      <h2 id="menuTitle">Settings</h2>
-      <button class="icon-btn" id="menuClose" type="button" aria-label="Close settings">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
-      </button>
-    </div>
-    <ul class="rows">
-      <li class="row"><label for="optSound">Sound</label><input id="optSound" class="switch" type="checkbox" role="switch"></li>
-      <li class="row"><label for="optHaptics">Vibration</label><input id="optHaptics" class="switch" type="checkbox" role="switch"></li>
-      <li class="row">
-        <span id="sizeLabel">Next board</span>
-        <div class="seg" role="group" aria-labelledby="sizeLabel">
-          <button type="button" data-size="3" aria-pressed="false">3×3</button>
-          <button type="button" data-size="5" aria-pressed="true">5×5</button>
-        </div>
-      </li>
-      <li>
-        <details class="how">
-          <summary>How to play</summary>
-          <ol>
-            <li>Take turns drawing one line between two dots.</li>
-            <li>Close the fourth side of a box and it's yours. You go again.</li>
-            <li>Most boxes wins. Hold a line to preview it: amber means it hands them a box, white means it wins you one. Slide away to cancel.</li>
-          </ol>
-        </details>
-      </li>
-      <li class="row"><button type="button" class="link danger" id="resetBtn">Reset score…</button></li>
-    </ul>
-  </div>
-</dialog>
-
-<dialog id="resetDlg" class="sheet" aria-labelledby="cTitle" aria-describedby="cText">
-  <form method="dialog" class="sheet__body">
-    <h2 id="cTitle">Reset the score?</h2>
-    <p id="cText">Both scores go back to 0 and a new game starts. This can't be undone.</p>
-    <div class="actions2">
-      <button class="btn ghost" value="cancel">Keep playing</button>
-      <button class="btn danger" value="reset">Reset</button>
-    </div>
-  </form>
-</dialog>
-
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="games-live.js"></script>
 <script>
 (()=>{
 'use strict';
@@ -330,9 +238,9 @@ const Rules={
 /* RULES-END */
 
 /* ═══════════════════ 3. SETTINGS ═══════════════════ */
-const Settings=(()=>{
+const Settings=(()=>{          // only the board-size choice is Dots & Boxes' own; the rest is shared (games-ui.js)
   const KEY='dab:settings';
-  const v={sound:true,haptics:true,size:5};
+  const v={size:5};
   try{Object.assign(v,JSON.parse(localStorage.getItem(KEY)||'{}'))}catch{}
   return{
     get:k=>v[k],
@@ -340,51 +248,12 @@ const Settings=(()=>{
   };
 })();
 
-/* ═══════════════════ 4. FEEDBACK: sound, haptics, screen-reader announcements ═══════════════════ */
-const Fx=(()=>{
-  const live=$('#announcer');
-  let ctx=null,master=null,lastSaid='';
-
-  function unlock(){
-    const AC=window.AudioContext||window.webkitAudioContext;
-    if(!AC)return;
-    if(!ctx){ctx=new AC();master=ctx.createGain();master.gain.value=.55;master.connect(ctx.destination)}
-    if(ctx.state==='suspended')ctx.resume();
-  }
-  ['pointerdown','keydown'].forEach(ev=>addEventListener(ev,unlock,{once:true,passive:true}));
-
-  function tone(f,t,d,{type='sine',g=.08,to}={}){
-    const o=ctx.createOscillator(),a=ctx.createGain();
-    o.type=type;o.frequency.setValueAtTime(f,t);
-    if(to)o.frequency.exponentialRampToValueAtTime(to,t+d);
-    a.gain.setValueAtTime(.0001,t);
-    a.gain.exponentialRampToValueAtTime(g,t+.012);
-    a.gain.exponentialRampToValueAtTime(.0001,t+d);
-    o.connect(a).connect(master);o.start(t);o.stop(t+d+.03);
-  }
-  const SOUNDS={
-    draw:t=>tone(520,t,.09,{g:.08,to:880}),
-    opp:t=>tone(440,t,.12,{g:.05}),
-    claim:t=>{tone(784,t,.16,{type:'triangle',g:.08});tone(988,t+.07,.16,{type:'triangle',g:.07});tone(1319,t+.14,.34,{g:.07})},
-    oppClaim:t=>{tone(523,t,.18,{type:'triangle',g:.05});tone(659,t+.09,.3,{g:.05})},
-    win:t=>[523,659,784,1047,1319].forEach((f,i)=>tone(f,t+i*.09,.36,{type:'triangle',g:.08})),
-    lose:t=>{tone(392,t,.3,{g:.06});tone(330,t+.18,.5,{g:.06})},
-    tie:t=>{tone(523,t,.25,{g:.06});tone(523,t+.2,.4,{g:.06})},
-  };
-  return{
-    sound(name){
-      if(!Settings.get('sound')||document.hidden||!ctx||ctx.state!=='running')return;
-      SOUNDS[name]?.(ctx.currentTime+.005);
-    },
-    buzz(p){if(Settings.get('haptics')&&navigator.vibrate){try{navigator.vibrate(p)}catch{}}},
-    say(text){
-      text=(text||'').replace(/[\u{1F300}-\u{1FAFF}\u2600-\u27BF\uFE0F]/gu,'').trim();
-      if(!text||text===lastSaid)return;
-      lastSaid=text;live.textContent='';
-      requestAnimationFrame(()=>{live.textContent=text});
-    },
-  };
-})();
+/* ═══════════════════ 4. FEEDBACK (sound, haptics, announcements: shared, see games-ui.js) ═══════════════════ */
+const Fx={
+  sound:name=>TetherUI.sfx.play(name),
+  buzz:p=>TetherUI.haptic(p),
+  say:t=>TetherUI.say(t),
+};
 
 /* ═══════════════════ 5. NETWORK ═══════════════════ */
 const withTimeout=(p,ms=CFG.TIMEOUT_MS)=>Promise.race([
@@ -409,12 +278,6 @@ const Net={
     const{data,error}=await this.sb.from('dab_match').select('*').eq('id',1).maybeSingle();
     if(error)throw error;
     return data?Rules.normalize(data):null;
-  },
-  listen(onRow,onStatus){
-    if(this.ch){try{this.sb.removeChannel(this.ch)}catch{}}
-    this.ch=this.sb.channel('dab-'+Date.now())
-      .on('postgres_changes',{event:'UPDATE',schema:'public',table:'dab_match',filter:'id=eq.1'},p=>onRow(p.new))
-      .subscribe(onStatus);
   },
   async rpc(fn,args){
     const{error}=await withTimeout(this.sb.rpc(fn,args));
@@ -679,20 +542,24 @@ const UI=(()=>{
     app.dataset.turn=playing?(mine?'me':'them'):'none';
     app.dataset.active=playing?m.turn:(resultOn&&m.winner_name?m.winner_name:'');
 
-    let text,subText;
+    let text,subText,lineIcon='';
     if(playing){
       const again=m.last_completed>0&&m.last_by===m.turn;
       const left=m.boxes.filter(v=>!v).length;
-      text=mine?(again?'Box! Go again ✨':'Your turn!'):(again?`${opp} goes again!`:`${opp} is thinking…`);
+      text=mine?(again?'Box! Go again':'Your turn!'):(again?`${opp} goes again!`:`${opp} is thinking…`);
+      lineIcon=mine&&again?'sparkle':'';
       subText=left+(left===1?' box left':' boxes left');
     }else if(!resultOn){
       text='Last box…';subText='';
     }else{
       const myN=me==='Satyam'?m.score_satyam:m.score_snks,opN=me==='Satyam'?m.score_snks:m.score_satyam;
-      text=!m.winner_name?"It's a tie!":m.winner_name===me?'You win! 🎉':`${opp} wins! 💕`;
+      text=!m.winner_name?"It's a tie!":m.winner_name===me?'You win!':`${opp} wins!`;
+      lineIcon=!m.winner_name?'':m.winner_name===me?'sparkle':'heart';
       subText=`${myN} to ${opN} in boxes`;
     }
-    line.textContent=text;sub.textContent=subText;
+    line.textContent=text;
+    if(lineIcon)line.insertAdjacentHTML('beforeend',' '+TetherUI.icon(lineIcon,'fill'));
+    sub.textContent=subText;
     actions.hidden=!(resultOn&&!playing);
     Fx.say(playing?text:(resultOn?`${text} ${subText}.`:''));
   }
@@ -703,7 +570,7 @@ const UI=(()=>{
     Fx.sound(!m.winner_name?'tie':won?'win':'lose');
   }
 
-  return{identify,setSel,sel:()=>sel,toast,fatal,render,link(ok){app.dataset.link=ok?'ok':'down'}};
+  return{identify,setSel,sel:()=>sel,toast,fatal,render,link(ok){const c=document.getElementById('connStatus');if(c){c.className=ok?'conn':'conn warn';c.setAttribute('aria-label',ok?'Connected':'Reconnecting')}}};
 })();
 
 /* ═══════════════════ 8. GAME (controller: state + sync) ═══════════════════ */
@@ -721,10 +588,6 @@ const Game={
       Board.initPointer((t,i)=>this.play(t,i),()=>this.match,()=>this.canPlay());
       Board.initKeys((t,i)=>this.play(t,i),()=>this.match,()=>this.canPlay());
       this.connect();
-      setInterval(()=>{if(!document.hidden)this.sync()},CFG.POLL_MS);
-      const revive=()=>{if(!document.hidden){this.sync();this.connect()}};
-      document.addEventListener('visibilitychange',revive);
-      addEventListener('online',revive);addEventListener('pageshow',revive);
     }catch(e){
       console.error(e);
       if(e.code==='NO_SESSION')return UI.fatal('Log in first.','Open Tether chat on this device, then come back.');
@@ -746,20 +609,19 @@ const Game={
     catch(e){console.warn('sync failed (will retry):',e)}
   },
   connect(){
-    let retry=0;
-    Net.listen(
-      row=>{
+    // games-live.js owns the channel, reconnects, wake-ups and the backstop poll.
+    this.live=TetherLive.hub(Net.sb,{
+      name:'dab',
+      bindings:[{event:'UPDATE',table:'dab_match',filter:'id=eq.1',cb:p=>{
+        const row=p.new;
         if(row&&Rules.complete(Rules.normalize(row)))this.accept(row);
-        else this.sync();                          // partial payload: fall back to a fetch
-      },
-      status=>{
-        if(status==='SUBSCRIBED'){UI.link(true);this.sync()}
-        else if(['CHANNEL_ERROR','TIMED_OUT','CLOSED'].includes(status)){
-          UI.link(false);clearTimeout(retry);
-          retry=setTimeout(()=>{if(!document.hidden)this.connect()},2000);
-        }
-      },
-    );
+        else this.sync();                       // partial payload: fall back to a fetch
+      }}],
+      onCatchup:()=>this.sync(),
+      onStatus:ok=>UI.link(ok),
+      pollLiveMs:12000,
+    });
+    this.live.start();
   },
 
   async play(type,idx){
@@ -788,20 +650,17 @@ const Game={
 
 /* ═══════════════════ 9. SHEETS + SETTINGS WIRING ═══════════════════ */
 (function wireSheets(){
-  const menu=$('#menuDlg'),confirmDlg=$('#resetDlg');
-  const backdropClose=d=>d.addEventListener('click',e=>{if(e.target===d)d.close()});
-  backdropClose(menu);backdropClose(confirmDlg);
-
-  $('#menuBtn').addEventListener('click',()=>menu.showModal());
-  $('#menuClose').addEventListener('click',()=>menu.close());
-  $('#resetBtn').addEventListener('click',()=>{menu.close();confirmDlg.showModal()});
-  confirmDlg.addEventListener('close',()=>{if(confirmDlg.returnValue==='reset')Game.newGame(true);confirmDlg.returnValue=''});
-
-  const sound=$('#optSound'),hap=$('#optHaptics');
-  sound.checked=Settings.get('sound');hap.checked=Settings.get('haptics');
-  sound.addEventListener('change',()=>Settings.set('sound',sound.checked));
-  hap.addEventListener('change',()=>{Settings.set('haptics',hap.checked);if(hap.checked)Fx.buzz(15)});
-
+  // Dots & Boxes' own rows in the shared settings sheet: board size, rules, reset
+  const li=(cls,html)=>{const e=document.createElement('li');if(cls)e.className=cls;e.innerHTML=html;return e};
+  const sizeRow=li('row','<span id="sizeLabel">Next board</span><div class="seg" role="group" aria-labelledby="sizeLabel"><button type="button" data-size="3" aria-pressed="false">3×3</button><button type="button" data-size="5" aria-pressed="true">5×5</button></div>');
+  const how=li('','<details class="how"><summary>How to play</summary><ol><li>Take turns drawing one line between two dots.</li><li>Close the fourth side of a box and it\'s yours. You go again.</li><li>Most boxes wins. Hold a line to preview it: orange means it hands them a box, white means it wins you one. Slide away to cancel.</li></ol></details>');
+  const reset=li('row','<button type="button" class="link danger">'+TetherUI.icon('reset')+' Reset score…</button>');
+  TetherUI.mount({extras:[sizeRow,how,reset]});
+  reset.querySelector('button').addEventListener('click',async()=>{
+    TetherUI.settings.close();
+    const ok=await TetherUI.confirm({title:'Reset the score?',text:"Both scores go back to 0 and a new game starts. This can't be undone.",ok:'Reset'});
+    if(ok)Game.newGame(true);
+  });
   $$('.seg [data-size]').forEach(b=>b.addEventListener('click',()=>{UI.setSel(+b.dataset.size);Fx.buzz(8)}));
   UI.setSel(Settings.get('size'));
   $('#rematch').addEventListener('click',async e=>{

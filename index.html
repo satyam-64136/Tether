@@ -1628,11 +1628,8 @@ html,body{
 </div>
 
 <!-- LOADER / SPLASH -->
-<div id="ldr">
-  <div class="ldr-name">Tether</div>
-  <div class="ldr-quote" id="ldr-quote"></div>
-  <div class="ldots"><span></span><span></span><span></span></div>
-</div>
+<div id="ldr"></div>
+<script src="tether-intro.js"></script>
 
 <!-- SETUP -->
 <div id="setup" class="screen off">
@@ -1823,25 +1820,8 @@ html,body{
       <div class="msec-ttl">Theme</div>
       <div class="tgrid" id="tgrid"></div>
     </div>
-    <div>
-      <div class="msec-ttl">Games</div>
-      <button class="wg-menu-btn" id="wgMenuBtn" onclick="openWG()">
-        <span style="font-size:16px">🦊</span>
-        Play WildGuess
-      </button>
-      <button class="wg-menu-btn" id="tttMenuBtn" onclick="openTTT()" style="margin-top:8px">
-        <span style="font-size:16px">✨</span>
-        Play Tic Tac Toe
-      </button>
-      <button class="wg-menu-btn" id="whoamiMenuBtn" onclick="openWhoAmI()" style="margin-top:8px">
-        <span style="font-size:16px">💭</span>
-        Play Who Am I To You
-      </button>
-      <button class="wg-menu-btn" id="dabMenuBtn" onclick="openDAB()" style="margin-top:8px">
-        <span style="font-size:16px">🍬</span>
-        Play Dots &amp; Boxes
-      </button>
-    </div>
+    <!-- Pages (games, tools...) appear here by themselves. See tether-pages.js -->
+    <div id="tetherPages"></div>
     <div>
       <div class="msec-ttl">Storage</div>
       <button class="wg-menu-btn" id="cleanupMenuBtn" onclick="cleanupOldMedia()">
@@ -2274,16 +2254,10 @@ function showFatal(msg){
   </div>`;
 }
 
-// Track when splash started for minimum display time
-const _splashStart = Date.now();
-
 function hideLdr(){
-  const elapsed = Date.now() - _splashStart;
-  const minTime = 3000; // 3 seconds minimum so quote is readable
-  const remaining = Math.max(0, minTime - elapsed);
-  setTimeout(()=>{
-    document.getElementById('ldr').classList.add('off');
-  }, remaining);
+  // tether-intro.js decides how long the animation needs and fades it out smoothly
+  if(window.TetherIntro) TetherIntro.hide();
+  else document.getElementById('ldr').classList.add('off');
 }
 
 function boot(){
@@ -5627,9 +5601,6 @@ if('serviceWorker'in navigator){
 
   navigator.serviceWorker.addEventListener('controllerchange',()=>{
     if(!hadController) return;
-    // A new version took over. Reload to use it, but never under the user's
-    // fingers: wait until the app is in the background, so a draft, a voice note
-    // or a photo being viewed is never yanked away mid-use.
     if(document.hidden){ window.location.reload(); return; }
     document.addEventListener('visibilitychange',()=>{ if(document.hidden) window.location.reload(); },{once:true});
   });
@@ -5678,18 +5649,15 @@ function checkInstallState(){
 }
 
 // ── LOGOUT ──
-function openWG(){
-  location.href='wildguess.html';
+// Pages open in an overlay (tether-pages.js) so the chat stays loaded and connected underneath.
+function openPage(file,title){
+  if(window.TetherPages) TetherPages.open(file,title); else location.href=file;
 }
-function openTTT(){
-  location.href='tictactoe.html';
-}
-function openWhoAmI(){
-  location.href='whoami.html';
-}
-function openDAB(){
-  location.href='dotsandboxes.html';
-}
+function openWG(){ openPage('wildguess.html','WildGuess'); }
+function openTTT(){ openPage('tictactoe.html','Tic Tac Toe'); }
+function openWhoAmI(){ openPage('whoami.html','Who Am I To You'); }
+function openDAB(){ openPage('dotsandboxes.html','Dots & Boxes'); }
+function openBooth(){ openPage('photobooth.html','Photo Booth'); }
 // ── STORAGE CLEANUP — manual, on-demand only. Never runs automatically;
 //    always shows exactly what it found and asks before deleting anything. ──
 async function cleanupOldMedia(){
@@ -5806,6 +5774,11 @@ async function logout(){
 }
 
 window.addEventListener('beforeunload',setOffPres);
+</script>
+<script src="tether-pages.js"></script>
+<script>
+TetherPages.onBeforeOpen=function(){ try{ closeMenu(); }catch(e){} };   // closing a page then lands you on the chat, not on an open menu
+TetherPages.mount('#tetherPages');
 </script>
 </body>
 </html>

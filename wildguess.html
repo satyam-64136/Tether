@@ -2,14 +2,21 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"/>
 <meta name="theme-color" content="#fff4e6" media="(prefers-color-scheme: light)"/>
 <meta name="theme-color" content="#241a2d" media="(prefers-color-scheme: dark)"/>
 <title>WildGuess</title>
+<!-- tether:page declaration. The home screen builds its menu from these lines (see tether-pages.js). -->
+<meta name="tether:page" content="game"/>
+<meta name="tether:title" content="WildGuess"/>
+<meta name="tether:icon" content="g-fox"/>
+<meta name="tether:blurb" content="Guess each other&#39;s animal"/>
+<meta name="tether:order" content="10"/>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400..700&family=Figtree:wght@400..800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="games.css">
+<script src="games-ui.js"></script>
 
 </head>
 <body data-game="wg">
@@ -17,11 +24,12 @@
   <div class="topbar">
     <a class="backlink" href="index.html">
       <svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
-      Tether
+      <span class="sr-only">Back to Tether</span>
     </a>
     <div class="brand">
-      <span class="ic" aria-hidden="true">🦊</span>
+      <span class="ic" aria-hidden="true"><svg class="i"><use href="#i-g-fox"/></svg></span>
       <h1>WildGuess</h1>
+      <span id="connStatus" class="conn" role="status" aria-label="Connected"></span>
     </div>
     <div style="width:64px"></div>
   </div>
@@ -56,38 +64,31 @@
   <div class="screen" id="s-playing">
     <div class="card tight">
       <div class="status-row">
-        <span class="whoami-inline"><span class="avatar-sm" id="whoamiAvatar2">?</span> Playing as <b id="whoamiName2"></b></span>
-        <span id="connStatus" class="pill"><span class="dot"></span> Connected</span>
-      </div>
-      <div class="status-row" style="margin-top:-4px">
+        <span class="whoami-inline"><span class="avatar-sm" id="whoamiAvatar2">?</span> <b id="whoamiName2"></b></span>
         <span class="animal-tag">Yours: <span id="myAnimalTag">—</span></span>
       </div>
-      <div class="gc-title">Guesses so far</div>
-      <div class="gc-row">
-        <div class="gc-col">
-          <div class="gc-badge satyam"><span class="gc-num" id="gcSatyam">0</span></div>
-          <div class="gc-name">Satyam</div>
-        </div>
-        <div class="gc-vs">vs</div>
-        <div class="gc-col">
-          <div class="gc-badge snks"><span class="gc-num" id="gcSnks">0</span></div>
-          <div class="gc-name">Snks</div>
+      <div class="gc-line">
+        <span class="gc-title">Guesses so far</span>
+        <div class="gc-row">
+          <div class="gc-col"><div class="gc-badge satyam"><span class="gc-num" id="gcSatyam">0</span></div><div class="gc-name">Satyam</div></div>
+          <div class="gc-vs">vs</div>
+          <div class="gc-col"><div class="gc-badge snks"><span class="gc-num" id="gcSnks">0</span></div><div class="gc-name">Snks</div></div>
         </div>
       </div>
     </div>
 
-    <div class="card tight">
+    <div class="card tight grow">
       <div class="q-ask-row">
-        <input type="text" id="qInput" placeholder="Ask a yes/no question..." maxlength="100" onkeydown="if(event.key==='Enter')askQuestion()"/>
-        <button class="btn sm" onclick="askQuestion()"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg></button>
+        <input type="text" id="qInput" placeholder="Ask a yes/no question..." maxlength="100" autocomplete="off" enterkeyhint="send" onkeydown="if(event.key==='Enter')askQuestion()"/>
+        <button class="btn sm" onclick="askQuestion()" aria-label="Ask question"><svg class="i"><use href="#i-send"/></svg></button>
       </div>
       <div id="qHistory"></div>
     </div>
 
     <div class="card tight">
       <div class="q-ask-row">
-        <input type="text" id="guessInput" placeholder="Guess the animal..." maxlength="30" onkeydown="if(event.key==='Enter')submitGuess()"/>
-        <button class="btn sm" onclick="submitGuess()"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.2"/></svg></button>
+        <input type="text" id="guessInput" placeholder="Guess the animal..." maxlength="30" autocomplete="off" enterkeyhint="go" onkeydown="if(event.key==='Enter')submitGuess()"/>
+        <button class="btn sm" onclick="submitGuess()" aria-label="Submit guess"><svg class="i"><use href="#i-target"/></svg></button>
       </div>
       <div class="err" id="guessErr"></div>
     </div>
@@ -123,7 +124,12 @@
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="games-live.js"></script>
 <script>
+let _sfxArmed=false;
+const sfx=name=>{ if(_sfxArmed) TetherUI.sfx.play(name); };   // reactions to what happened on the other phone
+const sfxNow=name=>TetherUI.sfx.play(name);                     // reactions to something I just did
+
 const SU='https://ggfxdeuwifmqulyhchtv.supabase.co';
 const SK='sb_publishable_DMMJ2sFnGlFWogBs30qowg_-N0zk3OI';
 let sb, MY_UID=null, MY_NAME=null, OPP_NAME=null;
@@ -160,9 +166,7 @@ function withTimeout(promise,ms=12000){
     new Promise((_,reject)=>setTimeout(()=>reject(new Error('Timed out — check your connection')),ms))
   ]);
 }
-function vibrate(pattern){
-  if(navigator.vibrate){ try{navigator.vibrate(pattern);}catch(e){} }
-}
+function vibrate(pattern){ TetherUI.haptic(pattern); }   // honours the Vibration switch in Settings
 
 // ── BOOT ──
 async function boot(){
@@ -193,22 +197,25 @@ async function boot(){
     // Throwing variant for the first load only, so a real failure surfaces
     // an actual error instead of leaving "Getting things ready" up forever.
     await resyncOrThrow();
-    subscribeAll();
-
-    // Reliability net: now backed by real reconnect logic above, so this
-    // mainly just catches the rare missed realtime event rather than being
-    // the primary sync path. Kept fairly quick (6s) since quota headroom is
-    // huge and a snappier fallback means less time sitting on stale state
-    // during the brief window before a dropped channel reconnects. Skipped
-    // entirely while the tab is hidden — nobody's looking at a backgrounded
-    // game — the visibilitychange listener below forces an instant resync
-    // the moment it's opened again.
-    setInterval(()=>{ if(!document.hidden) resync(); },6000);
-    document.addEventListener('visibilitychange',()=>{
-      if(!document.hidden){ resync(); subscribeAll(); }
+    _sfxArmed=true;   // from here on, incoming events make sound
+    // One shared channel for all four tables (games-live.js) instead of four
+    // separate ones with no reconnect handling on three of them.
+    live=TetherLive.hub(sb,{
+      name:'wg',
+      bindings:[
+        {event:'UPDATE',table:'wg_match',filter:'id=eq.1',cb:()=>resync()},
+        {event:'*',table:'wg_secrets',cb:()=>resync()},
+        {event:'UPDATE',table:'wg_guess_counts',cb:p=>{
+          const row=p.new;
+          if(!row)return;
+          guessCounts[row.player_name]=row.count;
+          renderGuessCounts(row.player_name);
+        }},
+        {event:'*',table:'wg_questions',cb:()=>loadQuestions()},
+      ],
+      onCatchup:resync, onStatus:setConn, pollLiveMs:10000,
     });
-    window.addEventListener('online',()=>{ resync(); subscribeAll(); });
-    window.addEventListener('pageshow',()=>{ resync(); subscribeAll(); });
+    live.start();
   }catch(e){
     console.error(e);
     showLoadingError('Something went wrong: '+(e.message||'unknown error'));
@@ -229,86 +236,38 @@ async function boot(){
 // for as long as the connection stayed down, which is exactly what "we saw
 // different screens" looks like. This schedules a real resubscribe attempt
 // and does an immediate catch-up resync once it succeeds.
-let _reconnectTimer=null;
-function scheduleReconnect(){
-  if(_reconnectTimer)return; // one retry in flight at a time
-  _reconnectTimer=setTimeout(()=>{
-    _reconnectTimer=null;
-    if(!document.hidden) subscribeAll();
-  },2000);
+let live=null;   // the shared sync hub (games-live.js)
+function setConn(isLive){
+  const el=document.getElementById('connStatus');
+  if(!el) return;
+  el.className=isLive?'conn':'conn warn';
+  el.setAttribute('aria-label',isLive?'Connected':'Reconnecting');
 }
 
-function subscribeAll(){
-  if(matchCh){try{sb.removeChannel(matchCh);}catch(e){}}
-  if(secretsCh){try{sb.removeChannel(secretsCh);}catch(e){}}
-  if(countsCh){try{sb.removeChannel(countsCh);}catch(e){}}
-  if(questionsCh){try{sb.removeChannel(questionsCh);}catch(e){}}
-
-  matchCh=sb.channel('wg-match-'+Date.now())
-    .on('postgres_changes',{event:'UPDATE',schema:'public',table:'wg_match',filter:'id=eq.1'},()=>resync())
-    .subscribe(status=>{
-      const el=document.getElementById('connStatus');
-      if(status==='SUBSCRIBED'){
-        if(el){ el.className='pill'; el.innerHTML=`<span class="dot"></span> Connected`; }
-        resync(); // catch up on anything missed while this channel was down
-      }else if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'||status==='CLOSED'){
-        if(el){ el.className='pill warn'; el.innerHTML=`<span class="dot"></span> Reconnecting...`; }
-        scheduleReconnect();
-      }
-    });
-
-  secretsCh=sb.channel('wg-secrets-'+Date.now())
-    .on('postgres_changes',{event:'*',schema:'public',table:'wg_secrets'},()=>resync())
-    .subscribe();
-
-  countsCh=sb.channel('wg-counts-'+Date.now())
-    .on('postgres_changes',{event:'UPDATE',schema:'public',table:'wg_guess_counts'},p=>{
-      const row=p.new;
-      if(!row)return;
-      guessCounts[row.player_name]=row.count;
-      renderGuessCounts(row.player_name);
-    })
-    .subscribe();
-
-  questionsCh=sb.channel('wg-questions-'+Date.now())
-    .on('postgres_changes',{event:'*',schema:'public',table:'wg_questions'},()=>loadQuestions())
-    .subscribe();
-}
-
-// Multiple things can trigger a resync close together — your own action,
-// the realtime channel firing, and the poll — and their responses can land
-// out of order. Without a guard, an older response landing after a newer
-// one would silently overwrite fresh state with stale state, which shows
-// up as a move or answer flickering or reverting. This tags each request
-// and only applies the result of the LATEST one issued.
-let _resyncSeq=0;
-
-// ── Central resync: the single source of truth pulled fresh from the server.
-//    Called on boot, on every realtime match ping, the fallback poll, and
-//    whenever the app comes back to the foreground. ──
+// Re-route (repaint the screen) only when something actually changed. The
+// sync used to cancel itself whenever a newer one started, so a burst of
+// events could starve the UI of any update; now syncs run one at a time.
+let _lastSig='';
 async function resyncOrThrow(){
-  const mySeq=++_resyncSeq;
   const{data:m,error:mErr}=await sb.from('wg_match').select('*').eq('id',1).maybeSingle();
   if(mErr) throw mErr;
   if(!m)return;
-  if(mySeq!==_resyncSeq)return; // a newer resync was issued while this one was in flight
   match=m;
   await loadMySecret();
   if(match.status==='over') await loadOppSecretIfRevealed();
   else oppSecret=null;
   await loadGuessCounts();
   if(match.status==='playing') await loadQuestions();
-  if(mySeq!==_resyncSeq)return; // re-check — one of the awaits above could have taken a while
+  const sig=JSON.stringify([match,mySecret,oppSecret,match.status==='playing'?questions:null]);
+  if(sig===_lastSig) return;
+  _lastSig=sig;
   routeScreen();
 }
-
-async function resync(){
-  try{
-    await resyncOrThrow();
-  }catch(e){
-    console.warn('resync failed (will retry):',e);
-  }
-}
+const _resyncRun=TetherLive.coalesce(async()=>{
+  try{ await resyncOrThrow(); }
+  catch(e){ console.warn('resync failed (will retry):',e); }
+});
+function resync(){ return _resyncRun(); }   // one at a time; a burst of events folds into a single follow-up
 
 async function loadMySecret(){
   const{data}=await sb.from('wg_secrets').select('*').eq('player_name',MY_NAME).maybeSingle();
@@ -326,8 +285,8 @@ async function loadGuessCounts(){
 function renderGuessCounts(bumpedName){
   const sEl=document.getElementById('gcSatyam');
   const nEl=document.getElementById('gcSnks');
-  if(sEl) sEl.textContent=guessCounts.Satyam||0;
-  if(nEl) nEl.textContent=guessCounts.Snks||0;
+  if(sEl&&sEl.textContent!==String(guessCounts.Satyam||0)) sEl.textContent=guessCounts.Satyam||0;
+  if(nEl&&nEl.textContent!==String(guessCounts.Snks||0)) nEl.textContent=guessCounts.Snks||0;
   if(bumpedName){
     const el=bumpedName==='Satyam'?sEl:nEl;
     if(el){
@@ -364,11 +323,15 @@ function renderQuestions(){
     if(existing){
       existingRows.delete(String(q.id));
       if(existing.dataset.state===stateKey) return; // unchanged — leave its DOM completely alone, no re-animation
-      existing.replaceWith(buildQuestionRow(q,stateKey)); // only this row's state actually changed
+      const rebuilt=buildQuestionRow(q,stateKey);
+      rebuilt.classList.add('still'); // the bubble is already on screen: only its answer badge should animate
+      existing.replaceWith(rebuilt); // only this row's state actually changed
+      if(q.asked_by===MY_NAME&&q.answer) sfx(q.answer==='yes'?'yes':'no'); // they answered my question
       return;
     }
     el.appendChild(buildQuestionRow(q,stateKey)); // brand new question
     appendedNew=true;
+    if(q.asked_by!==MY_NAME) sfx('ping'); // a new question from them
   });
 
   // Anything left in existingRows belonged to a question that no longer exists (e.g. new match reset)
@@ -432,6 +395,7 @@ async function askQuestion(){
   if(!val)return;
   input.value='';
   vibrate(12);
+  sfxNow('send');
   try{
     const{error}=await withTimeout(sb.rpc('wg_ask_question',{p_question:val}));
     if(error) throw error;
@@ -443,6 +407,7 @@ async function askQuestion(){
   }
 }
 async function answerQuestion(id,answer){
+  sfxNow(answer==='yes'?'yes':'no');
   const q=questions.find(x=>x.id===id);
   if(q){q.answer=answer;q.answered_at=new Date().toISOString();renderQuestions();} // optimistic
   try{
@@ -496,8 +461,10 @@ function renderPlaying(){
 const TROPHY_ICON='<path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0V4z"/><path d="M7 5H4a1 1 0 0 0-1 1c0 2.5 1.5 4.5 4 5M17 5h3a1 1 0 0 1 1 1c0 2.5-1.5 4.5-4 5"/>';
 const LOSS_ICON='<circle cx="12" cy="12" r="9"/><path d="M9 15l6-6M9 9l6 6"/>';
 
+const _overSfxFor=new Set();
 function renderOver(){
   const iWon=match.winner_name===MY_NAME;
+  if(!_overSfxFor.has(match.updated_at)){ _overSfxFor.add(match.updated_at); sfx(iWon?'win':'lose'); }
   document.getElementById('overTrophy').innerHTML=iWon?TROPHY_ICON:LOSS_ICON;
   document.getElementById('finalWinnerName').textContent=iWon?'You guessed it!':`${OPP_NAME} got it!`;
   document.getElementById('revealMeAnimal').textContent=mySecret?.animal||'—';
@@ -542,6 +509,7 @@ async function lockAnimal(){
     const{error}=await withTimeout(sb.rpc('wg_lock_animal',{p_animal:val}));
     if(error) throw error;
     await loadMySecret();
+    sfxNow('lock');
     document.getElementById('animalInput').disabled=true;
     document.getElementById('choosingHint').textContent="Locked in — waiting for them to lock in too...";
   }catch(e){
@@ -556,6 +524,7 @@ async function submitGuess(){
   if(!val)return;
   document.getElementById('guessErr').textContent='';
   vibrate(12);
+  sfxNow('send');
   guessCounts[MY_NAME]=(guessCounts[MY_NAME]||0)+1; // optimistic bump
   renderGuessCounts(MY_NAME);
   try{
@@ -563,10 +532,13 @@ async function submitGuess(){
     if(error) throw error;
     input.value='';
     if(data.won){
+      sfxNow('right');
       toast('Correct! You got it!');
     }else if(data.correct){
+      sfxNow('right');
       toast(`Correct, but ${OPP_NAME} guessed first!`);
     }else{
+      sfxNow('wrong');
       document.getElementById('guessErr').textContent='Not quite — keep asking';
     }
   }catch(e){
@@ -595,6 +567,11 @@ async function startNewMatch(){
   }
   if(btn) btn.disabled=false;
 }
+
+// ── settings sheet + gear button (shared: games-ui.js) ──
+TetherUI.mount({extras:[
+  `<details class="how"><summary>How to play</summary><ol><li>Each of you secretly picks an animal or bird.</li><li>Take turns asking yes or no questions about the other's animal.</li><li>First to guess it right wins. Fewer guesses is better.</li></ol></details>`
+]});
 </script>
 </body>
 </html>
