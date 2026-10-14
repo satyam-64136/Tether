@@ -1,4 +1,4 @@
-const CACHE = 'us-v10';
+const CACHE = 'us-v11';
 const BASE = '/Tether';
 const ASSETS = [`${BASE}/`, `${BASE}/index.html`, `${BASE}/manifest.json`, `${BASE}/games.css`, `${BASE}/games-ui.js`, `${BASE}/games-live.js`, `${BASE}/tether-pages.js`, `${BASE}/tether-intro.js`];
 

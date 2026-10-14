@@ -359,24 +359,54 @@ async function share(){
   const blob=await toBlob();const file=new File([blob],'photobooth.jpg',{type:'image/jpeg'});
   try{await navigator.share({files:[file],title:'Photo Booth'})}catch(e){if(e&&e.name!=='AbortError')toast('Sharing is not available here')}
 }
+/* Sending behaves exactly like the chat does: sign in the same way (so the booth shares the chat's
+   session on this device), upload to the images bucket with the same chat_<time>.<ext> naming,
+   and post the message as the signed-in person. */
 let _sb=null;
+async function chatClient(){
+  if(_sb) return _sb;
+  const sb=supabase.createClient(SU,SK);
+  let{data:{session}}=await sb.auth.getSession();
+  if(!session){const r=await sb.auth.signInAnonymously();if(r.error)throw r.error;session=r.data.session}
+  const me=await sb.from('sessions').select('user_name').eq('auth_uid',session.user.id).limit(1);
+  if(me.error)throw me.error;
+  if(!me.data||!me.data[0]){const e=new Error('open the chat once on this phone first');e.step='identify';throw e}
+  sb.__me=me.data[0].user_name;
+  _sb=sb;return sb;
+}
 async function send(btn){
-  const user=localStorage.getItem('us_user');
-  if(!user){toast('Open the chat once first so I know who you are');return}
+  // Opened from the home screen: give the photo to the chat and let the CHAT send it. It then goes
+  // through exactly the same upload and permissions as a photo picked from your gallery, shows up
+  // with its upload ring, and offers a retry if the network drops.
+  if(TetherUI.embedded){
+    btn.disabled=true;
+    try{
+      const blob=await toBlob();
+      const file=new File([blob],'photobooth.jpg',{type:'image/jpeg'});
+      parent.postMessage({type:'tether:send-image',file},location.origin);
+      S.sent=true;TetherUI.sfx.play('win');TetherUI.haptic([20,50,20]);renderActions();
+    }catch(e){console.error(e);toast('Could not hand the photo to the chat');btn.disabled=false}
+    return;
+  }
+  // Opened on its own (not inside the home screen): send directly, the same way the chat does.
   btn.disabled=true;const label=btn.innerHTML;btn.innerHTML=TetherUI.icon('send')+' Sending';
+  let step='sign in';
   try{
-    _sb=_sb||supabase.createClient(SU,SK);
+    const sb=await chatClient();
     const blob=await toBlob();
-    const path=`photobooth_${Date.now()}.jpg`;
-    const up=await _sb.storage.from('images').upload(path,blob,{upsert:true,contentType:'image/jpeg'});
+    step='upload';
+    const path=`chat_${Date.now()}.jpg`;
+    const up=await sb.storage.from('images').upload(path,blob,{contentType:'image/jpeg'});
     if(up.error) throw up.error;
-    const url=_sb.storage.from('images').getPublicUrl(path).data.publicUrl;
-    const ins=await _sb.from('messages').insert({sender:user,content:null,image_url:url,reply_to:null,seen:false,reactions:{}});
+    const url=sb.storage.from('images').getPublicUrl(path).data.publicUrl;
+    step='post to chat';
+    const ins=await sb.from('messages').insert({sender:sb.__me,content:null,image_url:url,reply_to:null,seen:false,reactions:{}}).select().single();
     if(ins.error) throw ins.error;
     S.sent=true;TetherUI.sfx.play('win');TetherUI.haptic([20,50,20]);toast('Sent to the chat');
     renderActions();
   }catch(e){
-    console.error(e);toast('Could not send: '+(e.message||'try again'));
+    console.error('photo booth send failed at',step,e);
+    toast(`Could not send (${e.step||step}): ${e.message||'try again'}`);
     btn.disabled=false;btn.innerHTML=label;
   }
 }

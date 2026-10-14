@@ -227,6 +227,7 @@
   @media (prefers-reduced-motion:reduce){.tp-sheet,.tp-scrim,.tp-frame{transition-duration:.01ms}.tp-dots span{animation:none}}`;
   document.head.appendChild(css);
 
+  const handlers = {};   // messages a page can send the home screen: TetherPages.on('send-image', fn)
   let root = null, frame = null, opened = false, pushed = false, fallbackT = 0, hideT = 0;
   function isDark() {
     let pref = 'auto';
@@ -287,11 +288,12 @@
     if (e.origin !== location.origin || !e.data) return;
     if (e.data.type === 'tether:ready') reveal();
     else if (e.data.type === 'tether:close') close();
+    else if (typeof e.data.type === 'string' && e.data.type.indexOf('tether:') === 0 && handlers[e.data.type.slice(7)]) handlers[e.data.type.slice(7)](e.data);
   });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && opened) close(); });
   if (global.visualViewport) { visualViewport.addEventListener('resize', relay); visualViewport.addEventListener('scroll', relay); }
 
   // onBeforeOpen: optional hook the host page can set (index.html uses it to close its menu panel)
-  const api = { mount, refresh, open, close, readTags, onBeforeOpen: null, get pages() { return current; }, get isOpen() { return opened; } };
+  const api = { mount, refresh, open, close, readTags, on(type, fn) { handlers[type] = fn; }, onBeforeOpen: null, get pages() { return current; }, get isOpen() { return opened; } };
   global.TetherPages = api;
 })(window);

@@ -5779,6 +5779,22 @@ window.addEventListener('beforeunload',setOffPres);
 <script>
 TetherPages.onBeforeOpen=function(){ try{ closeMenu(); }catch(e){} };   // closing a page then lands you on the chat, not on an open menu
 TetherPages.mount('#tetherPages');
+
+// A page (the photo booth) can hand a finished photo to the chat. The chat then sends it with its OWN send(),
+// exactly like a photo picked from the gallery: same upload, same permissions, same upload ring and retry.
+TetherPages.on('send-image',async function(d){
+  try{
+    let f=d&&d.file; if(!(f instanceof Blob)) return;
+    if(typeof editingId!=='undefined'&&editingId) return;                   // never hijack a message being edited
+    TetherPages.close();                                                    // slide the page away so the photo appears in the chat
+    if(!(f instanceof File)) f=new File([f],'photobooth.jpg',{type:'image/jpeg'});
+    try{ if(typeof compressImage==='function') f=await compressImage(f); }catch(e){}
+    const inp=document.getElementById('minp'), draft=inp.value;
+    pendingImgs=[f]; pendingDoc=null; pendingViewOnce=false; inp.value='';
+    await send();
+    inp.value=draft; inp.dispatchEvent(new Event('input'));                 // put back whatever you were typing
+  }catch(e){ console.error('photo hand-off failed',e); }
+});
 </script>
 </body>
 </html>
