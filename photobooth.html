@@ -70,6 +70,8 @@ body[data-game="booth"]{--tint:var(--peach);--tint2:var(--lilac)}
 .acts .btn.sm{flex:none}
 .acts .btn[disabled]{opacity:.5}
 .picker-label{display:contents}
+.cstat{position:absolute;inset-inline:.6rem;top:.6rem;z-index:4;text-align:center;font:600 .92rem var(--font-display);color:var(--plum);background:var(--butter);border:2px solid var(--line);border-radius:99px;padding:.3rem .8rem;box-shadow:0 .14rem 0 var(--shadow)}
+.acts.two{flex-wrap:wrap}.acts .btn.wide{flex:1 1 100%}
 @media (max-height:640px){ .idle .big{inline-size:3.6rem;block-size:3.6rem} .idle p{display:none} .count{font-size:6rem} }
 </style>
 </head>
@@ -98,6 +100,7 @@ body[data-game="booth"]{--tint:var(--peach);--tint2:var(--lilac)}
         <video id="video" playsinline muted autoplay></video>
         <div class="count" id="count" aria-hidden="true"></div>
         <div class="flash" id="flash"></div>
+        <div class="cstat" id="cstat" hidden></div>
         <div class="shots" id="shots" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
       </div>
       <canvas id="result" role="img" aria-label="Your finished photo collage"></canvas>
@@ -141,9 +144,9 @@ const SU='https://ggfxdeuwifmqulyhchtv.supabase.co';
 const SK='sb_publishable_DMMJ2sFnGlFWogBs30qowg_-N0zk3OI';
 
 /* ═══════════════ state ═══════════════ */
-const prefs={tpl:'film',look:'kodak'};
+const prefs={tpl:'film',ctpl:'blend',look:'kodak'};
 try{Object.assign(prefs,JSON.parse(localStorage.getItem('booth:prefs')||'{}'))}catch{}
-const S={stream:null,facing:'user',frames:[],busy:false,cancel:false,sent:false,composeToken:0};
+const S={mode:'solo',names:['you','me'],stream:null,facing:'user',frames:[],busy:false,cancel:false,sent:false,composeToken:0};
 const booth=$('#booth'),video=$('#video'),result=$('#result'),acts=$('#acts');
 
 function setState(st){booth.dataset.state=st;renderActions()}
@@ -205,6 +208,38 @@ const HEART=new Path2D('M0 15C-27-2-15-21 0-8C15-21 27-2 0 15Z');
 const STAR=(()=>{const p=new Path2D();for(let i=0;i<10;i++){const a=-Math.PI/2+i*Math.PI/5,r=i%2?8:19;p[i?'lineTo':'moveTo'](r*Math.cos(a),r*Math.sin(a))}p.closePath();return p})();
 
 const TEMPLATES={
+  // BLEND: one portrait where the two of you fade into each other along a diagonal, with a heart on the seam
+  blend:{size:720,count:2,draw(frames){
+    const W=1000,H=1250,P=34,CAP=190,c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');
+    x.fillStyle='#fffaf0';x.fillRect(0,0,W,H);
+    const ix=P,iy=P,iw=W-P*2,ih=H-P*2-CAP;
+    const layer=img=>{const o=document.createElement('canvas');o.width=iw;o.height=ih;const q=o.getContext('2d'),k=Math.max(iw/img.width,ih/img.height);q.drawImage(img,(iw-img.width*k)/2,(ih-img.height*k)/2,img.width*k,img.height*k);return o};
+    x.save();rr(x,ix,iy,iw,ih,18);x.clip();
+    x.drawImage(layer(frames[0]),ix,iy);
+    const b=layer(frames[1]),q=b.getContext('2d'),cx=iw*.5,cy=ih*.5,dx=.93,dy=.36,len=95;
+    const g=q.createLinearGradient(cx-dx*len,cy-dy*len,cx+dx*len,cy+dy*len);g.addColorStop(0,'rgba(0,0,0,0)');g.addColorStop(1,'rgba(0,0,0,1)');
+    q.globalCompositeOperation='destination-in';q.fillStyle=g;q.fillRect(0,0,iw,ih);
+    x.drawImage(b,ix,iy);x.restore();
+    x.strokeStyle='#3b2a45';x.lineWidth=5;rr(x,ix,iy,iw,ih,18);x.stroke();
+    x.save();x.translate(ix+iw/2,iy+ih/2);x.rotate(.12);x.scale(2.6,2.6);x.fillStyle='#ff9cc0';x.strokeStyle='#3b2a45';x.lineWidth=2.4;x.lineJoin='round';x.fill(HEART);x.stroke(HEART);x.restore();
+    x.fillStyle='#3b2a45';x.textAlign='center';x.font='700 78px Caveat,cursive';x.fillText(`${S.names[0]} & ${S.names[1]}`,W/2,H-P-82);
+    x.font='600 30px Fredoka,sans-serif';x.fillText(dateText(),W/2,H-P-30);
+    return c}},
+  // SPLIT: two tilted portraits side by side, a big heart between them
+  split:{size:720,count:2,draw(frames){
+    const W=1200,H=1060,PW=520,PH=690,Y=64,c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');
+    x.fillStyle='#fffaf0';x.fillRect(0,0,W,H);x.strokeStyle='#3b2a45';x.lineWidth=8;x.strokeRect(4,4,W-8,H-8);
+    [[46,-1.4],[634,1.4]].forEach(([px,deg],i)=>{
+      x.save();x.translate(px+PW/2,Y+PH/2);x.rotate(deg*Math.PI/180);x.translate(-PW/2,-PH/2);
+      x.shadowColor='rgba(40,20,10,.22)';x.shadowBlur=22;x.shadowOffsetY=10;x.fillStyle='#fff';x.fillRect(-12,-12,PW+24,PH+24);x.shadowColor='transparent';
+      x.beginPath();x.rect(0,0,PW,PH);x.clip();const k=PH/frames[i].height;x.drawImage(frames[i],(PW-frames[i].width*k)/2,0,frames[i].width*k,PH);
+      x.restore();
+    });
+    x.save();x.translate(W/2,Y+PH/2);x.rotate(-.1);x.scale(2.8,2.8);x.fillStyle='#ff9cc0';x.strokeStyle='#3b2a45';x.lineWidth=2.4;x.lineJoin='round';x.fill(HEART);x.stroke(HEART);x.restore();
+    x.fillStyle='#3b2a45';x.textAlign='center';x.font='700 70px Caveat,cursive';
+    x.fillText(S.names[0],46+PW/2,Y+PH+105);x.fillText(S.names[1],634+PW/2,Y+PH+105);
+    x.font='600 28px Fredoka,sans-serif';x.fillText(dateText(),W/2,H-34);
+    return c}},
   film:{size:460,draw(frames){
     const FW=460,GAP=26,TOP=46,SIDE=80,W=FW+SIDE*2,H=TOP*2+SHOTS*FW+(SHOTS-1)*GAP;
     const c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');
@@ -260,9 +295,10 @@ const TEMPLATES={
 async function compose(){
   const token=++S.composeToken;
   try{await Promise.all(['700 40px Caveat','600 30px Fredoka','600 16px Figtree'].map(f=>document.fonts.load(f)))}catch(e){/* fall back to system fonts */}
-  const T=TEMPLATES[prefs.tpl];
+  const T=TEMPLATES[curTpl()]||TEMPLATES.film;
   const toned=[];
-  for(let i=0;i<SHOTS;i++){
+  const need=T.count||SHOTS;
+  for(let i=0;i<need;i++){
     toned.push(tone(S.frames[i%S.frames.length],T.size,prefs.look,i+1));
     if(i%2===1) await sleep(0);                                            // let the UI breathe between frames
     if(token!==S.composeToken) return;                                    // the user changed look/layout meanwhile
@@ -413,36 +449,146 @@ async function send(btn){
 
 /* ═══════════════ controls ═══════════════ */
 function renderActions(){
-  const st=booth.dataset.state,ic=n=>TetherUI.icon(n);
+  const st=booth.dataset.state,ic=n=>TetherUI.icon(n),couple=S.mode==='couple';
   const canShare=!!(navigator.canShare&&navigator.canShare({files:[new File([''],'x.jpg',{type:'image/jpeg'})]}));
+  acts.classList.toggle('two',st==='idle');
   acts.innerHTML=
-    st==='idle'?`<button class="btn" data-act="camera">${ic('camera')} Start camera</button><button class="btn ghost" data-act="pick">${ic('image')} My photos</button>`:
-    st==='camera'?`<button class="btn sm" data-act="flip" aria-label="Switch camera">${ic('swap')}</button><button class="btn go" data-act="shoot">${ic('camera')} Take ${SHOTS} photos</button><button class="btn sm ghost" data-act="stop" aria-label="Close camera">${ic('close')}</button>`:
+    st==='idle'?`<button class="btn" data-act="camera">${ic('camera')} Start camera</button><button class="btn ghost" data-act="pick">${ic('image')} My photos</button><button class="btn go wide" data-act="couple">${ic('users')} Couple photo (2 phones)</button>`:
+    st==='camera'?(couple?`<button class="btn sm" data-act="flip" aria-label="Switch camera">${ic('swap')}</button><button class="btn go" data-act="ready"${C.ready?' disabled':''}>${ic(C.ready?'check':'heart')} ${C.ready?'Ready':"I'm ready"}</button><button class="btn sm ghost" data-act="stop" aria-label="Leave">${ic('close')}</button>`:
+      `<button class="btn sm" data-act="flip" aria-label="Switch camera">${ic('swap')}</button><button class="btn go" data-act="shoot">${ic('camera')} Take ${SHOTS} photos</button><button class="btn sm ghost" data-act="stop" aria-label="Close camera">${ic('close')}</button>`):
     st==='shooting'?`<button class="btn ghost" data-act="cancel">${ic('close')} Cancel</button>`:
     `<button class="btn ghost" data-act="again">${ic('reset')} Retake</button><button class="btn" data-act="save">${ic('download')} Save</button>${canShare?`<button class="btn sm ghost" data-act="share" aria-label="Share">${ic('share')}</button>`:''}<button class="btn go" data-act="send" aria-label="Send to chat"${S.sent?' disabled':''}>${ic(S.sent?'check':'send')} ${S.sent?'Sent':'Send'}</button>`;
 }
 acts.addEventListener('click',e=>{
   const b=e.target.closest('button[data-act]');if(!b)return;
   TetherUI.unlock();
-  ({camera:startCamera,pick:()=>$('#picker').click(),flip:()=>{S.facing=S.facing==='user'?'environment':'user';startCamera()},
-    shoot,cancel:()=>{S.cancel=true},stop:()=>{stopCamera();setState('idle')},
-    again:()=>{S.frames=[];setState('idle')},save,share,send:()=>send(b)})[b.dataset.act]();
+  ({camera:()=>{S.mode='solo';renderLayouts();startCamera()},pick:()=>{S.mode='solo';renderLayouts();$('#picker').click()},couple:coupleStart,ready:coupleReady,
+    flip:()=>{S.facing=S.facing==='user'?'environment':'user';startCamera()},
+    shoot,cancel:()=>{S.cancel=true},stop:()=>{coupleLeave(true);stopCamera();S.mode='solo';renderLayouts();setState('idle')},
+    again:()=>{S.frames=[];coupleLeave(false);S.mode='solo';renderLayouts();setState('idle')},save,share,send:()=>send(b)})[b.dataset.act]();
 });
 $('#picker').addEventListener('change',e=>{fromFiles(e.target.files);e.target.value=''});
 
+const LAYOUTS={solo:[['film','Film strip'],['polaroid','Polaroids'],['booth','Booth']],couple:[['blend','Blend'],['split','Split'],['film','Strip'],['polaroid','Polaroids']]};
+const curTpl=()=>S.mode==='couple'?prefs.ctpl:prefs.tpl;
+function renderLayouts(){$('#segTpl').innerHTML=LAYOUTS[S.mode].map(([k,l])=>`<button type="button" data-tpl="${k}" aria-pressed="false">${l}</button>`).join('');syncSegs()}
 function syncSegs(){
-  document.querySelectorAll('#segTpl button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.tpl===prefs.tpl)));
+  document.querySelectorAll('#segTpl button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.tpl===curTpl())));
   document.querySelectorAll('#segLook button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.look===prefs.look)));
 }
 function savePrefs(){try{localStorage.setItem('booth:prefs',JSON.stringify(prefs))}catch(e){}}
-$('#segTpl').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;prefs.tpl=b.dataset.tpl;savePrefs();syncSegs();TetherUI.sfx.play('tap');if(booth.dataset.state==='result')compose()});
+$('#segTpl').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(S.mode==='couple')prefs.ctpl=b.dataset.tpl;else prefs.tpl=b.dataset.tpl;savePrefs();syncSegs();TetherUI.sfx.play('tap');if(booth.dataset.state==='result')compose()});
 $('#segLook').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;prefs.look=b.dataset.look;savePrefs();syncSegs();applyLive();TetherUI.sfx.play('tap');if(booth.dataset.state==='result')compose()});
-document.addEventListener('visibilitychange',()=>{if(document.hidden&&booth.dataset.state==='camera'){stopCamera();setState('idle')}});   // never keep the camera on in the background
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&booth.dataset.state==='camera'){coupleLeave(true);stopCamera();S.mode='solo';renderLayouts();setState('idle')}});   // never keep the camera on in the background
 addEventListener('pagehide',stopCamera);
 
-syncSegs();setState('idle');
+/* ═══════════════ couple mode: two phones, one portrait ═══════════════
+   Both of you open "Couple photo". The phones meet in a private realtime room (a Supabase broadcast
+   channel: no table, no SQL, no storage), both tap "I'm ready", and the countdown starts on both at
+   once. Each of you takes 2 photos on your own phone; the photos travel through the room and both
+   phones build the same portrait. The finished picture can then be saved or sent to the chat. */
+const C={sb:null,ch:null,gen:0,me:null,other:null,ready:false,partnerReady:false,started:false,mine:[],theirs:[],dots:null};
+const ROUNDS=2,SEND_PX=720,cstat=$('#cstat');
+const say=t=>{cstat.textContent=t;cstat.hidden=!t};
+const shrink=(c,px)=>{const o=document.createElement('canvas');o.width=o.height=px;o.getContext('2d').drawImage(c,0,0,px,px);return o};
+const fromUrl=url=>new Promise((res,rej)=>{const im=new Image();im.onload=()=>{const o=document.createElement('canvas');o.width=o.height=SEND_PX;cover(o.getContext('2d'),im,SEND_PX);res(o)};im.onerror=rej;im.src=url});
+const partnerName=()=>C.other||(C.me==='Satyam'?'Snks':'Satyam');
+
+async function coupleStart(){
+  const me=localStorage.getItem('us_user');
+  if(!me){toast('Open the chat once first so I know who you are');return}
+  Object.assign(C,{me,other:null,ready:false,partnerReady:false,started:false,mine:[],theirs:[],dots:null});
+  S.mode='couple';S.sent=false;renderLayouts();
+  await startCamera();                                   // camera first, so you can see yourself while you wait
+  if(booth.dataset.state!=='camera'){S.mode='solo';renderLayouts();return}
+  say('Connecting...');
+  try{
+    C.sb=C.sb||supabase.createClient(SU,SK);
+    const gen=++C.gen;
+    const ch=C.sb.channel('tether-booth-room',{config:{broadcast:{self:false},presence:{key:me}}});
+    ch.on('broadcast',{event:'go'},()=>{if(C.gen===gen&&!C.started){C.started=true;coupleSequence()}});
+    ch.on('broadcast',{event:'shot'},p=>{if(C.gen===gen)onShot(p.payload)});
+    ch.on('broadcast',{event:'bye'},()=>{if(C.gen===gen&&!C.started)onPresence()});
+    ch.on('presence',{event:'sync'},()=>{if(C.gen===gen)onPresence()});
+    C.ch=ch;
+    await new Promise((res,rej)=>{
+      const t=setTimeout(()=>rej(new Error('timed out')),10000);
+      ch.subscribe(async st=>{
+        if(C.gen!==gen) return;                          // a channel we already replaced or left
+        if(st==='SUBSCRIBED'){clearTimeout(t);await ch.track({user:me,ready:false});res()}
+        else if(st==='CHANNEL_ERROR'||st==='TIMED_OUT'){clearTimeout(t);rej(new Error('connection failed'))}
+      });
+    });
+    onPresence();
+  }catch(e){console.error(e);toast('Could not connect: '+e.message);coupleLeave(false);stopCamera();S.mode='solo';renderLayouts();setState('idle')}
+}
+function onPresence(){
+  if(!C.ch||C.started||booth.dataset.state!=='camera') return;
+  const st=C.ch.presenceState(),others=Object.keys(st).filter(k=>k!==C.me);
+  C.other=others[0]||null;
+  C.partnerReady=!!(C.other&&st[C.other]&&st[C.other][0]&&st[C.other][0].ready);
+  say(!C.other?`Waiting for ${partnerName()} to open Couple photo...`:C.ready?(C.partnerReady?'Starting...':`Waiting for ${C.other} to get ready...`):C.partnerReady?`${C.other} is ready!`:`${C.other} is here. Get ready!`);
+  renderActions();
+  if(C.ready&&C.partnerReady&&C.other&&[C.me,C.other].sort()[0]===C.me) hostGo();   // the first name alphabetically starts it, so exactly one phone does
+}
+async function coupleReady(){
+  if(!C.ch||C.ready) return;
+  C.ready=true;TetherUI.sfx.play('tap');
+  await C.ch.track({user:C.me,ready:true});onPresence();
+}
+async function hostGo(){
+  if(C.started) return;
+  C.started=true;
+  C.ch.send({type:'broadcast',event:'go',payload:{}});
+  await sleep(180);                                      // about the time the message takes to reach the other phone
+  coupleSequence();
+}
+async function coupleSequence(){
+  S.cancel=false;setState('shooting');say('');
+  const dots=C.dots=[...document.querySelectorAll('#shots span')];
+  dots.forEach(d=>{d.style.backgroundImage='';d.classList.remove('on')});
+  const count=$('#count'),flash=$('#flash');
+  for(let r=0;r<ROUNDS&&!S.cancel;r++){
+    dots[r*2].classList.add('on');
+    for(let n=3;n>=1&&!S.cancel;n--){
+      count.textContent=n;count.classList.remove('tick');void count.offsetWidth;count.classList.add('tick');
+      TetherUI.sfx.play('count');TetherUI.haptic(10);
+      await sleep(TICK);
+    }
+    if(S.cancel) break;
+    count.textContent='';flash.classList.remove('go');void flash.offsetWidth;flash.classList.add('go');
+    TetherUI.sfx.play('shutter');TetherUI.haptic([30,40,30]);
+    const f=shrink(grab(),SEND_PX);C.mine[r]=f;
+    dots[r*2].classList.remove('on');dots[r*2].style.backgroundImage=`url(${f.toDataURL('image/jpeg',.4)})`;
+    C.ch.send({type:'broadcast',event:'shot',payload:{round:r,data:f.toDataURL('image/jpeg',.68)}});
+    await sleep(TICK*.7);
+  }
+  if(S.cancel){coupleLeave(true);stopCamera();S.mode='solo';renderLayouts();setState('idle');return}
+  stopCamera();say('Developing...');
+  const t0=Date.now();
+  while(C.theirs.filter(Boolean).length<ROUNDS&&Date.now()-t0<15000&&!S.cancel) await sleep(120);
+  say('');
+  if(C.theirs.filter(Boolean).length<ROUNDS){toast(`${partnerName()}'s photos did not arrive. Try again.`);coupleLeave(true);S.mode='solo';renderLayouts();setState('idle');return}
+  S.names=[C.me,C.other].sort();
+  S.frames=[];                                           // strip order: round 1 (both of you), round 2 (both of you); the same on both phones
+  for(let r=0;r<ROUNDS;r++) for(const nm of S.names) S.frames.push(nm===C.me?C.mine[r]:C.theirs[r]);
+  coupleLeave(false);
+  setState('result');await compose();TetherUI.sfx.play('claim');
+}
+async function onShot(p){
+  try{
+    C.theirs[p.round]=await fromUrl(p.data);
+    if(C.dots&&C.dots[p.round*2+1]) C.dots[p.round*2+1].style.backgroundImage=`url(${C.theirs[p.round].toDataURL('image/jpeg',.4)})`;
+  }catch(e){console.error('could not read the other phone\'s photo',e)}
+}
+function coupleLeave(tell){
+  C.gen++;C.started=false;C.ready=false;C.partnerReady=false;say('');
+  if(C.ch){const ch=C.ch;C.ch=null;try{if(tell)ch.send({type:'broadcast',event:'bye',payload:{}})}catch(e){}try{C.sb.removeChannel(ch)}catch(e){}}
+}
+
+renderLayouts();setState('idle');
 TetherUI.mount({extras:[
-  `<details class="how"><summary>How it works</summary><ol><li>Pick a layout and a film look.</li><li>Start the camera. It counts down and takes ${SHOTS} photos, or choose photos you already have.</li><li>Change the layout or look any time on the result, then save it or send it to the chat.</li></ol></details>`
+  `<details class="how"><summary>How it works</summary><ol><li>Pick a layout and a film look.</li><li>Start the camera. It counts down and takes ${SHOTS} photos, or choose photos you already have.</li><li>Change the layout or look any time on the result, then save it or send it to the chat.</li><li>Couple photo: you both open it on your own phones, tap I'm ready, and each take 2 photos. The app merges them into one portrait.</li></ol></details>`
 ]});
 })();
 </script>
