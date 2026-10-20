@@ -225,6 +225,12 @@
   .tp-dots span:nth-child(2){background:#ffe27a;animation-delay:.12s}
   .tp-dots span:nth-child(3){background:#8ccfff;animation-delay:.24s}
   @keyframes tpBounce{0%,100%{transform:translateY(0)}40%{transform:translateY(-9px)}}
+  .tp-note{position:absolute;z-index:6;top:max(10px,env(safe-area-inset-top));left:50%;max-width:min(92vw,26rem);display:flex;gap:8px;align-items:baseline;
+    padding:9px 16px;border:0;border-radius:99px;cursor:pointer;background:#fff;color:#3b2a45;font:600 13px/1.3 'Geist',system-ui,sans-serif;
+    box-shadow:0 8px 24px rgba(30,15,40,.28);transform:translate(-50%,-160%);transition:transform .38s cubic-bezier(.2,.9,.2,1)}
+  .tp-note.on{transform:translate(-50%,0)}
+  .tp-note b{color:#ff5f9e;white-space:nowrap}.tp-note span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .tp-ov.dark .tp-note{background:#34263f;color:#fff1e4}
   @media (prefers-reduced-motion:reduce){.tp-sheet,.tp-scrim,.tp-frame{transition-duration:.01ms}.tp-dots span{animation:none}}`;
   document.head.appendChild(css);
 
@@ -274,10 +280,23 @@
     opened = false; pushed = false;
     clearTimeout(fallbackT);
     root.classList.remove('show', 'ready');
+    if (noteEl) noteEl.classList.remove('on');
     hideT = setTimeout(() => {                                              // after the slide-down finishes: free the page (sockets, camera, memory)
       root.classList.remove('on', 'dark');
       if (frame) { frame.src = 'about:blank'; frame.remove(); frame = null; }
     }, 520);
+  }
+  // A message arrived while a page is open: slide a small banner down over it. Tap it to go back to the chat.
+  let noteEl = null, noteT = 0;
+  function notify(title, body) {
+    if (!opened || !root) return;
+    if (!noteEl) {
+      noteEl = document.createElement('button'); noteEl.type = 'button'; noteEl.className = 'tp-note';
+      noteEl.setAttribute('role', 'status'); noteEl.innerHTML = '<b></b><span></span>';
+      noteEl.addEventListener('click', () => close()); root.appendChild(noteEl);
+    }
+    noteEl.firstChild.textContent = title + ':'; noteEl.lastChild.textContent = body;
+    noteEl.classList.add('on'); clearTimeout(noteT); noteT = setTimeout(() => noteEl.classList.remove('on'), 4500);
   }
   function close() {
     if (!opened) return;
@@ -295,6 +314,6 @@
   if (global.visualViewport) { visualViewport.addEventListener('resize', relay); visualViewport.addEventListener('scroll', relay); }
 
   // onBeforeOpen: optional hook the host page can set (index.html uses it to close its menu panel)
-  const api = { mount, refresh, open, close, readTags, on(type, fn) { handlers[type] = fn; }, onBeforeOpen: null, get pages() { return current; }, get isOpen() { return opened; } };
+  const api = { mount, refresh, open, close, readTags, on(type, fn) { handlers[type] = fn; }, notify, onBeforeOpen: null, get pages() { return current; }, get isOpen() { return opened; } };
   global.TetherPages = api;
 })(window);

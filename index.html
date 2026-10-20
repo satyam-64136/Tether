@@ -806,7 +806,7 @@ html,body{
 .doc-prv-type{font-size:10px;color:var(--text3);margin-top:1px}
 
 .inpwrap{
-  flex:1;background:var(--input-bg);
+  flex:1;min-width:0;background:var(--input-bg);
   backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
   border:1px solid var(--border);border-radius:24px;
   display:flex;align-items:flex-end;padding:10px 14px;
@@ -830,9 +830,9 @@ html,body{
 .rec-slide-cancel.canceling .rsc-chevron{animation:none;opacity:1}
 
 #minp{
-  flex:1;background:none;border:none;outline:none;
+  flex:1;min-width:0;width:100%;background:none;border:none;outline:none;
   color:var(--text);font-family:'Geist',sans-serif;
-  font-size:15px;line-height:1.4;resize:none;
+  font-size:16px;line-height:1.4;resize:none;
   max-height:100px;min-height:24px;
 }
 #minp::placeholder{color:var(--text3)}
@@ -2449,11 +2449,12 @@ function setUser(name){
         // depends purely on a live push — the ring button above all — would
         // otherwise stay silently broken until a full reload. Resubscribing
         // fresh on every resume is what actually fixes that.
-        subMsgs();subTyping();subSettings();subPres();subRing();subSession();
+        RT.resume();
         if(navigator.serviceWorker?.controller){
           navigator.serviceWorker.controller.postMessage({type:'CLEAR_NOTIF'});
         }
       } else {
+        RT.lastHidden=Date.now();
         setOffPres();
         if(navigator.serviceWorker?.controller){
           navigator.serviceWorker.controller.postMessage({
@@ -2467,12 +2468,12 @@ function setUser(name){
     // without a tab switch) — these two catch those cases too.
     window.addEventListener('online',()=>{
       catchupMsgs();
-      subMsgs();subTyping();subSettings();subPres();subRing();subSession();
+      RT.resume(true);
     });
     window.addEventListener('pageshow',e=>{
       if(e.persisted){
         catchupMsgs();
-        subMsgs();subTyping();subSettings();subPres();subRing();subSession();
+        RT.resume(true);
       }
     });
   }
@@ -2492,13 +2493,14 @@ async function loadSettings(){
 
 let _settingsCh=null;
 function subSettings(){
+  const _tok=RT.begin('settings');
   if(_settingsCh){try{sb.removeChannel(_settingsCh);}catch(e){}}
   _settingsCh=sb.channel('settings-rt')
     .on('postgres_changes',{event:'*',schema:'public',table:'settings'},p=>{
       if(!p.new)return;
       if(p.new.key==='background') applyBgUrl(p.new.value||'');
       if(p.new.key==='theme'&&p.new.value) setTheme(p.new.value,false);
-    }).subscribe();
+    }).subscribe(s=>RT.status('settings',_tok,s,subSettings));
 }
 
 // ── BACKGROUND ──
@@ -2582,12 +2584,13 @@ let _presCh=null;
 // ── SESSION (single-device enforcement) ──
 let _sessCh=null;
 function subSession(){
+  const _tok=RT.begin('session');
   if(_sessCh){try{sb.removeChannel(_sessCh);}catch(e){}}
   _sessCh=sb.channel('sess-'+CU)
     .on('postgres_changes',{event:'*',schema:'public',table:'sessions',filter:`user_name=eq.${CU}`},p=>{
       const row=p.new;
       if(row&&row.auth_uid&&row.auth_uid!==MY_UID) kickOut();
-    }).subscribe();
+    }).subscribe(s=>RT.status('session',_tok,s,subSession));
 }
 
 function kickOut(){
@@ -2614,6 +2617,7 @@ function showKickOverlay(name){
 }
 
 function subPres(){
+  const _tok=RT.begin('pres');
   if(_presCh){try{sb.removeChannel(_presCh);}catch(e){}}
   _presCh=sb.channel('pres-rt')
     .on('postgres_changes',{event:'*',schema:'public',table:'presence'},p=>{
@@ -2621,7 +2625,7 @@ function subPres(){
         _lastPresData=p.new;
         updStUI(p.new);
       }
-    }).subscribe();
+    }).subscribe(s=>RT.status('pres',_tok,s,subPres));
   sb.from('presence').select('*').eq('username',OU).maybeSingle().then(({data})=>{
     if(data){_lastPresData=data;updStUI(data);}
   });
@@ -3277,11 +3281,39 @@ async function deleteSelected(){
 }
 
 // ── REALTIME ──
+// ── REALTIME GUARD ──
+// Replacing a channel (removeChannel) makes supabase report CLOSED for the OLD one. The chat treated that
+// as a dropped connection and scheduled another resubscribe, which removed the new channel, which reported
+// CLOSED again, forever, and every return to the app started one more such loop (4 returns = 20 re-joins in
+// 12 seconds). RT gives each channel a generation token: statuses from a channel we replaced on purpose are
+// ignored, a real drop of the current channel retries with backoff, and coming back to the app resubscribes once.
+const RT={
+  gen:{},live:{},retryT:{},tries:{},lastHidden:0,debT:0,
+  begin(name){return this.gen[name]=(this.gen[name]||0)+1;},
+  status(name,tok,s,again){
+    if(tok!==this.gen[name]) return;
+    if(s==='SUBSCRIBED'){this.live[name]=true;this.tries[name]=0;return;}
+    if(s==='CLOSED'||s==='CHANNEL_ERROR'||s==='TIMED_OUT'){
+      this.live[name]=false;
+      clearTimeout(this.retryT[name]);
+      const n=this.tries[name]=(this.tries[name]||0)+1;
+      this.retryT[name]=setTimeout(again,Math.min(15000,1000*Math.pow(2,Math.min(n,4))));
+    }
+  },
+  resume(force){
+    const away=Date.now()-(this.lastHidden||0);
+    if(!force&&away<20000&&['msgs','typing','settings','pres','ring','session'].every(n=>this.live[n])) return; // quick app switch: sockets are fine
+    clearTimeout(this.debT);
+    this.debT=setTimeout(()=>{subMsgs();subTyping();subSettings();subPres();subRing();subSession();},250); // visibility + pageshow + online often fire together: do it once
+  }
+};
+
 function subAll(){
   subMsgs();subTyping();subSettings();subRing();
 }
 
 function subMsgs(){
+  const _tok=RT.begin('msgs');
   if(msgCh){try{sb.removeChannel(msgCh);}catch(e){}}
   msgCh=sb.channel(`msgs-${Date.now()}`)
     .on('postgres_changes',{event:'*',schema:'public',table:'messages'},p=>{
@@ -3303,6 +3335,9 @@ function subMsgs(){
         if(wasNearBottom) scrollBot(true); else updateScrollBtn(_lc.msgs||document.getElementById('msgs'));
         if(p.new.sender!==CU){
           if(document.visibilityState==='visible'){playMsgSound();}
+          // a game or the photo booth is open on top of the chat: show a small banner so the message isn't missed
+          try{ if(window.TetherPages&&TetherPages.isOpen) TetherPages.notify(p.new.sender,
+            p.new.deleted?'':(p.new.content||(p.new.voice?'Voice message':p.new.video?'Video':(p.new.image_url||p.new.bundle)?'Photo':'New message'))); }catch(e){}
           // Notifications now arrive via a real server-triggered push (see the
           // database trigger + Edge Function) — that's the only path needed,
           // works even when this page isn't open at all. The old approach of
@@ -3324,12 +3359,9 @@ function subMsgs(){
         if(el&&msgs[i]){el.replaceWith(mkEl(msgs[i]));cacheUpdateOne(msgs[i]);}
       }
     })
-    .subscribe(async status=>{
-      if(status==='CLOSED'||status==='CHANNEL_ERROR'){
-        // Silently fetch only missed messages since last known, no full re-render
-        await catchupMsgs();
-        setTimeout(subMsgs, 3000);
-      }
+    .subscribe(status=>{
+      // only a real drop of the CURRENT channel retries: catch up on what was missed, then resubscribe
+      RT.status('msgs',_tok,status,()=>{ catchupMsgs(); subMsgs(); });
     });
 }
 
@@ -3381,6 +3413,7 @@ async function catchupMsgs(){
 
 let typT2;
 function subTyping(){
+  const _tok=RT.begin('typing');
   if(typCh2){try{sb.removeChannel(typCh2);}catch(e){}}
   typCh2=sb.channel('typing2')
     .on('broadcast',{event:'typ'},({payload})=>{
@@ -3392,7 +3425,7 @@ function subTyping(){
       typCh2._t=setTimeout(()=>{
         sb.from('presence').select('*').eq('username',OU).maybeSingle().then(({data})=>{if(data)updStUI(data);});
       },2100);
-    }).subscribe();
+    }).subscribe(s=>RT.status('typing',_tok,s,subTyping));
 }
 function broadcastTyp(){
   typCh2?.send({type:'broadcast',event:'typ',payload:{u:CU}});
@@ -4689,13 +4722,14 @@ function dismissRing(){
 
 // Subscribe to ring signals from the other person
 function subRing(){
+  const _tok=RT.begin('ring');
   if(_ringCh){try{sb.removeChannel(_ringCh);}catch(e){}}
   _ringCh=sb.channel('ring-rt')
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'messages'},p=>{
       if(p.new&&p.new.content==='[imy-ring]'&&p.new.sender!==CU){
         showRingOverlay(p.new.sender);
       }
-    }).subscribe();
+    }).subscribe(s=>RT.status('ring',_tok,s,subRing));
 }
 
 // ── LIGHTBOX ──
