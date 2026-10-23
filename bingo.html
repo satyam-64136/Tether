@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"/>
+<meta name="theme-color" content="#fff4e6" media="(prefers-color-scheme: light)"/>
+<meta name="theme-color" content="#241a2d" media="(prefers-color-scheme: dark)"/>
+<title>Bingo</title>
+<meta name="tether:page" content="game"/>
+<meta name="tether:title" content="Bingo"/>
+<meta name="tether:icon" content="g-bingo"/>
+<meta name="tether:blurb" content="Stamp a line first"/>
+<meta name="tether:order" content="50"/>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400..700&family=Figtree:wght@400..800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="games.css">
+<script src="games-ui.js"></script>
+<style>
+body[data-game="bingo"]{--tint:var(--peach);--tint2:var(--lilac)}
+.c0{--bc:var(--sky)}.c1{--bc:var(--pink)}.c2{--bc:var(--butter)}.c3{--bc:var(--mint)}.c4{--bc:var(--lilac)}
+#s-game{gap:.5rem}
+.score-card{padding:.6rem;gap:.45rem}
+.score-row{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:.5rem}
+.score-col{display:flex;align-items:center;gap:.45rem;padding:.35rem .65rem;color:var(--plum);border:var(--bw) solid var(--line);border-radius:1rem;box-shadow:0 .2rem 0 var(--shadow)}
+.score-col:nth-child(1){background:var(--satyam)}
+.score-col:nth-child(3){background:var(--snks);flex-direction:row-reverse}
+.score-name{flex:1;min-inline-size:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:600 .9rem var(--font-display)}
+.score-col:nth-child(3) .score-name{text-align:end}
+.score-num{font:700 1.7rem/1 var(--font-display);font-variant-numeric:tabular-nums}
+.score-num.bump{animation:bump .5s var(--ease-spring)}
+.score-divider{font:600 .95rem var(--font-display);color:var(--text-faint)}
+.score-divider::before{content:'vs'}
+.meta-row{display:flex;align-items:center;justify-content:space-between;gap:.6rem}
+.turn-banner{display:inline-flex;align-items:center;gap:.5rem;padding:.3rem .9rem;font:600 1rem var(--font-display);background:var(--card);border:2px solid var(--line);border-radius:99px;box-shadow:0 .2rem 0 var(--shadow);transition:background-color .3s}
+.turn-banner.mine{background:var(--me);color:var(--plum)}
+.turn-banner .tb-dot{inline-size:.6rem;block-size:.6rem;border-radius:50%;background:currentColor;animation:breathe 1.4s ease-in-out infinite}
+#calledCount{margin:0;font-size:.85rem;color:var(--text-dim);white-space:nowrap}
+
+.call-row{display:flex;align-items:center;gap:.7rem;padding:.55rem .7rem}
+.ball{position:relative;inline-size:4.3rem;block-size:4.3rem;flex:none;display:grid;place-content:center;justify-items:center;background:var(--bc,var(--card));color:var(--plum);border:var(--bw) solid var(--line);border-radius:50%;box-shadow:0 .26rem 0 var(--shadow)}
+.ball::after{content:'';position:absolute;inset:.45rem auto auto .75rem;inline-size:.9rem;block-size:.45rem;border-radius:50%;background:#fff;opacity:.55;rotate:-30deg}
+.ball small{font:700 .72rem/1 var(--font-display);opacity:.7}
+.ball b{font:700 1.7rem/1.05 var(--font-display);font-variant-numeric:tabular-nums}
+.ball.pop{animation:ballIn .6s var(--ease-spring)}
+.ball.roll{animation:roll .6s linear infinite}
+@keyframes ballIn{from{scale:.2;rotate:-220deg;opacity:0}}
+@keyframes roll{to{rotate:360deg}}
+.hist{flex:1;min-inline-size:0;display:flex;flex-wrap:wrap;gap:.3rem;align-content:center}
+.chip{display:grid;place-items:center;inline-size:1.7rem;block-size:1.7rem;font:600 .78rem var(--font-display);color:var(--plum);background:var(--bc,var(--card));border:2px solid var(--line);border-radius:50%}
+.chip.mine{box-shadow:0 0 0 2px var(--card),0 0 0 4px var(--me)}
+.hist-empty{font-size:.85rem;color:var(--text-dim)}
+.opp{display:grid;justify-items:center;gap:.25rem;flex:none;font:600 .72rem var(--font-display);color:var(--text-dim)}
+.mini{display:grid;grid-template-columns:repeat(5,.62rem);gap:2px}
+.mini i{inline-size:.62rem;block-size:.62rem;border-radius:.18rem;background:color-mix(in oklab,var(--text) 10%,var(--card))}
+.mini[data-for=Satyam] i.on{background:var(--satyam)}
+.mini[data-for=Snks] i.on{background:var(--snks)}
+.mini i.w{background:var(--butter)!important;outline:2px solid var(--line)}
+
+.board-stage{flex:1 1 0;min-block-size:0;display:grid;place-items:center;container-type:size}
+#boardCard{inline-size:min(100cqi,calc(100cqb*.9));aspect-ratio:5/5.55;padding:.5rem;display:grid;grid-template-rows:auto 1fr;gap:.35rem}
+.bhead,.grid{display:grid;grid-template-columns:repeat(5,1fr);gap:.35rem}
+.bhead span{display:grid;place-items:center;padding-block:.15rem;font:700 1rem var(--font-display);color:var(--plum);background:var(--bc);border:2px solid var(--line);border-radius:.7rem}
+.grid{grid-template-rows:repeat(5,1fr)}
+.cell{position:relative;display:grid;place-items:center;cursor:pointer;user-select:none;-webkit-user-select:none;font:600 clamp(.95rem,5vw,1.3rem) var(--font-display);font-variant-numeric:tabular-nums;background:var(--card);border:2px solid var(--line);border-radius:.8rem;box-shadow:0 .2rem 0 var(--shadow);transition:translate .12s var(--ease-out),box-shadow .12s var(--ease-out),background-color .25s}
+.cell:active{translate:0 .2rem;box-shadow:0 0 0 var(--shadow)}
+.cell.called::before{content:'';position:absolute;inset:.18rem;border-radius:.6rem;border:2px dashed var(--me);animation:calledPulse 1.4s ease-in-out infinite}
+@keyframes calledPulse{50%{opacity:.35;scale:.94}}
+.cell.marked{background:var(--me);color:var(--plum);cursor:default}
+.cell.marked::after{content:'';position:absolute;inset:.22rem;border-radius:50%;border:2.5px solid var(--plum);opacity:.8;animation:stamp .4s var(--ease-spring)}
+@keyframes stamp{from{scale:1.9;opacity:0;rotate:-25deg}}
+.cell.free .i{inline-size:55%;block-size:55%}
+.cell.win{background:var(--butter);animation:wiggle .6s ease 2}
+.cell.shake{animation:cellShake .35s ease}
+@keyframes cellShake{20%{translate:-5px 0}40%{translate:4px 0}60%{translate:-3px 0}80%{translate:2px 0}}
+.actions{flex:none;display:grid;grid-template-columns:1fr 1fr;gap:.6rem}
+.btn.ready{animation:readyPulse 1s ease-in-out infinite}
+@keyframes readyPulse{50%{scale:1.05}}
+.over-cards{display:flex;justify-content:center;gap:1.4rem;margin-block:.6rem}
+.over-cards .mini{grid-template-columns:repeat(5,.9rem)}
+.over-cards .mini i{inline-size:.9rem;block-size:.9rem}
+.over-cards div{display:grid;justify-items:center;gap:.35rem;font:600 .85rem var(--font-display)}
+</style>
+</head>
+<body data-game="bingo">
+<div class="wrap">
+  <div class="topbar">
+    <a class="backlink" href="index.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+      <span class="sr-only">Back to Tether</span>
+    </a>
+    <div class="brand">
+      <span class="ic" aria-hidden="true"><svg class="i"><use href="#i-g-bingo"/></svg></span>
+      <h1>Bingo</h1>
+      <span id="connStatus" class="conn" role="status" aria-label="Connected"></span>
+    </div>
+    <div style="width:64px"></div>
+  </div>
+
+  <div class="screen on" id="s-loading">
+    <div class="card" style="text-align:center">
+      <div class="dots"><span></span><span></span><span></span></div>
+      <div class="hint" id="loadingMsg">Getting things ready...</div>
+    </div>
+  </div>
+
+  <div class="screen" id="s-idle">
+    <div class="card" style="text-align:center">
+      <div class="final-name">Ready for Bingo?</div>
+      <div class="hint">Take turns drawing a number. Stamp the ones on your card, and shout BINGO when you have a line.</div>
+      <button class="btn go" id="dealBtn" type="button">Deal the cards</button>
+    </div>
+  </div>
+
+  <div class="screen" id="s-game">
+    <div class="card tight score-card">
+      <div class="score-row">
+        <div class="score-col"><span class="score-name">Satyam</span><span class="score-num" id="scoreSatyam">0</span></div>
+        <div class="score-divider"></div>
+        <div class="score-col"><span class="score-name">Snks</span><span class="score-num" id="scoreSnks">0</span></div>
+      </div>
+      <div class="meta-row"><div class="turn-banner" id="turnBanner">—</div><div class="hint" id="calledCount"></div></div>
+    </div>
+    <div class="card tight call-row">
+      <div class="ball" id="ball" aria-live="polite"><small>—</small><b>?</b></div>
+      <div class="hist" id="hist"></div>
+      <div class="opp"><div id="oppMini"></div><span id="oppLabel"></span></div>
+    </div>
+    <div class="board-stage">
+      <div class="card" id="boardCard"><div class="bhead" id="bhead"></div><div class="grid" id="grid"></div></div>
+    </div>
+    <div class="actions">
+      <button class="btn go" id="drawBtn" type="button">Draw a number</button>
+      <button class="btn" id="bingoBtn" type="button">BINGO!</button>
+    </div>
+  </div>
+
+  <div class="screen" id="s-over">
+    <div class="card" style="text-align:center">
+      <svg class="trophy" id="overTrophy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0V4z"/><path d="M7 5H4a1 1 0 0 0-1 1c0 2.5 1.5 4.5 4 5M17 5h3a1 1 0 0 1 1 1c0 2.5-1.5 4.5-4 5"/></svg>
+      <div class="final-name" id="finalName"></div>
+      <div class="hint" id="finalScore"></div>
+      <div class="over-cards" id="overCards"></div>
+      <button class="btn" id="againBtn" type="button">Play again</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="games-live.js"></script>
+<script>
+const SU='https://ggfxdeuwifmqulyhchtv.supabase.co';
+const SK='sb_publishable_DMMJ2sFnGlFWogBs30qowg_-N0zk3OI';
+const LETTERS=['B','I','N','G','O'];
+const LINES=[[0,1,2,3,4],[5,6,7,8,9],[10,11,12,13,14],[15,16,17,18,19],[20,21,22,23,24],[0,5,10,15,20],[1,6,11,16,21],[2,7,12,17,22],[3,8,13,18,23],[4,9,14,19,24],[0,6,12,18,24],[4,8,12,16,20]];
+const colOf=n=>Math.min(4,Math.floor((n-1)/9));
+const $=id=>document.getElementById(id);
+
+let sb,MY_NAME=null,OPP_NAME=null,match=null,live=null;
+let _armed=false,_busy=0,_lastJson='',_prevDrawn=null,_prevScores={Satyam:0,Snks:0},_wasPlaying=true,_pending=false;
+const sfx=n=>{ if(_armed) TetherUI.sfx.play(n); };      // something the other phone did
+const sfxNow=n=>TetherUI.sfx.play(n);                   // something I just did
+const vibrate=p=>TetherUI.haptic(p);
+const withTimeout=(p,ms=12000)=>Promise.race([p,new Promise((_,r)=>setTimeout(()=>r(new Error('Timed out, check your connection')),ms))]);
+
+function toast(m){const t=$('toast');t.textContent=m;t.classList.add('on');clearTimeout(toast._t);toast._t=setTimeout(()=>t.classList.remove('on'),2400);}
+function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on'));$(id).classList.add('on');}
+function showError(msg){$('loadingMsg').innerHTML=msg;document.querySelector('#s-loading .dots').style.display='none';showScreen('s-loading');}
+function setConn(ok){const e=$('connStatus');e.className=ok?'conn':'conn warn';e.setAttribute('aria-label',ok?'Connected':'Reconnecting');}
+
+async function boot(){
+  try{
+    sb=supabase.createClient(SU,SK);
+    const{data:{session}}=await sb.auth.getSession();
+    let uid=session&&session.user.id;
+    if(!uid){const{data,error}=await sb.auth.signInAnonymously();if(error)throw error;uid=data.user.id;}
+    const{data:rows,error:se}=await sb.from('sessions').select('user_name').eq('auth_uid',uid).limit(1);
+    if(se)throw se;
+    if(!rows||!rows[0]){showError('Open and log into Tether chat on this device first,<br/>then come back here.');return;}
+    MY_NAME=rows[0].user_name;document.body.dataset.me=MY_NAME;
+    OPP_NAME=MY_NAME==='Satyam'?'Snks':'Satyam';
+    $('oppLabel').textContent=OPP_NAME;
+    buildBoard();
+    await resyncOrThrow();
+    _armed=true;
+    live=TetherLive.hub(sb,{name:'bingo',bindings:[{event:'UPDATE',table:'bingo_match',filter:'id=eq.1',cb:()=>resync()}],onCatchup:resync,onStatus:setConn,pollLiveMs:8000});
+    live.start();
+  }catch(e){
+    console.error(e);
+    const missing=/bingo_match|PGRST205|does not exist/i.test((e.message||'')+(e.code||''));
+    showError(missing?'Bingo is not set up yet.<br/>Run <b>bingo_setup.sql</b> in the Supabase SQL editor.':'Something went wrong: '+(e.message||'unknown error'));
+  }
+}
+
+async function resyncOrThrow(){
+  const{data:m,error}=await sb.from('bingo_match').select('*').eq('id',1).maybeSingle();
+  if(error)throw error;
+  if(!m||_busy)return;                       // a fetch that began before my own move would repaint the old state over it
+  const j=JSON.stringify(m);
+  if(j===_lastJson)return;
+  _lastJson=j;match=m;render();
+}
+const _run=TetherLive.coalesce(async()=>{try{await resyncOrThrow();}catch(e){console.warn('resync failed (will retry):',e);}});
+const resync=()=>_run();
+
+function buildBoard(){
+  $('bhead').replaceChildren(...LETTERS.map((l,i)=>{const s=document.createElement('span');s.className='c'+i;s.textContent=l;return s;}));
+  const g=$('grid');g.replaceChildren();
+  for(let i=0;i<25;i++){
+    const c=document.createElement('div');
+    c.className='cell';c.dataset.i=i;c.tabIndex=0;c.setAttribute('role','button');
+    c.onclick=()=>tapCell(i);
+    c.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();tapCell(i);}};
+    g.appendChild(c);
+  }
+}
+
+const myMarks=()=>new Set((match.marks||{})[MY_NAME]||[]);
+const hasLine=s=>LINES.some(l=>l.every(i=>s.has(i)));
+function mini(name,win){
+  const g=document.createElement('div');g.className='mini';g.dataset.for=name;
+  const m=new Set((match.marks||{})[name]||[]);
+  for(let i=0;i<25;i++){const c=document.createElement('i');if(m.has(i))c.className='on';if(win&&win.has(i))c.classList.add('w');g.appendChild(c);}
+  return g;
+}
+const bump=el=>{el.classList.remove('bump');void el.offsetWidth;el.classList.add('bump');setTimeout(()=>el.classList.remove('bump'),500);};
+
+function render(){
+  if(!match)return;
+  $('scoreSatyam').textContent=match.wins_satyam;$('scoreSnks').textContent=match.wins_snks;
+  if(match.wins_satyam!==_prevScores.Satyam)bump($('scoreSatyam'));
+  if(match.wins_snks!==_prevScores.Snks)bump($('scoreSnks'));
+  _prevScores={Satyam:match.wins_satyam,Snks:match.wins_snks};
+  if(match.status==='idle'){showScreen('s-idle');return;}
+
+  const card=(match.cards||{})[MY_NAME]||[],drawn=match.drawn||[],drawnSet=new Set(drawn),marks=myMarks();
+  const win=new Set(match.status==='won'&&match.winner_name===MY_NAME?match.win_line:[]);
+  [...$('grid').children].forEach((c,i)=>{
+    const n=card[i],free=n===0;
+    if(c.dataset.n!==String(n)){c.dataset.n=n;c.replaceChildren();if(free)c.innerHTML='<svg class="i fill" aria-hidden="true"><use href="#i-star"/></svg>';else c.textContent=n;}
+    const mk=marks.has(i);
+    c.classList.toggle('free',free);c.classList.toggle('marked',mk);c.classList.toggle('win',win.has(i));
+    c.classList.toggle('called',!free&&!mk&&drawnSet.has(n)&&match.status==='playing');
+    c.setAttribute('aria-label',free?'Free square':`${LETTERS[colOf(n)]} ${n}${mk?', stamped':drawnSet.has(n)?', called':''}`);
+  });
+
+  // the ball and the trail of recent numbers
+  const last=match.last_draw,ball=$('ball');
+  ball.className='ball'+(last?' c'+colOf(last):'');
+  ball.innerHTML=last?`<small>${LETTERS[colOf(last)]}</small><b>${last}</b>`:'<small>—</small><b>?</b>';
+  const onCard=new Set(card);
+  const trail=drawn.slice(0,-1).slice(-7).reverse();
+  $('hist').replaceChildren(...(trail.length?trail.map(n=>{const s=document.createElement('span');s.className='chip c'+colOf(n)+(onCard.has(n)?' mine':'');s.textContent=n;return s;}):[Object.assign(document.createElement('span'),{className:'hist-empty',textContent:last?'':'No numbers yet'})]));
+  $('oppMini').replaceChildren(mini(OPP_NAME));
+  $('calledCount').textContent=`${drawn.length} of 45 called`;
+  if(_prevDrawn!==null&&drawn.length>_prevDrawn){
+    ball.classList.add('pop');setTimeout(()=>ball.classList.remove('pop'),700);
+    if(match.turn===MY_NAME)sfx('ping');                    // the other person drew
+    if(onCard.has(last))vibrate(12);
+    TetherUI.say(`${LETTERS[colOf(last)]} ${last}`);
+  }
+  if(drawn.length===0&&_prevDrawn>0)sfx('start');
+  _prevDrawn=drawn.length;
+
+  const playing=match.status==='playing',myTurn=match.turn===MY_NAME;
+  const banner=$('turnBanner');
+  banner.innerHTML=playing?(myTurn?'<span class="tb-dot"></span> Your turn to draw':`Waiting for ${OPP_NAME}...`):'Game over';
+  banner.className='turn-banner '+(playing&&myTurn?'mine':'theirs');
+  const draw=$('drawBtn');draw.disabled=!(playing&&myTurn);draw.textContent=playing&&!myTurn?`${OPP_NAME} draws next`:'Draw a number';
+  $('bingoBtn').disabled=!playing;$('bingoBtn').classList.toggle('ready',playing&&hasLine(marks));
+
+  if(playing){_wasPlaying=true;showScreen('s-game');return;}
+  showScreen('s-game');
+  const fresh=_wasPlaying;_wasPlaying=false;
+  if(fresh){
+    const iWon=match.winner_name===MY_NAME;
+    sfxNow(match.status==='draw'?'tie':iWon?'win':'lose');
+    vibrate(iWon?[25,60,25,60,60]:[20,40,20]);
+    if(iWon)confetti();
+  }
+  const show=()=>{renderOver();showScreen('s-over');};
+  if(fresh&&!_pending){_pending=true;setTimeout(()=>{_pending=false;show();},900);}   // a beat to see the winning line first
+  else if(!_pending)show();
+}
+
+function renderOver(){
+  const draw=match.status==='draw',iWon=match.winner_name===MY_NAME;
+  $('overTrophy').innerHTML=draw?'<circle cx="12" cy="12" r="9"/><path d="M9 12h6M12 9v6"/>':iWon?'<path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0V4z"/><path d="M7 5H4a1 1 0 0 0-1 1c0 2.5 1.5 4.5 4 5M17 5h3a1 1 0 0 1 1 1c0 2.5-1.5 4.5-4 5"/>':'<circle cx="12" cy="12" r="9"/><path d="M9 15l6-6M9 9l6 6"/>';
+  $('finalName').textContent=draw?'Every number was called':iWon?'BINGO! You win':`${OPP_NAME} got Bingo`;
+  $('finalScore').textContent=`Satyam ${match.wins_satyam} – Snks ${match.wins_snks}`;
+  const win=new Set(match.win_line||[]);
+  $('overCards').replaceChildren(...['Satyam','Snks'].map(n=>{const d=document.createElement('div');d.append(mini(n,n===match.winner_name?win:null),Object.assign(document.createElement('span'),{textContent:n}));return d;}));
+}
+
+function confetti(){
+  const w=document.createElement('div');w.className='confetti-wrap';document.body.appendChild(w);
+  const cols=['#ff9cc0','#8ccfff','#ffe27a','#a6ebc9','#cdbbff','#ffc7a1'];
+  for(let i=0;i<42;i++){const p=document.createElement('div');p.className='confetti-piece';const s=5+Math.random()*7;
+    Object.assign(p.style,{width:s+'px',height:s*.4+'px',left:Math.random()*100+'vw',background:cols[i%6],animationDuration:(1.8+Math.random()*1.4)+'s',animationDelay:Math.random()*.4+'s'});w.appendChild(p);}
+  setTimeout(()=>w.remove(),3600);
+}
+
+async function act(fn,fail){
+  _busy++;
+  try{await withTimeout(fn());}
+  catch(e){console.error(e);toast((fail||'Failed')+': '+(e.message||'try again'));_lastJson='';}
+  finally{_busy--;}
+  if(!_busy)await resync();
+}
+
+async function tapCell(i){
+  if(!match||match.status!=='playing')return;
+  const n=((match.cards||{})[MY_NAME]||[])[i];
+  if(n===0)return;
+  const marks=myMarks(),cell=$('grid').children[i];
+  if(!marks.has(i)&&!(match.drawn||[]).includes(n)){
+    cell.classList.remove('shake');void cell.offsetWidth;cell.classList.add('shake');
+    toast("That number hasn't been called yet");vibrate(15);sfxNow('error');return;
+  }
+  marks.has(i)?marks.delete(i):marks.add(i);                 // optimistic: stamp it now, the server confirms
+  match.marks=Object.assign({},match.marks,{[MY_NAME]:[...marks]});
+  vibrate(12);sfxNow('place');render();
+  await act(async()=>{const{error}=await sb.rpc('bingo_mark',{p_index:i});if(error)throw error;},'Stamp failed');
+}
+
+$('drawBtn').onclick=()=>{
+  if(!match||match.status!=='playing'||match.turn!==MY_NAME)return;
+  const b=$('ball');b.classList.add('roll');sfxNow('draw');vibrate(15);
+  act(async()=>{const{error}=await sb.rpc('bingo_draw');if(error)throw error;},'Draw failed').finally(()=>b.classList.remove('roll'));
+};
+$('bingoBtn').onclick=async()=>{
+  const btn=$('bingoBtn');btn.disabled=true;sfxNow('claim');
+  try{
+    const{data,error}=await withTimeout(sb.rpc('bingo_claim'));
+    if(error)throw error;
+    if(data===false){toast('No full line yet. Keep stamping!');sfxNow('error');vibrate([12,40,12]);}
+  }catch(e){toast('Failed: '+(e.message||'try again'));}
+  btn.disabled=false;_lastJson='';await resync();
+};
+const deal=(force)=>act(async()=>{const{error}=await sb.rpc('bingo_new_game',{p_force:!!force});if(error)throw error;},'Could not deal');
+$('dealBtn').onclick=()=>deal(false);
+$('againBtn').onclick=()=>deal(false);
+
+TetherUI.mount({extras:[
+  `<details class="how"><summary>How to play</summary><ol><li>Take turns drawing a number.</li><li>Tap the matching number on your own card to stamp it.</li><li>First to stamp a full row, column or diagonal and tap BINGO wins the round.</li></ol></details>`,
+  `<button type="button" class="link" id="tuiDeal">${TetherUI.icon('reset')} Deal new cards…</button>`,
+  `<button type="button" class="link danger" id="tuiReset">${TetherUI.icon('reset')} Reset score…</button>`
+]});
+$('tuiDeal').onclick=()=>{TetherUI.settings.close();TetherUI.confirm({title:'Deal new cards?',text:'The current round is dropped and both of you get fresh cards.',ok:'Deal',cancel:'Keep playing'}).then(ok=>{if(ok)deal(true);});};
+$('tuiReset').onclick=()=>{TetherUI.settings.close();TetherUI.confirm({title:'Reset the score?',text:"The score goes back to 0–0. This can't be undone.",ok:'Reset'}).then(ok=>{if(ok)act(async()=>{const{error}=await sb.rpc('bingo_reset_score');if(error)throw error;},'Reset failed');});};
+
+boot();
+</script>
+</body>
+</html>

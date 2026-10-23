@@ -59,6 +59,7 @@
     'g-fox': 'M4 4.5l4.2 3.3h7.6L20 4.5v8c0 4-3.6 7.5-8 7.5s-8-3.5-8-7.5v-8z|M9 12.4h.01M15 12.4h.01M10.8 16h2.4',
     'g-thought': 'M7 15.8a3.8 3.8 0 0 1-.4-7.5 5 5 0 0 1 9.5-.9 3.9 3.9 0 0 1 1.2 7.6 3.2 3.2 0 0 1-1.6.8H7z|<circle cx="7.4" cy="19.4" r="1.2"/><circle cx="4.8" cy="21.4" r=".7"/>',
     'g-dab': '<circle cx="5.5" cy="5.5" r="1.5"/><circle cx="18.5" cy="5.5" r="1.5"/><circle cx="5.5" cy="18.5" r="1.5"/><circle cx="18.5" cy="18.5" r="1.5"/>|M7.2 5.5h9.6M5.5 7.2v9.6M18.5 7.2v9.6|F|M12 8.9l1 2.1 2.3.3-1.7 1.6.4 2.3-2-1.1-2 1.1.4-2.3-1.7-1.6 2.3-.3 1-2.1z',
+    'g-bingo': '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.8"/>|M6.8 8.2a6.4 6.4 0 0 1 3-2.4',
     'g-booth': 'M4 8h3l1.5-2.2h7L17 8h3v11.5H4V8z|<circle cx="12" cy="13.4" r="3.6"/>',
     trophy: 'M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0V4z|M7 5H4a1 1 0 0 0-1 1c0 2.5 1.5 4.5 4 5M17 5h3a1 1 0 0 1 1 1c0 2.5-1.5 4.5-4 5',
   };
@@ -69,6 +70,7 @@
     { file: 'tictactoe.html',   type: 'game', title: 'Tic Tac Toe',      icon: 'g-ttt',     blurb: 'Three in a row',             order: 20 },
     { file: 'whoami.html',      type: 'game', title: 'Who Am I To You',  icon: 'g-thought', blurb: 'Clues and guesses',          order: 30 },
     { file: 'dotsandboxes.html',type: 'game', title: 'Dots & Boxes',     icon: 'g-dab',     blurb: 'Close the boxes',            order: 40 },
+    { file: 'bingo.html',       type: 'game', title: 'Bingo',            icon: 'g-bingo',   blurb: 'Stamp a line first',         order: 50 },
     { file: 'photobooth.html',  type: 'tool', title: 'Photo Booth',      icon: 'g-booth',   blurb: 'Vintage film-strip collages', order: 10, action: 'Open' },
   ];
   const SECTION_LABEL = { game: 'Games', tool: 'Extras' };
