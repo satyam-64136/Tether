@@ -60,6 +60,7 @@
     'g-thought': 'M7 15.8a3.8 3.8 0 0 1-.4-7.5 5 5 0 0 1 9.5-.9 3.9 3.9 0 0 1 1.2 7.6 3.2 3.2 0 0 1-1.6.8H7z|<circle cx="7.4" cy="19.4" r="1.2"/><circle cx="4.8" cy="21.4" r=".7"/>',
     'g-dab': '<circle cx="5.5" cy="5.5" r="1.5"/><circle cx="18.5" cy="5.5" r="1.5"/><circle cx="5.5" cy="18.5" r="1.5"/><circle cx="18.5" cy="18.5" r="1.5"/>|M7.2 5.5h9.6M5.5 7.2v9.6M18.5 7.2v9.6|F|M12 8.9l1 2.1 2.3.3-1.7 1.6.4 2.3-2-1.1-2 1.1.4-2.3-1.7-1.6 2.3-.3 1-2.1z',
     'g-bingo': '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.8"/>|M6.8 8.2a6.4 6.4 0 0 1 3-2.4',
+    'g-scribble': '<path d="M4 20l1-4L16.5 4.5a2.1 2.1 0 0 1 3 3L8 19l-4 1z"/><path d="M14 7l3 3"/>',
     'g-booth': 'M4 8h3l1.5-2.2h7L17 8h3v11.5H4V8z|<circle cx="12" cy="13.4" r="3.6"/>',
     trophy: 'M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0V4z|M7 5H4a1 1 0 0 0-1 1c0 2.5 1.5 4.5 4 5M17 5h3a1 1 0 0 1 1 1c0 2.5-1.5 4.5-4 5',
   };
@@ -71,11 +72,12 @@
     { file: 'whoami.html',      type: 'game', title: 'Who Am I To You',  icon: 'g-thought', blurb: 'Clues and guesses',          order: 30 },
     { file: 'dotsandboxes.html',type: 'game', title: 'Dots & Boxes',     icon: 'g-dab',     blurb: 'Close the boxes',            order: 40 },
     { file: 'bingo.html',       type: 'game', title: 'Bingo',            icon: 'g-bingo',   blurb: 'Stamp a line first',         order: 50 },
+    { file: 'scribble.html',    type: 'game', title: 'Scribble',         icon: 'g-scribble', blurb: 'Draw it, guess it',        order: 60 },
     { file: 'photobooth.html',  type: 'tool', title: 'Photo Booth',      icon: 'g-booth',   blurb: 'Vintage film-strip collages', order: 10, action: 'Open' },
   ];
   const SECTION_LABEL = { game: 'Games', tool: 'Extras' };
   const SECTION_ORDER = ['game', 'tool'];
-  const CACHE_KEY = 'tether:pages:v1';
+  const CACHE_KEY = 'tether:pages:v2';   // bumped: older saved lists predate Bingo
   const TTL_MS = 6 * 60 * 60 * 1000;
   const SHARED_ASSETS = ['games.css', 'games-ui.js', 'games-live.js'];
 
@@ -132,6 +134,12 @@
     }));
     return found.filter(Boolean);
   }
+  // Always include the built-in pages: a saved or discovered list that lacks one of them (stale cache,
+  // GitHub briefly unreachable, page not live yet) must not make it vanish from the menu.
+  function withDefaults(pages) {
+    const have = new Set(pages.map((p) => p.file));
+    return pages.concat(DEFAULT_PAGES.filter((p) => !have.has(p.file)));
+  }
   function readCache() { try { const c = JSON.parse(localStorage.getItem(CACHE_KEY)); return c && Array.isArray(c.pages) ? c : null; } catch (e) { return null; } }
   function writeCache(pages) { try { localStorage.setItem(CACHE_KEY, JSON.stringify({ at: Date.now(), pages })); } catch (e) { /* ignore */ } }
 
@@ -181,13 +189,13 @@
     try {
       const pages = await discover();
       if (!pages.length) return;                        // GitHub reachable but no page declares itself yet: keep what we have
-      writeCache(pages); render(pages);
+      writeCache(pages); render(withDefaults(pages));
     } catch (e) { console.info('[tether-pages] keeping the saved list:', e.message || e); }
   }
   function mount(selector) {
     mountSel = selector;
     const cached = readCache();
-    render(cached ? cached.pages : DEFAULT_PAGES);      // instant, from the phone's own memory
+    render(withDefaults(cached ? cached.pages : DEFAULT_PAGES));      // instant, from the phone's own memory
     if (!cached || Date.now() - cached.at > TTL_MS) refresh();
     warm();
   }

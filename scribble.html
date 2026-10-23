@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"/>
+<meta name="theme-color" content="#fff4e6" media="(prefers-color-scheme: light)"/>
+<meta name="theme-color" content="#241a2d" media="(prefers-color-scheme: dark)"/>
+<title>Scribble</title>
+<meta name="tether:page" content="game"/>
+<meta name="tether:title" content="Scribble"/>
+<meta name="tether:icon" content="g-scribble"/>
+<meta name="tether:blurb" content="Draw it, guess it"/>
+<meta name="tether:order" content="60"/>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400..700&family=Figtree:wght@400..800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="games.css">
+<script src="games-ui.js"></script>
+<style>
+body[data-game="scribble"]{--tint:var(--sky);--tint2:var(--pink)}
+#s-game{gap:.5rem}
+.score-card{padding:.5rem .6rem}
+.score-row{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:.5rem}
+.score-col{display:flex;align-items:center;gap:.45rem;padding:.3rem .65rem;color:var(--plum);border:var(--bw) solid var(--line);border-radius:1rem;box-shadow:0 .2rem 0 var(--shadow)}
+.score-col:nth-child(1){background:var(--satyam)}
+.score-col:nth-child(3){background:var(--snks);flex-direction:row-reverse}
+.score-name{flex:1;min-inline-size:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:600 .9rem var(--font-display)}
+.score-col:nth-child(3) .score-name{text-align:end}
+.score-num{font:700 1.5rem/1 var(--font-display);font-variant-numeric:tabular-nums}
+.score-num.bump{animation:bump .5s var(--ease-spring)}
+.timer{display:grid;place-items:center;inline-size:2.7rem;block-size:2.7rem;font:700 1.15rem var(--font-display);font-variant-numeric:tabular-nums;color:var(--plum);background:var(--card);border:var(--bw) solid var(--line);border-radius:50%;box-shadow:0 .2rem 0 var(--shadow);transition:background-color .3s}
+.timer.low{background:var(--pink);animation:bump .5s ease infinite}
+.wordbar{display:grid;justify-items:center;gap:.1rem;padding:.4rem .7rem;text-align:center}
+.wordbar small{font:600 .75rem var(--font-display);color:var(--text-dim);letter-spacing:.04em;text-transform:uppercase}
+.wordbar b{font:700 1.5rem/1.15 var(--font-display);color:var(--plum);letter-spacing:.12em;overflow-wrap:anywhere}
+.board-stage{flex:1 1 0;min-block-size:15rem;display:grid;place-items:center;container-type:size}
+#boardCard{inline-size:min(100cqi,100cqb);aspect-ratio:1;padding:.4rem;display:grid}
+#cv{inline-size:100%;block-size:100%;display:block;background:#fff;border-radius:.9rem;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;cursor:crosshair}
+#cv.locked{cursor:default}
+.feed{display:flex;flex-wrap:wrap;gap:.3rem;min-block-size:1.7rem;align-content:center;justify-content:center}
+.fchip{padding:.15rem .6rem;font:600 .8rem var(--font-display);color:var(--plum);background:var(--card);border:2px solid var(--line);border-radius:99px;max-inline-size:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fchip.mine{background:var(--me)}.fchip.ok{background:var(--mint)}
+.feed-empty{font-size:.8rem;color:var(--text-dim)}
+.panel{flex:none;position:sticky;bottom:0;z-index:2;display:grid;gap:.4rem;padding-block:.3rem .1rem;background:linear-gradient(to top,var(--paper) 74%,transparent)}
+.panel[hidden]{display:none}
+.trow{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:.4rem}
+.sw,.tb{display:grid;place-items:center;inline-size:2.35rem;block-size:2.35rem;padding:0;cursor:pointer;touch-action:manipulation;color:var(--plum);background:var(--card);border:2px solid var(--line);border-radius:50%;box-shadow:0 .15rem 0 var(--shadow)}
+.sw{background:var(--c)}
+.sw[aria-pressed=true],.tb[aria-pressed=true]{outline:3px solid var(--me);outline-offset:2px}
+.tb i{display:block;border-radius:50%;background:currentColor;inline-size:var(--d);block-size:var(--d)}
+.tb.txt{inline-size:auto;padding-inline:.8rem;border-radius:99px;font:600 .85rem var(--font-display)}
+.guessrow{display:flex;gap:.5rem}
+#guess{flex:1;min-inline-size:0;font-size:max(16px,1rem)}
+.over-img{inline-size:min(100%,15rem);aspect-ratio:1;object-fit:contain;margin:.5rem auto;display:block;background:#fff;border:var(--bw) solid var(--line);border-radius:1rem}
+</style>
+</head>
+<body data-game="scribble">
+<div class="wrap">
+  <div class="topbar">
+    <a class="backlink" href="index.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+      <span class="sr-only">Back to Tether</span>
+    </a>
+    <div class="brand">
+      <span class="ic" aria-hidden="true"><svg class="i"><use href="#i-g-scribble"/></svg></span>
+      <h1>Scribble</h1>
+      <span id="connStatus" class="conn" role="status" aria-label="Connected"></span>
+    </div>
+    <div style="width:64px"></div>
+  </div>
+
+  <div class="screen on" id="s-loading">
+    <div class="card" style="text-align:center">
+      <div class="dots"><span></span><span></span><span></span></div>
+      <div class="hint" id="loadingMsg">Getting things ready...</div>
+    </div>
+  </div>
+
+  <div class="screen" id="s-idle">
+    <div class="card" style="text-align:center">
+      <div class="final-name">Ready to scribble?</div>
+      <div class="hint">One of you draws a secret word, the other guesses it before the clock runs out. You swap every round.</div>
+      <button class="btn go" id="startBtn" type="button">Start a round</button>
+    </div>
+  </div>
+
+  <div class="screen" id="s-game">
+    <div class="card tight score-card">
+      <div class="score-row">
+        <div class="score-col"><span class="score-name">Satyam</span><span class="score-num" id="scoreSatyam">0</span></div>
+        <div class="timer" id="timer">—</div>
+        <div class="score-col"><span class="score-name">Snks</span><span class="score-num" id="scoreSnks">0</span></div>
+      </div>
+    </div>
+    <div class="card tight wordbar"><small id="wordLabel"></small><b id="word"></b></div>
+    <div class="board-stage">
+      <div class="card" id="boardCard"><canvas id="cv" width="600" height="600" aria-label="Drawing canvas"></canvas></div>
+    </div>
+    <div class="feed" id="feed"></div>
+    <div class="panel" id="tools" hidden>
+      <div class="trow" id="colors"></div>
+      <div class="trow" id="brushes"></div>
+    </div>
+    <div class="panel" id="guessPanel" hidden>
+      <div class="guessrow">
+        <input type="text" id="guess" maxlength="40" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="send" placeholder="Type your guess" aria-label="Your guess"/>
+        <button class="btn go" id="guessBtn" type="button">Guess</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="screen" id="s-over">
+    <div class="card" style="text-align:center">
+      <svg class="trophy" id="overTrophy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></svg>
+      <div class="final-name" id="finalName"></div>
+      <div class="hint" id="finalWord"></div>
+      <img class="over-img" id="overImg" alt="The finished drawing"/>
+      <div class="hint" id="finalScore"></div>
+      <button class="btn" id="againBtn" type="button">Next round</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="games-live.js"></script>
+<script>
+const SU='https://ggfxdeuwifmqulyhchtv.supabase.co';
+const SK='sb_publishable_DMMJ2sFnGlFWogBs30qowg_-N0zk3OI';
+const COLORS=['#3b2a45','#ff5f9e','#3fa2ee','#f2b705','#4cc38a','#9b7bff'];
+const SIZES=[.008,.018,.036];
+const $=id=>document.getElementById(id);
+
+let sb,MY_NAME=null,OPP_NAME=null,match=null,live=null;
+let _armed=false,_busy=0,_lastJson='',_prevScores=null,_wasPlaying=null,_overT=0,_clearing=false,_tuSent=false,_guessing=false,_wasDown=false;
+let _key='',_round=-1,_word=null,_loadingWord=false,_off=0;
+const tool={color:COLORS[0],size:1,eraser:false};
+const sfx=n=>{ if(_armed) TetherUI.sfx.play(n); };
+const sfxNow=n=>TetherUI.sfx.play(n);
+const vibrate=p=>TetherUI.haptic(p);
+const nowS=()=>Date.now()+_off;
+const withTimeout=(p,ms=12000)=>Promise.race([p,new Promise((_,r)=>setTimeout(()=>r(new Error('Timed out, check your connection')),ms))]);
+const isDrawer=()=>!!match&&match.drawer===MY_NAME;
+const playing=()=>!!match&&match.status==='playing';
+const remaining=()=>match&&match.ends_at?Math.ceil((Date.parse(match.ends_at)-nowS())/1000):0;
+
+function toast(m){const t=$('toast');t.textContent=m;t.classList.add('on');clearTimeout(toast._t);toast._t=setTimeout(()=>t.classList.remove('on'),2400);}
+function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on'));$(id).classList.add('on');}
+function showError(msg){$('loadingMsg').innerHTML=msg;document.querySelector('#s-loading .dots').style.display='none';showScreen('s-loading');}
+function setConn(ok){const e=$('connStatus');e.className=ok?'conn':'conn warn';e.setAttribute('aria-label',ok?'Connected':'Reconnecting');
+  if(!ok)_wasDown=true; else if(_wasDown){_wasDown=false;maxS=0;maxG=0;}}   // after an outage, re-read everything (dedupe keeps it cheap)
+
+/* ───────────── canvas ───────────── */
+const cv=$('cv'),ctx=cv.getContext('2d');
+let W=300,rows=[],cur=null,_flushT=0,maxS=0,maxG=0;
+const seenS=new Set(),seenG=new Set();let guesses=[];
+function paint(){ctx.fillStyle='#fff';ctx.fillRect(0,0,W,W);}
+function drawPts(pts,color,w){
+  ctx.strokeStyle=color;ctx.fillStyle=color;ctx.lineWidth=Math.max(1,w*W);ctx.lineCap='round';ctx.lineJoin='round';
+  if(pts.length===1){ctx.beginPath();ctx.arc(pts[0][0]*W,pts[0][1]*W,ctx.lineWidth/2,0,Math.PI*2);ctx.fill();return;}
+  ctx.beginPath();ctx.moveTo(pts[0][0]*W,pts[0][1]*W);
+  for(let i=1;i<pts.length;i++)ctx.lineTo(pts[i][0]*W,pts[i][1]*W);
+  ctx.stroke();
+}
+function redraw(){paint();rows.forEach(r=>drawPts(r.pts,r.color,r.w));}
+function resize(){
+  const r=cv.getBoundingClientRect();if(r.width<2)return;          // hidden screen: keep the old pixels
+  const dpr=Math.min(2,window.devicePixelRatio||1);W=r.width;
+  cv.width=Math.round(r.width*dpr);cv.height=Math.round(r.width*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);redraw();
+}
+if(window.ResizeObserver)new ResizeObserver(resize).observe(cv);
+paint();
+function resetCanvas(){rows=[];cur=null;clearInterval(_flushT);seenS.clear();maxS=0;paint();}
+
+const pt=e=>{const r=cv.getBoundingClientRect(),s=r.width||1;
+  const c=v=>Math.round(Math.min(1,Math.max(0,v))*1000)/1000;return[c((e.clientX-r.left)/s),c((e.clientY-r.top)/s)];};
+const canDraw=()=>playing()&&isDrawer()&&!_clearing&&remaining()>0;
+
+let q=Promise.resolve(),_sendWarn=false;
+function sendChunk(pts,color,w){
+  q=q.then(()=>sb.rpc('scr_stroke',{p_pts:pts,p_color:color,p_w:w})).then(({error})=>{if(error)throw error;})
+   .catch(e=>{if(!_sendWarn){_sendWarn=true;toast('Drawing is not syncing: '+(e.message||'check your connection'));setTimeout(()=>_sendWarn=false,4000);}});
+}
+function flush(){
+  if(!cur||cur.pts.length<=cur.sent)return;
+  const chunk=cur.pts.slice(Math.max(0,cur.sent-1));                // overlap one point so chunks join up
+  cur.sent=cur.pts.length;sendChunk(chunk,cur.color,cur.w);
+}
+function finish(){if(!cur)return;clearInterval(_flushT);flush();cur=null;}
+
+cv.addEventListener('pointerdown',e=>{
+  if(e.button!==0||!canDraw())return;
+  e.preventDefault();try{cv.setPointerCapture(e.pointerId);}catch(_){}
+  const size=SIZES[tool.size];
+  cur={local:true,pts:[pt(e)],color:tool.eraser?'#ffffff':tool.color,w:tool.eraser?size*2.2:size,sent:0,pid:e.pointerId};
+  rows.push(cur);drawPts(cur.pts,cur.color,cur.w);_flushT=setInterval(flush,220);
+});
+cv.addEventListener('pointermove',e=>{
+  if(!cur||e.pointerId!==cur.pid)return;
+  const evs=e.getCoalescedEvents?e.getCoalescedEvents():[e];
+  for(const ev of (evs.length?evs:[e])){
+    const p=pt(ev),l=cur.pts[cur.pts.length-1];
+    if(Math.hypot(p[0]-l[0],p[1]-l[1])<.003)continue;
+    drawPts([l,p],cur.color,cur.w);cur.pts.push(p);
+  }
+});
+['pointerup','pointercancel','lostpointercapture'].forEach(t=>cv.addEventListener(t,e=>{if(cur&&e.pointerId===cur.pid)finish();}));
+cv.addEventListener('contextmenu',e=>e.preventDefault());
+
+/* ───────────── incoming strokes and guesses ───────────── */
+function onStrokeRow(r){
+  if(!match||r.round!==match.round){if(!match||r.round>match.round)resync().then(loadStrokes);return;}
+  if(seenS.has(r.id))return;seenS.add(r.id);maxS=Math.max(maxS,r.id);
+  if(isDrawer()&&rows.some(x=>x.local))return;                      // the drawer already has their own strokes
+  const row={pts:r.pts,color:r.color,w:r.w};rows.push(row);drawPts(row.pts,row.color,row.w);
+  if($('s-over').classList.contains('on'))updateOverImg();
+}
+async function loadStrokes(){
+  if(!match||match.status==='idle')return;const key=_key;
+  const{data,error}=await sb.from('scr_strokes').select('*').eq('round',match.round).gt('id',maxS).order('id');
+  if(error||key!==_key||!data)return;data.forEach(onStrokeRow);
+}
+function renderFeed(){
+  const last=guesses.slice(-4);
+  $('feed').replaceChildren(...(last.length?last.map(g=>{const s=document.createElement('span');
+    s.className='fchip'+(g.correct?' ok':g.name===MY_NAME?' mine':'');s.textContent=(g.name===MY_NAME?'You':g.name)+': '+g.text;return s;})
+    :[Object.assign(document.createElement('span'),{className:'feed-empty',textContent:playing()?(isDrawer()?'Guesses show up here':'Guess what is being drawn'):''})]));
+}
+function onGuessRow(r){
+  if(!match||r.round!==match.round||seenG.has(r.id))return;seenG.add(r.id);maxG=Math.max(maxG,r.id);
+  guesses.push(r);guesses.sort((a,b)=>a.id-b.id);renderFeed();
+  if(r.name!==MY_NAME){sfx(r.correct?'claim':'ping');TetherUI.say(r.name+' guessed '+r.text);}
+}
+async function loadGuesses(){
+  if(!match||match.status==='idle')return;const key=_key;
+  const{data,error}=await sb.from('scr_guesses').select('*').eq('round',match.round).gt('id',maxG).order('id');
+  if(error||key!==_key||!data)return;data.forEach(onGuessRow);
+}
+async function loadWord(){
+  if(_loadingWord||!match||!isDrawer()||!playing())return;_loadingWord=true;const key=_key;
+  const{data,error}=await sb.from('scr_secret').select('*').eq('id',1).maybeSingle();
+  _loadingWord=false;if(error||!data||key!==_key)return;
+  if(data.round===match.round){_word=data.word;render();}
+}
+async function syncClock(){try{const t0=Date.now();const{data}=await sb.rpc('scr_now');const t1=Date.now();if(data)_off=Date.parse(data)-(t0+t1)/2;}catch(_){}}
+
+/* ───────────── boot and sync ───────────── */
+async function boot(){
+  try{
+    sb=supabase.createClient(SU,SK);
+    const{data:{session}}=await sb.auth.getSession();
+    let uid=session&&session.user.id;
+    if(!uid){const{data,error}=await sb.auth.signInAnonymously();if(error)throw error;uid=data.user.id;}
+    const{data:rows_,error:se}=await sb.from('sessions').select('user_name').eq('auth_uid',uid).limit(1);
+    if(se)throw se;
+    if(!rows_||!rows_[0]){showError('Open and log into Tether chat on this device first,<br/>then come back here.');return;}
+    MY_NAME=rows_[0].user_name;document.body.dataset.me=MY_NAME;OPP_NAME=MY_NAME==='Satyam'?'Snks':'Satyam';
+    buildTools();await syncClock();setInterval(syncClock,60000);
+    await resyncOrThrow();
+    _armed=true;
+    live=TetherLive.hub(sb,{name:'scribble',
+      bindings:[{event:'UPDATE',table:'scr_match',filter:'id=eq.1',cb:()=>resync()},
+                {event:'INSERT',table:'scr_strokes',cb:p=>onStrokeRow(p.new)},
+                {event:'INSERT',table:'scr_guesses',cb:p=>onGuessRow(p.new)}],
+      onCatchup:async()=>{await resyncOrThrow();await loadStrokes();await loadGuesses();},onStatus:setConn,pollLiveMs:8000});
+    live.start();setInterval(tick,250);
+  }catch(e){
+    console.error(e);
+    const missing=/scr_match|PGRST205|does not exist/i.test((e.message||'')+(e.code||''));
+    showError(missing?'Scribble is not set up yet.<br/>Run <b>scribble_setup.sql</b> in the Supabase SQL editor.':'Something went wrong: '+(e.message||'unknown error'));
+  }
+}
+async function resyncOrThrow(){
+  const{data:m,error}=await sb.from('scr_match').select('*').eq('id',1).maybeSingle();
+  if(error)throw error;
+  if(!m||_busy)return;
+  const j=JSON.stringify(m);if(j===_lastJson)return;
+  _lastJson=j;match=m;render();
+}
+const _run=TetherLive.coalesce(async()=>{try{await resyncOrThrow();}catch(e){console.warn('resync failed (will retry):',e);}});
+const resync=()=>_run();
+
+/* ───────────── rendering ───────────── */
+const bump=el=>{el.classList.remove('bump');void el.offsetWidth;el.classList.add('bump');setTimeout(()=>el.classList.remove('bump'),500);};
+function render(){
+  if(!match)return;
+  $('scoreSatyam').textContent=match.wins_satyam;$('scoreSnks').textContent=match.wins_snks;
+  if(_prevScores){if(match.wins_satyam!==_prevScores.Satyam)bump($('scoreSatyam'));if(match.wins_snks!==_prevScores.Snks)bump($('scoreSnks'));}
+  _prevScores={Satyam:match.wins_satyam,Snks:match.wins_snks};
+  if(match.status==='idle'){showScreen('s-idle');return;}
+
+  const key=match.round+':'+match.clear_n;
+  if(key!==_key){                                   // new round, or the canvas was cleared / the word skipped
+    finish();_key=key;resetCanvas();_word=null;
+    if(match.round!==_round){_round=match.round;guesses=[];seenG.clear();maxG=0;}
+    loadStrokes();loadGuesses();
+  }
+  const isPlaying=playing(),drawer=isDrawer();
+  if(drawer&&isPlaying&&!_word)loadWord();
+  const over=!isPlaying;
+  $('wordLabel').textContent=over?'The word was':drawer?'Draw this':`Guess the ${match.category}`;
+  $('word').textContent=over?(match.last_word||''):drawer?(_word||'…'):'_ '.repeat(match.word_len).trim();
+  $('tools').hidden=!(isPlaying&&drawer);$('guessPanel').hidden=!(isPlaying&&!drawer);
+  cv.classList.toggle('locked',!(isPlaying&&drawer));
+  renderFeed();tick();
+
+  if(isPlaying){_wasPlaying=true;clearTimeout(_overT);_overT=0;showScreen('s-game');return;}
+  finish();
+  const fresh=_wasPlaying===true;_wasPlaying=false;
+  if(fresh){
+    const won=match.status==='won';
+    sfxNow(won?'win':'tie');vibrate(won?[25,60,25,60,60]:[20,40,20]);if(won)confetti();
+    showScreen('s-game');
+    _overT=setTimeout(()=>{_overT=0;if(match&&match.status!=='playing'){renderOver();showScreen('s-over');}},900);
+    return;
+  }
+  if(_overT)return;
+  renderOver();showScreen('s-over');
+}
+function updateOverImg(){try{$('overImg').src=cv.toDataURL('image/png');}catch(_){}}
+function renderOver(){
+  const won=match.status==='won',iWon=match.winner_name===MY_NAME;
+  $('overTrophy').innerHTML=won?'<path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0V4z"/><path d="M7 5H4a1 1 0 0 0-1 1c0 2.5 1.5 4.5 4 5M17 5h3a1 1 0 0 1 1 1c0 2.5-1.5 4.5-4 5"/>':'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>';
+  $('finalName').textContent=won?(iWon?'You guessed it!':`${match.winner_name} guessed it!`):"Time's up!";
+  $('finalWord').textContent=`The word was “${match.last_word||'?'}”`;
+  $('finalScore').textContent=`Satyam ${match.wins_satyam} – Snks ${match.wins_snks}`;
+  updateOverImg();
+}
+function confetti(){
+  const w=document.createElement('div');w.className='confetti-wrap';document.body.appendChild(w);
+  const cols=['#ff9cc0','#8ccfff','#ffe27a','#a6ebc9','#cdbbff','#ffc7a1'];
+  for(let i=0;i<42;i++){const p=document.createElement('div');p.className='confetti-piece';const s=5+Math.random()*7;
+    Object.assign(p.style,{width:s+'px',height:s*.4+'px',left:Math.random()*100+'vw',background:cols[i%6],animationDuration:(1.8+Math.random()*1.4)+'s',animationDelay:Math.random()*.4+'s'});w.appendChild(p);}
+  setTimeout(()=>w.remove(),3600);
+}
+
+/* the clock: purely a display. The server decides when time is really up. */
+let _lastTick=null;
+function tick(){
+  const t=$('timer');
+  if(!playing()){t.textContent='—';t.classList.remove('low');return;}
+  const r=Math.max(0,remaining());t.textContent=r;t.classList.toggle('low',r<=10&&r>0);
+  if(r!==_lastTick){_lastTick=r;if(r<=5&&r>0)sfx('tap');}
+  if(r<=0&&!_tuSent){_tuSent=true;
+    sb.rpc('scr_timeup').then(()=>{_lastJson='';return resync();}).finally(()=>setTimeout(()=>{_tuSent=false;},1500));}
+}
+
+/* ───────────── actions ───────────── */
+async function act(fn,fail){
+  _busy++;
+  try{await withTimeout(fn());}
+  catch(e){console.error(e);toast((fail||'Failed')+': '+(e.message||'try again'));_lastJson='';}
+  finally{_busy--;}
+  if(!_busy)await resync();
+}
+const startRound=force=>act(async()=>{const{error}=await sb.rpc('scr_new_round',{p_force:!!force});if(error)throw error;},'Could not start');
+$('startBtn').onclick=()=>startRound(false);
+$('againBtn').onclick=()=>startRound(false);
+
+async function sendGuess(){
+  const inp=$('guess'),v=inp.value.trim();
+  if(!v||_guessing||!playing()||isDrawer())return;
+  _guessing=true;inp.value='';
+  try{
+    const{data,error}=await withTimeout(sb.rpc('scr_guess',{p_text:v}));
+    if(error)throw error;
+    if(data==='right'){sfxNow('claim');vibrate(20);}
+    else if(data==='wrong'){sfxNow('error');vibrate([10,30,10]);}
+    await loadGuesses();
+  }catch(e){toast('Guess failed: '+(e.message||'try again'));inp.value=v;}
+  _guessing=false;_lastJson='';await resync();
+}
+$('guessBtn').addEventListener('pointerdown',e=>e.preventDefault());   // keep the keyboard open
+$('guessBtn').onclick=sendGuess;
+$('guess').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();sendGuess();}});
+
+function buildTools(){
+  const colors=$('colors');colors.replaceChildren();
+  COLORS.forEach(c=>{const b=document.createElement('button');b.type='button';b.className='sw';b.style.setProperty('--c',c);b.setAttribute('aria-label','Colour '+c);
+    b.onclick=()=>{tool.color=c;tool.eraser=false;mark();};colors.appendChild(b);});
+  const er=document.createElement('button');er.type='button';er.className='tb txt';er.id='eraser';er.textContent='Eraser';er.onclick=()=>{tool.eraser=true;mark();};colors.appendChild(er);
+  const br=$('brushes');br.replaceChildren();
+  [8,14,22].forEach((d,i)=>{const b=document.createElement('button');b.type='button';b.className='tb';b.style.setProperty('--d',d+'px');b.setAttribute('aria-label',['Thin','Medium','Thick'][i]+' brush');
+    b.innerHTML='<i></i>';b.onclick=()=>{tool.size=i;mark();};br.appendChild(b);});
+  const clr=document.createElement('button');clr.type='button';clr.className='tb txt';clr.textContent='Clear';
+  clr.onclick=async()=>{if(!canDraw())return;finish();_clearing=true;await act(async()=>{const{error}=await sb.rpc('scr_clear');if(error)throw error;},'Clear failed');_clearing=false;};
+  const sk=document.createElement('button');sk.type='button';sk.className='tb txt';sk.textContent='New word';
+  sk.onclick=async()=>{if(!canDraw())return;finish();_clearing=true;await act(async()=>{const{error}=await sb.rpc('scr_skip');if(error)throw error;},'Skip failed');_clearing=false;};
+  br.append(clr,sk);
+  function mark(){
+    [...colors.querySelectorAll('.sw')].forEach((b,i)=>b.setAttribute('aria-pressed',String(!tool.eraser&&COLORS[i]===tool.color)));
+    er.setAttribute('aria-pressed',String(tool.eraser));
+    [...br.querySelectorAll('.tb:not(.txt)')].forEach((b,i)=>b.setAttribute('aria-pressed',String(i===tool.size)));
+  }
+  mark();
+}
+
+TetherUI.mount({extras:[
+  `<details class="how"><summary>How to play</summary><ol><li>One of you draws the secret word. The other guesses it.</li><li>Guess right before the 75 seconds run out to score a point.</li><li>You swap roles every round. Drawers can tap New word if theirs is too hard.</li></ol></details>`,
+  `<button type="button" class="link" id="tuiNew">${TetherUI.icon('reset')} Start a new round…</button>`,
+  `<button type="button" class="link danger" id="tuiReset">${TetherUI.icon('reset')} Reset score…</button>`
+]});
+$('tuiNew').onclick=()=>{TetherUI.settings.close();TetherUI.confirm({title:'Start a new round?',text:'The current round is dropped and the roles swap.',ok:'Start',cancel:'Keep playing'}).then(ok=>{if(ok)startRound(true);});};
+$('tuiReset').onclick=()=>{TetherUI.settings.close();TetherUI.confirm({title:'Reset the score?',text:"The score goes back to 0–0. This can't be undone.",ok:'Reset'}).then(ok=>{if(ok)act(async()=>{const{error}=await sb.rpc('scr_reset_score');if(error)throw error;},'Reset failed');});};
+
+boot();
+</script>
+</body>
+</html>
