@@ -34,9 +34,9 @@ body[data-game="bingo"]{--tint:var(--peach);--tint2:var(--lilac)}
 
 /* .card is a column; .card.call-row (2 classes) wins over it and lays the ball, trail and mini card side by side */
 .card.call-row{flex-direction:row;align-items:center;gap:.6rem;padding:.45rem .65rem}
-.ball{position:relative;inline-size:3.6rem;block-size:3.6rem;flex:none;display:grid;place-content:center;justify-items:center;background:var(--bc,var(--card));color:var(--plum);border:var(--bw) solid var(--line);border-radius:50%;box-shadow:0 .22rem 0 var(--shadow)}
+.ball{position:relative;inline-size:3.6rem;block-size:3.6rem;flex:none;display:grid;place-content:center;justify-items:center;background:var(--bc,var(--butter));color:var(--plum);border:var(--bw) solid var(--line);border-radius:50%;box-shadow:0 .22rem 0 var(--shadow)}
 .ball::after{content:'';position:absolute;inset:.4rem auto auto .62rem;inline-size:.75rem;block-size:.38rem;border-radius:50%;background:#fff;opacity:.55;rotate:-30deg}
-.ball small{font:700 .66rem/1 var(--font-display);opacity:.7}
+.ball small{font:700 .68rem/1 var(--font-display)}
 .ball b{font:700 1.45rem/1.05 var(--font-display);font-variant-numeric:tabular-nums}
 .ball.pop{animation:ballIn .6s var(--ease-spring)}
 .ball.roll{animation:roll .6s linear infinite}
@@ -44,7 +44,7 @@ body[data-game="bingo"]{--tint:var(--peach);--tint2:var(--lilac)}
 @keyframes roll{to{rotate:360deg}}
 .callmid{flex:1;min-inline-size:0;display:grid;gap:.25rem}
 .hist{display:flex;flex-wrap:wrap;gap:.25rem;align-content:center;min-block-size:1.5rem}
-.chip{display:grid;place-items:center;inline-size:1.5rem;block-size:1.5rem;font:600 .72rem var(--font-display);color:var(--plum);background:var(--bc,var(--card));border:2px solid var(--line);border-radius:50%}
+.chip{display:grid;place-items:center;inline-size:1.5rem;block-size:1.5rem;font:600 .72rem var(--font-display);color:var(--plum);background:var(--bc,var(--butter));border:2px solid var(--line);border-radius:50%}
 .chip.mine{box-shadow:0 0 0 2px var(--card),0 0 0 3.5px var(--me)}
 .hist-empty{font-size:.8rem;color:var(--text-dim)}
 #calledCount{margin:0;padding:0;font-size:.78rem;color:var(--text-dim)}
@@ -75,6 +75,7 @@ body[data-game="bingo"]{--tint:var(--peach);--tint2:var(--lilac)}
 .actions{flex:none;display:grid;grid-template-columns:1fr 1fr;gap:.55rem;padding-block:.1rem}
 .btn.ready{animation:readyPulse 1s ease-in-out infinite}
 @keyframes readyPulse{50%{scale:1.04}}
+#drawBtn:disabled{opacity:1;background:color-mix(in oklab,var(--butter) 30%,var(--card));color:var(--text)}   /* waiting for the other player: dimmed, but still readable in both themes */
 /* short screens (small or older phones): trim the panels so the card keeps its size */
 @media (max-height:620px){
   #s-game{gap:.35rem}
