@@ -28,24 +28,24 @@ body[data-game="scribble"]{--tint:var(--sky);--tint2:var(--pink)}
 .score-col:nth-child(3) .score-name{text-align:end}
 .score-num{font:700 1.5rem/1 var(--font-display);font-variant-numeric:tabular-nums}
 .score-num.bump{animation:bump .5s var(--ease-spring)}
-.timer{display:grid;place-items:center;inline-size:2.7rem;block-size:2.7rem;font:700 1.15rem var(--font-display);font-variant-numeric:tabular-nums;color:var(--plum);background:var(--card);border:var(--bw) solid var(--line);border-radius:50%;box-shadow:0 .2rem 0 var(--shadow);transition:background-color .3s}
-.timer.low{background:var(--pink);animation:bump .5s ease infinite}
+.timer{display:grid;place-items:center;inline-size:2.7rem;block-size:2.7rem;font:700 1.15rem var(--font-display);font-variant-numeric:tabular-nums;color:var(--text);background:var(--card);border:var(--bw) solid var(--line);border-radius:50%;box-shadow:0 .2rem 0 var(--shadow);transition:background-color .3s}
+.timer.low{background:var(--pink);color:var(--plum);animation:bump .5s ease infinite}
 .wordbar{display:grid;justify-items:center;gap:.1rem;padding:.4rem .7rem;text-align:center}
 .wordbar small{font:600 .75rem var(--font-display);color:var(--text-dim);letter-spacing:.04em;text-transform:uppercase}
-.wordbar b{display:flex;flex-wrap:wrap;justify-content:center;gap:.3rem;min-block-size:1.75rem;align-items:center;font:700 1.5rem/1.15 var(--font-display);color:var(--plum);letter-spacing:.12em;overflow-wrap:anywhere}
-.blank{display:inline-block;inline-size:1.6rem;block-size:1.45rem;border-bottom:3px solid var(--plum);border-radius:2px}
+.wordbar b{display:flex;flex-wrap:wrap;justify-content:center;gap:.3rem;min-block-size:1.75rem;align-items:center;font:700 1.5rem/1.15 var(--font-display);color:var(--text);letter-spacing:.12em;overflow-wrap:anywhere}
+.blank{display:inline-block;inline-size:1.6rem;block-size:1.45rem;border-bottom:3px solid var(--text);border-radius:2px}
 .board-stage{flex:1 1 0;min-block-size:15rem;display:grid;place-items:center;container-type:size}
 #boardCard{inline-size:min(100cqi,100cqb);aspect-ratio:1;padding:.4rem;display:grid}
 #cv{inline-size:100%;block-size:100%;display:block;background:#fff;border-radius:.9rem;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;cursor:crosshair}
 #cv.locked{cursor:default}
 .gfeed{display:flex;flex-wrap:wrap;gap:.3rem;min-block-size:1.5rem;align-content:center;justify-content:center}
-.fchip{padding:.15rem .6rem;font:600 .8rem var(--font-display);color:var(--plum);background:var(--card);border:2px solid var(--line);border-radius:99px;max-inline-size:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.fchip.mine{background:var(--me)}.fchip.ok{background:var(--mint)}
+.fchip{padding:.15rem .6rem;font:600 .8rem var(--font-display);color:var(--text);background:var(--card);border:2px solid var(--line);border-radius:99px;max-inline-size:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fchip.mine{background:var(--me);color:var(--plum)}.fchip.ok{background:var(--mint);color:var(--plum)}
 .gfeed-empty{font-size:.8rem;color:var(--text-dim)}
 .panel{flex:none;display:grid;gap:.4rem;padding-block:.1rem}
 .panel[hidden]{display:none}
 .trow{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:.35rem}
-.sw,.tb{display:grid;place-items:center;inline-size:2.15rem;block-size:2.15rem;padding:0;cursor:pointer;touch-action:manipulation;color:var(--plum);background:var(--card);border:2px solid var(--line);border-radius:50%;box-shadow:0 .15rem 0 var(--shadow)}
+.sw,.tb{display:grid;place-items:center;inline-size:2.15rem;block-size:2.15rem;padding:0;cursor:pointer;touch-action:manipulation;color:var(--text);background:var(--card);border:2px solid var(--line);border-radius:50%;box-shadow:0 .15rem 0 var(--shadow)}
 .sw{background:var(--c)}
 .sw[aria-pressed=true],.tb[aria-pressed=true]{outline:3px solid var(--me);outline-offset:2px}
 .tb i{display:block;border-radius:50%;background:currentColor;inline-size:var(--d);block-size:var(--d)}
@@ -62,6 +62,7 @@ body[data-game="scribble"]{--tint:var(--sky);--tint2:var(--pink)}
   .sw,.tb{inline-size:1.9rem;block-size:1.9rem}.tb.txt{padding-inline:.55rem}
   .gfeed{min-block-size:1.2rem}
   .over-img{inline-size:min(100%,9rem)}
+  #s-over .trophy{display:none}
 }
 .over-img{inline-size:min(100%,12.5rem);aspect-ratio:1;object-fit:contain;margin:.5rem auto;display:block;background:#fff;border:var(--bw) solid var(--line);border-radius:1rem}
 </style>
@@ -146,6 +147,8 @@ const $=id=>document.getElementById(id);
 let sb,MY_NAME=null,OPP_NAME=null,match=null,live=null;
 let _armed=false,_busy=0,_lastJson='',_prevScores=null,_wasPlaying=null,_overT=0,_clearing=false,_tuSent=false,_guessing=false,_wasDown=false;
 let _key='',_round=-1,_word=null,_loadingWord=false,_off=0;
+const _timers=[];                         // every interval this page starts, so Exit can stop them all
+TetherUI.onExit(()=>{_timers.forEach(clearInterval);_timers.length=0;clearInterval(_flushT);cur=null;});
 const tool={color:COLORS[0],size:1,eraser:false};
 const sfx=n=>{ if(_armed) TetherUI.sfx.play(n); };
 const sfxNow=n=>TetherUI.sfx.play(n);
@@ -267,7 +270,7 @@ async function boot(){
     if(se)throw se;
     if(!rows_||!rows_[0]){showError('Open and log into Tether chat on this device first,<br/>then come back here.');return;}
     MY_NAME=rows_[0].user_name;document.body.dataset.me=MY_NAME;OPP_NAME=MY_NAME==='Satyam'?'Snks':'Satyam';
-    buildTools();await syncClock();setInterval(syncClock,60000);
+    buildTools();await syncClock();_timers.push(setInterval(syncClock,60000));
     await resyncOrThrow();
     _armed=true;
     live=TetherLive.hub(sb,{name:'scribble',
@@ -275,7 +278,7 @@ async function boot(){
                 {event:'INSERT',table:'scr_strokes',cb:p=>onStrokeRow(p.new)},
                 {event:'INSERT',table:'scr_guesses',cb:p=>onGuessRow(p.new)}],
       onCatchup:async()=>{await resyncOrThrow();await loadStrokes();await loadGuesses();},onStatus:setConn,pollLiveMs:8000});
-    live.start();setInterval(tick,250);
+    live.start();_timers.push(setInterval(tick,250));
   }catch(e){
     console.error(e);
     const missing=/scr_match|PGRST205|does not exist/i.test((e.message||'')+(e.code||''));
@@ -354,6 +357,7 @@ function confetti(){
 /* the clock: purely a display. The server decides when time is really up. */
 let _lastTick=null;
 function tick(){
+  if(document.hidden)return;                 // nothing to show while the app is in the background
   const t=$('timer');
   if(!playing()){t.textContent='—';t.classList.remove('low');return;}
   const r=Math.max(0,remaining());t.textContent=r;t.classList.toggle('low',r<=10&&r>0);

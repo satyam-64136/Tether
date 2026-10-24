@@ -365,14 +365,15 @@
   }
   .mine :is(.q-bubble,.f-bubble){background:var(--me);border-end-end-radius:.35rem}
   .theirs :is(.q-bubble,.f-bubble){background:var(--them);border-end-start-radius:.35rem}
-  :is(.q-asker,.f-tag){font:600 .75rem var(--font-display);opacity:.78}
+  :is(.q-asker,.f-tag){font:600 .75rem var(--font-display);opacity:.92}      /* was .78: too faint on pastel bubbles */
   :is(.q-text,.f-text){font-size:.95rem;line-height:1.35;font-weight:600}
   .f-bubble.right{background:var(--mint)!important}
-  .f-bubble.wrong{opacity:.8}
+  .f-bubble.wrong{opacity:.9}
   :is(.q-empty,.f-empty){font-size:.92rem;color:var(--text-dim);text-align:center;padding:1.1rem .5rem}
 
-  .q-toggle{display:flex;position:relative;padding:.2rem;background:var(--card);border:2px solid var(--line);border-radius:99px}
-  .q-toggle .q-slide{position:absolute;inset-block:.2rem;inline-size:calc(50% - .2rem);border-radius:99px;background:var(--surface3);transition:transform .25s var(--ease-spring),background-color .2s}
+  /* the Yes/No switch sits inside a pastel bubble, so it stays a light sticker in dark mode too: dark text on a light track */
+  .q-toggle{display:flex;position:relative;padding:.2rem;background:var(--milk);border:2px solid var(--line);border-radius:99px}
+  .q-toggle .q-slide{position:absolute;inset-block:.2rem;inline-size:calc(50% - .2rem);border-radius:99px;background:color-mix(in oklab,var(--plum) 14%,var(--milk));transition:transform .25s var(--ease-spring),background-color .2s}
   .q-toggle button{position:relative;z-index:1;flex:1;padding:.5rem .4rem;font:600 .88rem var(--font-display);color:var(--plum);background:none;border:0;cursor:pointer;transition:scale .12s}
   .q-toggle button:active{scale:.9}
   .q-answer{
@@ -381,7 +382,7 @@
     animation:answerPop .3s var(--ease-spring);
   }
   .q-answer.yes{background:var(--mint)} .q-answer.no{background:var(--coral)}
-  .q-pending{font-size:.8rem;color:var(--plum);opacity:.7;display:flex;align-items:center;gap:.35rem}
+  .q-pending{font-size:.8rem;color:var(--plum);opacity:.85;display:flex;align-items:center;gap:.35rem}
   .q-pending .wait-dot{inline-size:.35rem;block-size:.35rem;border-radius:50%;background:currentColor;animation:breathe 1.2s ease-in-out infinite}
 }
 

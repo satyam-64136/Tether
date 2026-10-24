@@ -103,7 +103,12 @@
     names: Object.keys(SOUNDS),
   };
 
-  function haptic(p) { if (prefs.haptics && navigator.vibrate) { try { navigator.vibrate(p); } catch (e) { /* ignore */ } } }
+  function haptic(p) {
+    if (!prefs.haptics || !navigator.vibrate) return;
+    // Browsers refuse to vibrate before the first tap and log an error each time; wait for a real tap instead.
+    if (navigator.userActivation && !navigator.userActivation.hasBeenActive) return;
+    try { navigator.vibrate(p); } catch (e) { /* ignore */ }
+  }
 
   /* ───────────── screen-reader announcements ───────────── */
   let live = null, lastSaid = '';
