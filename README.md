@@ -225,7 +225,7 @@ const SK = 'your-supabase-anon-key';
 
 Push to GitHub with Pages enabled. There are no paths to edit: `sw.js`, `manifest.json` and the service-worker registration work out where the app lives, so it runs the same at `you.github.io/Tether/` and on a custom domain such as `tether.example.com` (set it under Settings → Pages, and point a CNAME record at `you.github.io`).
 
-On a custom domain, `tether-pages.js` still finds the games through the GitHub repo. It reads the owner and repo from `<meta name="tether:repo" content="owner/repo">` if you add one, otherwise it uses the default in `repoGuess()`.
+The games menu is built from `pages.json`, which `build-pages-index.js` writes from each page's `tether:*` tags. The GitHub Action in `.github/workflows/pages-index.yml` runs it on every push, or run `node build-pages-index.js` before you commit. No repo name or address is stored in the code.
 
 ---
 

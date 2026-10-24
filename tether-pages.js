@@ -11,12 +11,15 @@
        <meta name="tether:order" content="50">               (optional, lower = higher up)
        <meta name="tether:action" content="Play">            (optional: button verb; games default to "Play")
 
-   How it finds pages: it asks GitHub for the list of .html files in your repo
-   (the owner and repo name come from the site address, e.g. you.github.io/Tether),
-   reads each file's tether:* tags, and builds the menu. The result is cached on
-   the phone and refreshed in the background every few hours, so the menu appears
-   instantly and a newly uploaded page shows up on its own. If GitHub can't be
-   reached, the cached list (or the built-in list below) is used.
+   How it finds pages (nothing here depends on your address or repo name):
+     1. pages.json, next to index.html. It is written from every page's tether:* tags by
+        build-pages-index.js, which the GitHub Action in .github/workflows runs on each push
+        (or run `node build-pages-index.js` yourself before committing).
+     2. If there is no pages.json, and the repo is known (a <meta name="tether:repo" content="owner/repo">
+        tag, window.TETHER_REPO, or a *.github.io address), it asks GitHub for the .html files instead.
+     3. Otherwise the built-in list below is used.
+   The result is cached on the phone and refreshed in the background every few hours, so the menu
+   appears instantly and a newly uploaded page shows up on its own.
 
    How pages open: on top of the chat in a slide-up sheet (an iframe), so the chat
    never unloads, reconnects, or replays the intro. The page's back arrow and the
@@ -77,7 +80,7 @@
   ];
   const SECTION_LABEL = { game: 'Games', tool: 'Extras' };
   const SECTION_ORDER = ['game', 'tool'];
-  const CACHE_KEY = 'tether:pages:v2';   // bumped: older saved lists predate Bingo
+  const CACHE_KEY = 'tether:pages:v3';   // bumped: the page list now comes from pages.json
   const TTL_MS = 6 * 60 * 60 * 1000;
   const SHARED_ASSETS = ['games.css', 'games-ui.js', 'games-live.js'];
 
@@ -120,11 +123,26 @@
       const owner = host.split('.')[0], repo = location.pathname.split('/').filter(Boolean)[0];
       if (owner && repo) return [owner, repo];
     }
-    return ['satyam-64136', 'Tether'];      // custom domain (e.g. tether.enigma.qd.je): the site is built from this repo
+    return null;                               // unknown (custom domain): rely on pages.json
+  }
+  // A page entry from pages.json: keep only the fields we use, and only plain file names in this folder.
+  function cleanEntry(e) {
+    if (!e || typeof e.file !== 'string' || !/^[\w.-]+\.html?$/i.test(e.file) || /^index\.html?$/i.test(e.file) || !e.title) return null;
+    return {
+      file: e.file, type: String(e.type || 'game').toLowerCase(), title: String(e.title), icon: String(e.icon || 'sparkle'),
+      blurb: String(e.blurb || ''), order: +e.order || 100, action: String(e.action || ''), section: String(e.section || ''),
+    };
   }
   async function discover() {
+    try {
+      const r = await fetch('pages.json', { cache: 'no-cache' });                 // relative: works at any address
+      if (r.ok) {
+        const list = await r.json();
+        if (Array.isArray(list)) return list.map(cleanEntry).filter(Boolean);
+      }
+    } catch (e) { /* no pages.json (or not valid): try the next way */ }
     const repo = repoGuess();
-    if (!repo) throw new Error('not on GitHub Pages');
+    if (!repo) throw new Error('no pages.json and no repo configured');
     const res = await fetch('https://api.github.com/repos/' + repo[0] + '/' + repo[1] + '/contents/', { headers: { Accept: 'application/vnd.github+json' } });
     if (!res.ok) throw new Error('GitHub answered ' + res.status);
     const files = (await res.json()).filter((f) => f.type === 'file' && /\.html?$/i.test(f.name) && f.name !== 'index.html');

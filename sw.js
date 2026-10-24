@@ -1,19 +1,19 @@
 const CACHE = 'us-v12';
 // Where the app lives, worked out from this file's own address instead of being typed in:
-//   https://you.github.io/Tether/sw.js  ->  BASE = '/Tether'
-//   https://tether.example.com/sw.js    ->  BASE = ''   (the site root, e.g. a custom domain)
+//   https://you.github.io/Tether/sw.js  ->  BASE = '/Tether'   (a project page)
+//   https://tether.example.com/sw.js    ->  BASE = ''          (the site root, e.g. a custom domain)
 const BASE = new URL('./', self.location).pathname.replace(/\/$/, '');
 
-// Links that arrive from outside (an old notification, the push server) may still say /Tether/...
-// Point them at wherever the app really is, and never at another site.
+// Links that arrive from outside (an old notification, the push server) may carry a path from some
+// other address the app used to live at. Keep only what matters (the page name and the query) and
+// rebuild the link under wherever the app really is. Another site's links are never followed.
 function appUrl(u) {
   try {
     const x = new URL(u, self.location.origin);
     if (x.origin !== self.location.origin) return `${BASE}/`;
-    if (BASE !== '/Tether' && (x.pathname === '/Tether' || x.pathname.startsWith('/Tether/'))) {
-      x.pathname = (BASE + x.pathname.slice('/Tether'.length)) || '/';
-    }
-    return x.href;
+    const last = x.pathname.split('/').filter(Boolean).pop() || '';
+    const page = /\.html?$/i.test(last) ? last : '';
+    return `${self.location.origin}${BASE}/${page}${x.search}${x.hash}`;
   } catch (e) { return `${BASE}/`; }
 }
 const ASSETS = [`${BASE}/`, `${BASE}/index.html`, `${BASE}/manifest.json`, `${BASE}/games.css`, `${BASE}/games-ui.js`, `${BASE}/games-live.js`, `${BASE}/tether-pages.js`, `${BASE}/tether-intro.js`];
