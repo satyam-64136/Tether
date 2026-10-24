@@ -27,6 +27,11 @@
    - Catch-up runs one at a time and runs again afterwards if something
      arrived meanwhile (coalesce), so nothing is cancelled and nothing is
      applied out of order.
+   - It costs nothing when nobody is looking. stop() removes every timer, every
+     listener and the channel, and a stopped hub can never bring itself back.
+     If the app stays in the background for idleSuspendMs, the connection and
+     timers are dropped (suspend), and coming back re-opens it and catches up.
+     TetherUI.exit() and leaving the page call stop() automatically.
    ═════════════════════════════════════════════════════════════════ */
 (function (global) {
   'use strict';
@@ -59,6 +64,7 @@
       onCatchup() {}, onStatus() {},
       pollLiveMs: 12000, pollDownMs: 4000,
       downGraceMs: 1500, joinTimeoutMs: 10000,
+      idleSuspendMs: 45000,
     }, opts);
 
     const catchup = coalesce(async () => {
@@ -67,7 +73,7 @@
 
     let ch = null, gen = 0, state = 'idle', attempt = 0;
     let retryT = 0, joinT = 0, downT = 0, pollT = 0;
-    let started = false, wantReconnect = false;
+    let started = false, wantReconnect = false, suspended = false, idleT = 0, listening = false;
     const stats = { joins: 0, retries: 0, staleIgnored: 0 };
 
     function report(live) {
@@ -113,6 +119,7 @@
       const delay = Math.min(15000, 800 * Math.pow(2, Math.min(attempt++, 5))) + Math.random() * 300;
       retryT = setTimeout(() => {
         retryT = 0;
+        if (!started || suspended) return;
         if (hidden()) wantReconnect = true;      // don't burn battery reconnecting in the background
         else connect();
       }, delay);
@@ -120,6 +127,7 @@
 
     function poll() {                            // slow safety net; realtime is the fast path
       clearTimeout(pollT);
+      if (!started || suspended) return;
       const ms = (state === 'live' ? o.pollLiveMs : o.pollDownMs) * (0.85 + Math.random() * 0.3);
       pollT = setTimeout(() => { if (!hidden()) catchup(); poll(); }, ms);
     }
@@ -127,30 +135,63 @@
     /* The app came back (tab shown, network back, restored from cache). Always re-sync;
        only rebuild the channel if it is not actually live. */
     function wake() {
+      if (!started) return;                      // a stopped hub never revives itself
+      clearTimeout(idleT);
+      if (suspended) { suspended = false; attempt = 0; connect(); poll(); catchup(); return; }
       catchup();
       if (state !== 'live' || wantReconnect) { wantReconnect = false; attempt = 0; connect(); }
     }
 
+    /* Nobody is looking: drop the socket and every timer, keep the listeners that bring it back. */
+    function suspend() {
+      if (!started || suspended) return;
+      suspended = true; gen++;                   // callbacks from the old channel are ignored from now on
+      [retryT, joinT, downT, pollT].forEach(clearTimeout); retryT = joinT = downT = pollT = 0;
+      if (ch) { try { sb.removeChannel(ch); } catch (e) { /* already gone */ } ch = null; }
+      state = 'idle';
+    }
+
+    const onVis = () => {
+      if (!started) return;
+      if (document.hidden) { clearTimeout(idleT); idleT = setTimeout(() => { if (document.hidden) suspend(); }, o.idleSuspendMs); }
+      else wake();
+    };
+    const onPageShow = (e) => { if (e.persisted) wake(); };            // bfcache restore only
+    const onPageHide = (e) => { if (e.persisted) suspend(); else stop(); };   // into the back/forward cache: sleep. Really leaving: stop.
+
     function start() {
       if (started) return;
-      started = true;
+      started = true; suspended = false;
       connect();
       poll();
-      if (typeof document !== 'undefined') {
-        document.addEventListener('visibilitychange', () => { if (!document.hidden) wake(); });
+      if (typeof document !== 'undefined' && !listening) {
+        listening = true;
+        document.addEventListener('visibilitychange', onVis);
         document.addEventListener('resume', wake);                      // Page Lifecycle: unfrozen
         global.addEventListener('online', wake);
-        global.addEventListener('pageshow', (e) => { if (e.persisted) wake(); });   // bfcache restore only
+        global.addEventListener('pageshow', onPageShow);
+        global.addEventListener('pagehide', onPageHide);
       }
     }
 
     function stop() {
-      started = false; gen++;
-      [retryT, joinT, downT, pollT].forEach(clearTimeout);
+      started = false; suspended = false; gen++;
+      [retryT, joinT, downT, pollT, idleT].forEach(clearTimeout); retryT = joinT = downT = pollT = idleT = 0;
       if (ch) { try { sb.removeChannel(ch); } catch (e) { /* ignore */ } ch = null; }
+      state = 'idle';
+      if (listening && typeof document !== 'undefined') {
+        listening = false;
+        document.removeEventListener('visibilitychange', onVis);
+        document.removeEventListener('resume', wake);
+        global.removeEventListener('online', wake);
+        global.removeEventListener('pageshow', onPageShow);
+        global.removeEventListener('pagehide', onPageHide);
+      }
     }
 
-    return { start, wake, stop, catchup, stats, get state() { return state; } };
+    const hubApi = { start, wake, stop, suspend, catchup, stats, get state() { return state; }, get suspended() { return suspended; } };
+    if (global.TetherUI && global.TetherUI.onExit) global.TetherUI.onExit(stop);   // the Exit button and leaving the page stop it
+    return hubApi;
   }
 
   const api = { hub, coalesce, same };

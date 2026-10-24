@@ -280,6 +280,7 @@ async function resyncOrThrow(){
   const json=JSON.stringify(data);
   if(json===_lastJson) return;
   _lastJson=json;
+  if(!data) throw new Error('The game is not set up yet (whoami_resync returned nothing). Run the whoami SQL in Supabase.');
   match=data.match;
   myWord=data.my_word;
   log=data.log||[];

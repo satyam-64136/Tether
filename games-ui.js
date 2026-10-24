@@ -243,6 +243,11 @@
       if (typeof x === 'string') { const li = document.createElement('li'); li.innerHTML = x; rows.appendChild(li); }
       else if (x) rows.appendChild(x.tagName === 'LI' ? x : (() => { const li = document.createElement('li'); li.appendChild(x); return li; })());
     });
+    const exLi = document.createElement('li'); exLi.className = 'exit-row';
+    const exBtn = document.createElement('button'); exBtn.type = 'button'; exBtn.className = 'btn ghost'; exBtn.id = 'tuiExit';
+    exBtn.innerHTML = icon('close') + ' Exit game';
+    exBtn.addEventListener('click', () => { dlg.close(); exit(); });
+    exLi.appendChild(exBtn); rows.appendChild(exLi);
     body.appendChild(rows); dlg.appendChild(body); document.body.appendChild(dlg);
     sheet = dlg;
     gear.addEventListener('click', () => { unlock(); sfx.play('tap'); dlg.showModal(); if (opts.onOpen) opts.onOpen(); });
@@ -280,13 +285,36 @@
   /* ───────────── running inside the home screen's overlay ───────────── */
   const embedded = global.parent !== global;
   function tellParent(msg) { try { global.parent.postMessage(msg, global.location.origin); } catch (e) { /* cross-origin parent: ignore */ } }
+
+  /* ───────────── leaving: stop everything the page is doing ───────────── */
+  // Games register their cleanup with TetherUI.onExit(fn): sockets, timers, the camera. The sync hub does this by itself.
+  // Exit runs all of it first and then leaves, so nothing keeps working in the background after you go.
+  const exitFns = []; let exited = false;
+  function onExit(fn) { if (typeof fn === 'function') exitFns.push(fn); }
+  function runExit() {
+    if (exited) return; exited = true;
+    exitFns.splice(0).forEach((fn) => { try { fn(); } catch (e) { console.warn('[exit]', e); } });
+  }
+  function exit() {
+    runExit();
+    if (embedded) tellParent({ type: 'tether:close' });                               // the home screen slides the page away and frees it
+    else { const a = document.querySelector('a.backlink'); global.location.href = (a && a.getAttribute('href')) || 'index.html'; }
+  }
+  global.addEventListener('pagehide', (e) => { if (!e.persisted) runExit(); });          // closing the tab, navigating away
+  global.addEventListener('pageshow', (e) => { if (e.persisted && exited) global.location.reload(); });   // restored from the back/forward cache after exiting: start fresh
+  function labelBack() {                                                                 // make the way out obvious: "< Exit"
+    const a = document.querySelector('a.backlink');
+    if (!a || a.dataset.exitLabel) return;
+    a.dataset.exitLabel = '1'; a.classList.add('has-label'); a.setAttribute('aria-label', 'Exit game');
+    const t = document.createElement('span'); t.className = 'bl-label'; t.textContent = 'Exit'; t.setAttribute('aria-hidden', 'true'); a.appendChild(t);
+  }
   function embedSetup() {
-    if (!embedded) return;
-    // The back arrow closes the overlay instead of navigating, so the chat underneath never reloads.
+    // The back arrow exits: it stops the game first, then (inside the home screen) closes the overlay so the chat never reloads.
     document.addEventListener('click', (e) => {
       const a = e.target.closest && e.target.closest('a.backlink');
-      if (a) { e.preventDefault(); tellParent({ type: 'tether:close' }); }
+      if (a) { e.preventDefault(); exit(); }
     }, true);
+    if (!embedded) return;
     // Reveal only once the page has real styles and fonts, so the overlay never shows a flash of unstyled content.
     const fontsReady = (document.fonts && document.fonts.ready) ? Promise.race([document.fonts.ready, new Promise((r) => setTimeout(r, 1500))]) : Promise.resolve();
     fontsReady.then(() => requestAnimationFrame(() => requestAnimationFrame(() => tellParent({ type: 'tether:ready' }))));
@@ -294,14 +322,14 @@
 
   /* ───────────── boot ───────────── */
   applyPrefs();                           // theme + motion before first paint
-  function ready() { injectSprite(); hydrate(); fitViewport(); embedSetup(); }
+  function ready() { injectSprite(); hydrate(); fitViewport(); labelBack(); embedSetup(); }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ready); else ready();
 
   const api = {
     prefs, setPref, onPref: (f) => listeners.add(f),
     sfx, haptic, say, unlock,
     icon, hydrate, icons: Object.keys(I),
-    mount, confirm: confirmSheet, embedded,
+    mount, confirm: confirmSheet, embedded, onExit, exit,
     settings: { open() { if (sheet) sheet.showModal(); }, close() { if (sheet) sheet.close(); }, get dialog() { return sheet; } },
   };
   global.TetherUI = api;

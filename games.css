@@ -436,3 +436,9 @@
     .card,.btn,.pill,.cell{border:2px solid CanvasText}
   }
 }
+
+/* Exit: the back arrow carries a word so it is clearly the way out */
+.backlink.has-label{inline-size:auto;min-inline-size:2.75rem;display:inline-flex;align-items:center;justify-content:center;gap:.3rem;padding-inline:.8rem .95rem;border-radius:99px}
+.backlink .bl-label{font:600 .9rem/1 var(--font-display,inherit);letter-spacing:.01em}
+.exit-row{display:grid;margin-top:.4rem}
+.exit-row .btn{inline-size:100%}

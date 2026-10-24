@@ -587,6 +587,7 @@ function coupleLeave(tell){
 }
 
 renderLayouts();setState('idle');
+TetherUI.onExit(()=>{try{coupleLeave(true)}catch(e){}stopCamera();});   // Exit: tell the partner we left, free the room connection and switch the camera off
 TetherUI.mount({extras:[
   `<details class="how"><summary>How it works</summary><ol><li>Pick a layout and a film look.</li><li>Start the camera. It counts down and takes ${SHOTS} photos, or choose photos you already have.</li><li>Change the layout or look any time on the result, then save it or send it to the chat.</li><li>Couple photo: you both open it on your own phones, tap I'm ready, and each take 2 photos. The app merges them into one portrait.</li></ol></details>`
 ]});
