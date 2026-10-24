@@ -120,7 +120,7 @@
       const owner = host.split('.')[0], repo = location.pathname.split('/').filter(Boolean)[0];
       if (owner && repo) return [owner, repo];
     }
-    return null;
+    return ['satyam-64136', 'Tether'];      // custom domain (e.g. tether.enigma.qd.je): the site is built from this repo
   }
   async function discover() {
     const repo = repoGuess();

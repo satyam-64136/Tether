@@ -1,5 +1,21 @@
-const CACHE = 'us-v11';
-const BASE = '/Tether';
+const CACHE = 'us-v12';
+// Where the app lives, worked out from this file's own address instead of being typed in:
+//   https://you.github.io/Tether/sw.js  ->  BASE = '/Tether'
+//   https://tether.example.com/sw.js    ->  BASE = ''   (the site root, e.g. a custom domain)
+const BASE = new URL('./', self.location).pathname.replace(/\/$/, '');
+
+// Links that arrive from outside (an old notification, the push server) may still say /Tether/...
+// Point them at wherever the app really is, and never at another site.
+function appUrl(u) {
+  try {
+    const x = new URL(u, self.location.origin);
+    if (x.origin !== self.location.origin) return `${BASE}/`;
+    if (BASE !== '/Tether' && (x.pathname === '/Tether' || x.pathname.startsWith('/Tether/'))) {
+      x.pathname = (BASE + x.pathname.slice('/Tether'.length)) || '/';
+    }
+    return x.href;
+  } catch (e) { return `${BASE}/`; }
+}
 const ASSETS = [`${BASE}/`, `${BASE}/index.html`, `${BASE}/manifest.json`, `${BASE}/games.css`, `${BASE}/games-ui.js`, `${BASE}/games-live.js`, `${BASE}/tether-pages.js`, `${BASE}/tether-intro.js`];
 
 self.addEventListener('install', e => {
@@ -141,7 +157,7 @@ self.addEventListener('push', e => {
       vibrate: [200, 100, 200],
       silent: false,
       requireInteraction: false,
-      data: { url: data.url || `${BASE}/` }
+      data: { url: appUrl(data.url || `${BASE}/`) }
     });
   })());
 });
@@ -185,12 +201,12 @@ self.addEventListener('message', e => {
 // ── NOTIFICATION CLICK ──
 self.addEventListener('notificationclick', e => {
   e.notification.close();
-  const target = e.notification.data?.url || `${BASE}/`;
+  const target = appUrl(e.notification.data?.url || `${BASE}/`);
   e.waitUntil(
     clients.matchAll({ type:'window', includeUncontrolled:true }).then(list => {
       // For ring notifications — focus or open with ring param
       for(const c of list){
-        if(c.url.includes(BASE) && 'focus' in c){
+        if(c.url.startsWith(self.location.origin) && 'focus' in c){
           // If it's a ring notif, navigate to ring URL
           if(e.notification.data?.type === 'ring'){
             c.navigate(target);

@@ -5621,7 +5621,7 @@ function urlBase64ToUint8Array(base64String){
 // ── SW REGISTRATION ──
 if('serviceWorker'in navigator){
   const hadController=!!navigator.serviceWorker.controller;
-  navigator.serviceWorker.register('/Tether/sw.js',{scope:'/Tether/'}).then(reg=>{
+  navigator.serviceWorker.register('sw.js',{scope:'./'}).then(reg=>{
     setInterval(()=>reg.update(),300000);
     reg.addEventListener('updatefound',()=>{
       const nw=reg.installing;

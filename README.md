@@ -102,7 +102,7 @@ Browser (PWA)
 │   ├── SHOW_NOTIF handler (page → SW when tab is hidden)
 │   └── visibilityState guard (no duplicate notifications)
 │
-└── manifest.json         # PWA manifest — standalone, custom icon, scoped to /Tether/
+└── manifest.json         # PWA manifest — standalone, custom icon, relative paths (works on any address)
 ```
 
 ```
@@ -223,11 +223,9 @@ const SK = 'your-supabase-anon-key';
 
 ### 5. Deploy to GitHub Pages
 
-Push to GitHub with Pages enabled. Update `manifest.json` and `sw.js` with your repo name:
-```json
-"start_url": "/your-repo/",
-"scope": "/your-repo/"
-```
+Push to GitHub with Pages enabled. There are no paths to edit: `sw.js`, `manifest.json` and the service-worker registration work out where the app lives, so it runs the same at `you.github.io/Tether/` and on a custom domain such as `tether.example.com` (set it under Settings → Pages, and point a CNAME record at `you.github.io`).
+
+On a custom domain, `tether-pages.js` still finds the games through the GitHub repo. It reads the owner and repo from `<meta name="tether:repo" content="owner/repo">` if you add one, otherwise it uses the default in `repoGuess()`.
 
 ---
 
