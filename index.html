@@ -5550,10 +5550,14 @@ async function toggleNotifications(){
 // only ever worked while the page was already loaded, and now that the
 // real push exists, keeping it around would just cause duplicates. Removed.
 
+let _pushToastShown=false;     // say a problem once per visit, not on every retry
+const _withTimeout=(p,ms,msg)=>Promise.race([p,new Promise((_,rej)=>setTimeout(()=>rej(new Error(msg)),ms))]);
+
 async function subscribeToSWPush(){
-  if(!('serviceWorker'in navigator)||!CU)return;
+  if(!('serviceWorker'in navigator)||!('PushManager'in window)||!CU)return;
   try{
-    const reg=await navigator.serviceWorker.ready;
+    // .ready never settles if the worker failed to register, so don't wait forever
+    const reg=await _withTimeout(navigator.serviceWorker.ready,10000,'service worker not ready');
     let sub=await reg.pushManager.getSubscription();
 
     // Track which VAPID key a subscription was created with. If the app's key
@@ -5573,22 +5577,41 @@ async function subscribeToSWPush(){
       });
       localStorage.setItem('us_push_vapid_key',VAPID_PUBLIC_KEY);
     }
-    // Save subscription to Supabase so Edge Function can look it up
-    const{error}=await sb.from('push_subscriptions').upsert({
-      username:CU,
-      subscription:JSON.parse(JSON.stringify(sub)),
-      updated_at:new Date().toISOString()
-    },{onConflict:'username'});
+
+    // Already saved for this person on this device recently? Then there is nothing to send, and nothing to fail.
+    const want=CU+'|'+sub.endpoint;
+    const [savedKey,savedAt]=(localStorage.getItem('us_push_saved')||'').split('@');
+    if(savedKey===want&&Date.now()-(+savedAt||0)<12*3600*1000)return;
+
+    // Save it. The server function checks which person this device is logged in as and writes only that
+    // person's row, so it does not depend on the table's row-level-security rules (an upsert needs insert,
+    // update AND read permission at once, which is what used to fail with error 42501).
+    const payload=JSON.parse(JSON.stringify(sub));
+    let error=null;
+    const viaFn=await sb.rpc('save_push_subscription',{p_sub:payload});
+    if(viaFn.error&&(viaFn.error.code==='PGRST202'||viaFn.error.code==='42883'||/could not find the function/i.test(viaFn.error.message||''))){
+      // push_setup.sql has not been run yet: fall back to the old direct write
+      const direct=await sb.from('push_subscriptions').upsert({username:CU,subscription:payload,updated_at:new Date().toISOString()},{onConflict:'username'});
+      error=direct.error;
+      if(error&&error.code==='42501')error={code:'NEEDS_SETUP',message:'run push_setup.sql'};
+    }else error=viaFn.error;
+
     if(error){
       console.error('Failed to save push subscription:',error);
-      if(error.code==='42501'){
-        // The database doesn't currently recognize this device as validly
-        // logged in as CU — this device's session has drifted out of sync
-        // with what's on record (can happen after clearing site data,
-        // switching devices, etc). Notifications silently won't work until
-        // this is corrected, so surface it instead of failing invisibly.
-        toast("Couldn't set up notifications — try Switch user, then log back in");
+      localStorage.removeItem('us_push_saved');
+      if(!_pushToastShown){
+        _pushToastShown=true;
+        if(error.code==='28000'||/not_logged_in/.test(error.message||'')){
+          // the database does not recognise this device as the logged-in session for CU
+          toast("This device isn't signed in as "+CU+" — use Switch user, then log back in");
+        }else if(error.code==='NEEDS_SETUP'){
+          toast("Notifications need a one-time database update (run push_setup.sql in Supabase)");
+        }else{
+          toast("Couldn't save notification settings. Will try again next time.");
+        }
       }
+    }else{
+      localStorage.setItem('us_push_saved',want+'@'+Date.now());
     }
   }catch(e){
     console.warn('Push subscription failed:',e);
@@ -5599,13 +5622,22 @@ async function subscribeToSWPush(){
 // called on logout and when this device gets kicked by another login
 async function unsubscribeSWPush(forUser){
   try{
-    if(forUser){
-      try{await sb.from('push_subscriptions').delete().eq('username',forUser);}catch(e){}
-    }
+    let endpoint=null;
     if('serviceWorker'in navigator){
-      const reg=await navigator.serviceWorker.ready;
-      const sub=await reg.pushManager.getSubscription();
-      if(sub) await sub.unsubscribe();
+      try{
+        const reg=await _withTimeout(navigator.serviceWorker.ready,5000,'service worker not ready');
+        const sub=await reg.pushManager.getSubscription();
+        if(sub){endpoint=sub.endpoint;await sub.unsubscribe();}
+      }catch(e){}
+    }
+    localStorage.removeItem('us_push_saved');
+    if(forUser){
+      // Only remove the subscription this device owns. An old copy of the app on a previous address that gets
+      // logged out must not delete the one the new address just saved.
+      const r=await sb.rpc('delete_push_subscription',{p_endpoint:endpoint});
+      if(r.error&&(r.error.code==='PGRST202'||r.error.code==='42883'||/could not find the function/i.test(r.error.message||''))){
+        try{await sb.from('push_subscriptions').delete().eq('username',forUser);}catch(e){}
+      }
     }
   }catch(e){console.warn('Push unsubscribe failed:',e);}
 }
