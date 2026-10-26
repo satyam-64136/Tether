@@ -74,7 +74,7 @@
     { file: 'tictactoe.html',   type: 'game', title: 'Tic Tac Toe',      icon: 'g-ttt',     blurb: 'Three in a row',             order: 20 },
     { file: 'whoami.html',      type: 'game', title: 'Who Am I To You',  icon: 'g-thought', blurb: 'Clues and guesses',          order: 30 },
     { file: 'dotsandboxes.html',type: 'game', title: 'Dots & Boxes',     icon: 'g-dab',     blurb: 'Close the boxes',            order: 40 },
-    { file: 'bingo.html',       type: 'game', title: 'Bingo',            icon: 'g-bingo',   blurb: 'Stamp a line first',         order: 50 },
+    { file: 'bingo.html',       type: 'game', title: 'Bingo',            icon: 'g-bingo',   blurb: 'Pick your numbers, race to 5 lines', order: 50 },
     { file: 'scribble.html',    type: 'game', title: 'Scribble',         icon: 'g-scribble', blurb: 'Draw it, guess it',        order: 60 },
     { file: 'photobooth.html',  type: 'tool', title: 'Photo Booth',      icon: 'g-booth',   blurb: 'Vintage film-strip collages', order: 10, action: 'Open' },
   ];

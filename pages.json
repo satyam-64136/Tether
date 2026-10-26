@@ -54,7 +54,7 @@
     "type": "game",
     "title": "Bingo",
     "icon": "g-bingo",
-    "blurb": "Stamp a line first",
+    "blurb": "Pick your numbers, race to 5 lines",
     "order": 50,
     "action": "",
     "section": ""

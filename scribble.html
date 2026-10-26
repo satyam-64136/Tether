@@ -27,12 +27,15 @@ body[data-game="scribble"]{--tint:var(--sky);--tint2:var(--pink)}
 .score-name{flex:1;min-inline-size:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:600 .9rem var(--font-display)}
 .score-col:nth-child(3) .score-name{text-align:end}
 .score-num{font:700 1.5rem/1 var(--font-display);font-variant-numeric:tabular-nums}
-.score-num.bump{animation:bump .5s var(--ease-spring)}
+.score-num.bump,.score-num .bump{animation:bump .5s var(--ease-spring)}
+.goal{font:600 .66rem var(--font-display);margin-inline-start:.1rem}
 .timer{display:grid;place-items:center;inline-size:2.7rem;block-size:2.7rem;font:700 1.15rem var(--font-display);font-variant-numeric:tabular-nums;color:var(--text);background:var(--card);border:var(--bw) solid var(--line);border-radius:50%;box-shadow:0 .2rem 0 var(--shadow);transition:background-color .3s}
 .timer.low{background:var(--pink);color:var(--plum);animation:bump .5s ease infinite}
 .wordbar{display:grid;justify-items:center;gap:.1rem;padding:.4rem .7rem;text-align:center}
 .wordbar small{font:600 .75rem var(--font-display);color:var(--text-dim);letter-spacing:.04em;text-transform:uppercase}
-.wordbar b{display:flex;flex-wrap:wrap;justify-content:center;gap:.3rem;min-block-size:1.75rem;align-items:center;font:700 1.5rem/1.15 var(--font-display);color:var(--text);letter-spacing:.12em;overflow-wrap:anywhere}
+.wordbar b{display:flex;flex-wrap:wrap;justify-content:center;gap:.35rem .9rem;min-block-size:1.75rem;align-items:center;font:700 1.5rem/1.15 var(--font-display);color:var(--text);letter-spacing:.12em;overflow-wrap:anywhere}
+.wgroup{display:flex;gap:.25rem}
+.wordbar b.dense .blank{inline-size:1.15rem}
 .blank{display:inline-block;inline-size:1.6rem;block-size:1.45rem;border-bottom:3px solid var(--text);border-radius:2px}
 .board-stage{flex:1 1 0;min-block-size:15rem;display:grid;place-items:center;container-type:size}
 #boardCard{inline-size:min(100cqi,100cqb);aspect-ratio:1;padding:.4rem;display:grid}
@@ -44,15 +47,36 @@ body[data-game="scribble"]{--tint:var(--sky);--tint2:var(--pink)}
 .gfeed-empty{font-size:.8rem;color:var(--text-dim)}
 .panel{flex:none;display:grid;gap:.4rem;padding-block:.1rem}
 .panel[hidden]{display:none}
+#tools{position:relative}
+.picker{position:absolute;inset-inline:0;bottom:calc(100% + .35rem);z-index:5;display:grid;gap:.45rem;padding:.6rem;background:var(--card);color:var(--text);border:var(--bw) solid var(--line);border-radius:1.1rem;box-shadow:0 .25rem 0 var(--shadow)}
+.picker[hidden]{display:none}
+.pk-top{display:flex;align-items:center;gap:.5rem}
+.pk-prev{inline-size:2.4rem;block-size:2.4rem;flex:none;border-radius:.7rem;border:2px solid var(--line);background:var(--c,#000)}
+#pkHex{flex:1;min-inline-size:0;font-size:max(16px,1rem);text-transform:uppercase;letter-spacing:.04em}
+.pk-row{display:grid;grid-template-columns:5.2rem 1fr;align-items:center;gap:.5rem;font:600 .78rem var(--font-display)}
+.pk-row input[type=range]{inline-size:100%;block-size:1.3rem;margin:0;appearance:none;-webkit-appearance:none;border-radius:99px;border:2px solid var(--line);background:var(--trk);touch-action:pan-y}
+.pk-row input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;inline-size:1.5rem;block-size:1.5rem;border-radius:50%;background:var(--thumb,#fff);border:3px solid var(--text);box-shadow:0 0 0 2px var(--card)}
+.pk-row input[type=range]::-moz-range-thumb{inline-size:1.2rem;block-size:1.2rem;border-radius:50%;background:var(--thumb,#fff);border:3px solid var(--text)}
+.pk-grid,.pk-recent{display:grid;grid-template-columns:repeat(8,1fr);gap:.3rem}
+.pk-grid button,.pk-recent button{aspect-ratio:1;min-inline-size:0;padding:0;border-radius:.5rem;border:2px solid var(--line);background:var(--c);cursor:pointer;touch-action:manipulation}
+.pk-grid button[aria-pressed=true],.pk-recent button[aria-pressed=true]{outline:3px solid var(--text);outline-offset:1px}
+.pk-lbl{font:600 .72rem var(--font-display);color:var(--text-dim)}
 .trow{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:.35rem}
 .sw,.tb{display:grid;place-items:center;inline-size:2.15rem;block-size:2.15rem;padding:0;cursor:pointer;touch-action:manipulation;color:var(--text);background:var(--card);border:2px solid var(--line);border-radius:50%;box-shadow:0 .15rem 0 var(--shadow)}
 .sw{background:var(--c)}
+.sw.cur{position:relative;background:var(--c)}
+.sw.cur::after{content:'';position:absolute;inset:-5px;border-radius:50%;background:conic-gradient(#ef4444,#f59e0b,#eab308,#22c55e,#06b6d4,#3b82f6,#8b5cf6,#ec4899,#ef4444);z-index:-1}
+.sw.cur{z-index:0;margin-inline-end:.15rem}
 .sw[aria-pressed=true],.tb[aria-pressed=true]{outline:3px solid var(--me);outline-offset:2px}
 .tb i{display:block;border-radius:50%;background:currentColor;inline-size:var(--d);block-size:var(--d)}
 .tb.txt{inline-size:auto;padding-inline:.65rem;border-radius:99px;font:600 .78rem var(--font-display)}
 .guessrow{display:flex;gap:.5rem}
 #guess{flex:1;min-inline-size:0;font-size:max(16px,1rem)}
 /* short screens (small or older phones): trim the panels so the canvas keeps its size */
+/* very narrow phones: shrink the buttons a little so the colour row never wraps onto a second line */
+@media (max-width:340px){
+  .sw,.tb{inline-size:1.75rem;block-size:1.75rem}.trow{gap:.25rem}.tb.txt{padding-inline:.5rem;font-size:.74rem}
+}
 @media (max-height:620px){
   #s-game{gap:.3rem}
   .score-card{padding:.3rem .5rem}.score-col{padding:.12rem .55rem}.score-num{font-size:1.25rem}
@@ -100,9 +124,9 @@ body[data-game="scribble"]{--tint:var(--sky);--tint2:var(--pink)}
   <div class="screen" id="s-game">
     <div class="card tight score-card">
       <div class="score-row">
-        <div class="score-col"><span class="score-name">Satyam</span><span class="score-num" id="scoreSatyam">0</span></div>
+        <div class="score-col"><span class="score-name">Satyam</span><span class="score-num"><span id="scoreSatyam">0</span><small class="goal">/<span class="tgt">15</span></small></span></div>
         <div class="timer" id="timer">—</div>
-        <div class="score-col"><span class="score-name">Snks</span><span class="score-num" id="scoreSnks">0</span></div>
+        <div class="score-col"><span class="score-name">Snks</span><span class="score-num"><span id="scoreSnks">0</span><small class="goal">/<span class="tgt">15</span></small></span></div>
       </div>
     </div>
     <div class="card tight wordbar"><small id="wordLabel"></small><b id="word"></b></div>
@@ -111,6 +135,14 @@ body[data-game="scribble"]{--tint:var(--sky);--tint2:var(--pink)}
     </div>
     <div class="gfeed" id="gfeed"></div>
     <div class="panel" id="tools" hidden>
+      <div class="picker" id="picker" role="dialog" aria-label="Colour picker" hidden>
+        <div class="pk-top"><span class="pk-prev" id="pkPrev"></span><input type="text" id="pkHex" maxlength="7" autocomplete="off" spellcheck="false" aria-label="Hex colour"/><button class="tb txt" id="pkDone" type="button">Done</button></div>
+        <label class="pk-row"><span>Colour</span><input type="range" id="pkH" min="0" max="360" aria-label="Hue"/></label>
+        <label class="pk-row"><span>Richness</span><input type="range" id="pkS" min="0" max="100" aria-label="Saturation"/></label>
+        <label class="pk-row"><span>Light / dark</span><input type="range" id="pkL" min="0" max="100" aria-label="Lightness"/></label>
+        <div class="pk-grid" id="pkGrid"></div>
+        <div class="pk-lbl" id="pkRecentLbl">Recent</div><div class="pk-recent" id="pkRecent"></div>
+      </div>
       <div class="trow" id="colors"></div>
       <div class="trow" id="brushes"></div>
     </div>
@@ -128,6 +160,7 @@ body[data-game="scribble"]{--tint:var(--sky);--tint2:var(--pink)}
       <div class="final-name" id="finalName"></div>
       <div class="hint" id="finalWord"></div>
       <img class="over-img" id="overImg" alt="The finished drawing"/>
+      <div class="hint" id="finalPts"></div>
       <div class="hint" id="finalScore"></div>
       <button class="btn" id="againBtn" type="button">Next round</button>
     </div>
@@ -140,7 +173,8 @@ body[data-game="scribble"]{--tint:var(--sky);--tint2:var(--pink)}
 <script>
 const SU='https://ggfxdeuwifmqulyhchtv.supabase.co';
 const SK='sb_publishable_DMMJ2sFnGlFWogBs30qowg_-N0zk3OI';
-const COLORS=['#3b2a45','#ff5f9e','#3fa2ee','#f2b705','#4cc38a','#9b7bff'];
+const COLORS=['#2b2233','#e5484d','#f97316','#f5c542','#30a46c','#3b82f6','#8b5cf6'];   // the quick row
+const PALETTE=['#000000','#4b5563','#9ca3af','#e5e7eb','#ffffff','#7c2d12','#a16207','#d6a77a','#b91c1c','#ef4444','#f97316','#fbbf24','#fde047','#a3e635','#22c55e','#15803d','#14b8a6','#06b6d4','#3b82f6','#1d4ed8','#8b5cf6','#d946ef','#ec4899','#fda4af'];
 const SIZES=[.008,.018,.036];
 const $=id=>document.getElementById(id);
 
@@ -150,6 +184,7 @@ let _key='',_round=-1,_word=null,_loadingWord=false,_off=0;
 const _timers=[];                         // every interval this page starts, so Exit can stop them all
 TetherUI.onExit(()=>{_timers.forEach(clearInterval);_timers.length=0;clearInterval(_flushT);cur=null;});
 const tool={color:COLORS[0],size:1,eraser:false};
+try{const c=localStorage.getItem('scr:color');if(/^#[0-9a-f]{6}$/i.test(c||''))tool.color=c;}catch(e){}
 const sfx=n=>{ if(_armed) TetherUI.sfx.play(n); };
 const sfxNow=n=>TetherUI.sfx.play(n);
 const vibrate=p=>TetherUI.haptic(p);
@@ -299,7 +334,7 @@ const resync=()=>_run();
 const bump=el=>{el.classList.remove('bump');void el.offsetWidth;el.classList.add('bump');setTimeout(()=>el.classList.remove('bump'),500);};
 function render(){
   if(!match)return;
-  $('scoreSatyam').textContent=match.wins_satyam;$('scoreSnks').textContent=match.wins_snks;
+  $('scoreSatyam').textContent=match.wins_satyam;$('scoreSnks').textContent=match.wins_snks;document.querySelectorAll('.tgt').forEach(t=>t.textContent=match.target||15);
   if(_prevScores){if(match.wins_satyam!==_prevScores.Satyam)bump($('scoreSatyam'));if(match.wins_snks!==_prevScores.Snks)bump($('scoreSnks'));}
   _prevScores={Satyam:match.wins_satyam,Snks:match.wins_snks};
   if(match.status==='idle'){showScreen('s-idle');return;}
@@ -314,7 +349,7 @@ function render(){
   if(drawer&&isPlaying&&!_word)loadWord();
   const over=!isPlaying;
   $('wordLabel').textContent=over?'The word was':drawer?'Draw this':`Guess the ${match.category}`;
-  setWord(over?(match.last_word||''):drawer?(_word||'…'):match.word_len);
+  setWord(over?(match.last_word||''):drawer?(_word||'…'):{shape:match.word_shape||String(match.word_len)});
   $('tools').hidden=!(isPlaying&&drawer);$('guessPanel').hidden=!(isPlaying&&!drawer);
   cv.classList.toggle('locked',!(isPlaying&&drawer));
   renderFeed();tick();
@@ -324,7 +359,7 @@ function render(){
   const fresh=_wasPlaying===true;_wasPlaying=false;
   if(fresh){
     const won=match.status==='won';
-    sfxNow(won?'win':'tie');vibrate(won?[25,60,25,60,60]:[20,40,20]);if(won)confetti();
+    sfxNow(won?'win':'tie');vibrate(won?[25,60,25,60,60]:[20,40,20]);if(match.match_over?match.match_winner===MY_NAME:won)confetti();
     showScreen('s-game');
     _overT=setTimeout(()=>{_overT=0;if(match&&match.status!=='playing'){renderOver();showScreen('s-over');}},900);
     return;
@@ -332,18 +367,25 @@ function render(){
   if(_overT)return;
   renderOver();showScreen('s-over');
 }
-function setWord(w){                                  // a number = that many blanks, text = the word itself
-  const el=$('word'),sig=String(w);if(el.dataset.sig===sig)return;el.dataset.sig=sig;
-  if(typeof w==='number'){el.replaceChildren(...Array.from({length:w},()=>Object.assign(document.createElement('i'),{className:'blank'})));el.setAttribute('aria-label',w+' letters');}
-  else{el.textContent=w;el.removeAttribute('aria-label');}
+function setWord(w){                                  // text = show the word; {shape:'3 5'} = blanks, a gap between words
+  const el=$('word'),sig=typeof w==='string'?w:'shape:'+w.shape;if(el.dataset.sig===sig)return;el.dataset.sig=sig;
+  if(typeof w==='string'){el.textContent=w;el.classList.remove('dense');el.removeAttribute('aria-label');return;}
+  const sizes=String(w.shape).split(' ').map(Number).filter(n=>n>0);
+  el.replaceChildren(...sizes.map(n=>{const g=document.createElement('span');g.className='wgroup';for(let i=0;i<n;i++)g.appendChild(Object.assign(document.createElement('i'),{className:'blank'}));return g;}));
+  el.classList.toggle('dense',sizes.reduce((a,b)=>a+b,0)>9);
+  el.setAttribute('aria-label',sizes.join(' and ')+' letters');
 }
 function updateOverImg(){try{$('overImg').src=cv.toDataURL('image/png');}catch(_){}}
 function renderOver(){
-  const won=match.status==='won',iWon=match.winner_name===MY_NAME;
-  $('overTrophy').innerHTML=won?'<path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0V4z"/><path d="M7 5H4a1 1 0 0 0-1 1c0 2.5 1.5 4.5 4 5M17 5h3a1 1 0 0 1 1 1c0 2.5-1.5 4.5-4 5"/>':'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>';
-  $('finalName').textContent=won?(iWon?'You guessed it!':`${match.winner_name} guessed it!`):"Time's up!";
+  const won=match.status==='won',iWon=match.winner_name===MY_NAME,mo=!!match.match_over,iWonMatch=match.match_winner===MY_NAME;
+  const who=n=>n===MY_NAME?'You':n;
+  $('overTrophy').innerHTML=(mo||won)?'<path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0V4z"/><path d="M7 5H4a1 1 0 0 0-1 1c0 2.5 1.5 4.5 4 5M17 5h3a1 1 0 0 1 1 1c0 2.5-1.5 4.5-4 5"/>':'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>';
+  $('finalName').textContent=mo?(iWonMatch?'You win the match!':`${match.match_winner} wins the match!`):won?(iWon?'You guessed it!':`${match.winner_name} guessed it!`):"Time's up!";
   $('finalWord').textContent=`The word was “${match.last_word||'?'}”`;
-  $('finalScore').textContent=`Satyam ${match.wins_satyam} – Snks ${match.wins_snks}`;
+  if(won){const dr=match.winner_name==='Satyam'?'Snks':'Satyam';$('finalPts').textContent=`+${match.last_pts_guesser} ${who(match.winner_name)} (guessed)  ·  +${match.last_pts_drawer} ${who(dr)} (drew)`;}
+  else $('finalPts').textContent='No points this round';
+  $('finalScore').textContent=`Satyam ${match.wins_satyam} – Snks ${match.wins_snks}  ·  first to ${match.target||15}`;
+  $('againBtn').textContent=mo?'New match':'Next round';
   updateOverImg();
 }
 function confetti(){
@@ -395,11 +437,23 @@ $('guessBtn').addEventListener('pointerdown',e=>e.preventDefault());   // keep t
 $('guessBtn').onclick=sendGuess;
 $('guess').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();sendGuess();}});
 
+/* ───────────── colour helpers ───────────── */
+const hex2hsl=h=>{h=h.replace('#','');if(h.length===3)h=[...h].map(c=>c+c).join('');const r=parseInt(h.slice(0,2),16)/255,g=parseInt(h.slice(2,4),16)/255,b=parseInt(h.slice(4,6),16)/255;
+  const mx=Math.max(r,g,b),mn=Math.min(r,g,b),l=(mx+mn)/2,d=mx-mn;let hh=0,ss=0;
+  if(d){ss=d/(1-Math.abs(2*l-1));hh=mx===r?((g-b)/d)%6:mx===g?(b-r)/d+2:(r-g)/d+4;hh*=60;if(hh<0)hh+=360;}
+  return[Math.round(hh),Math.round(ss*100),Math.round(l*100)];};
+const hsl2hex=(h,s,l)=>{s/=100;l/=100;const k=n=>(n+h/30)%12,a=s*Math.min(l,1-l),f=n=>l-a*Math.max(-1,Math.min(k(n)-3,Math.min(9-k(n),1)));
+  return'#'+[f(0),f(8),f(4)].map(x=>Math.round(x*255).toString(16).padStart(2,'0')).join('');};
+const normHex=v=>{v=String(v).trim().replace(/^#/,'').toLowerCase();if(/^[0-9a-f]{3}$/.test(v))v=[...v].map(c=>c+c).join('');return/^[0-9a-f]{6}$/.test(v)?'#'+v:null;};
+
 function buildTools(){
-  const colors=$('colors');colors.replaceChildren();
-  COLORS.forEach(c=>{const b=document.createElement('button');b.type='button';b.className='sw';b.style.setProperty('--c',c);b.setAttribute('aria-label','Colour '+c);
-    b.onclick=()=>{tool.color=c;tool.eraser=false;mark();};colors.appendChild(b);});
-  const er=document.createElement('button');er.type='button';er.className='tb txt';er.id='eraser';er.textContent='Erase';er.setAttribute('aria-label','Eraser');er.onclick=()=>{tool.eraser=true;mark();};
+  const colors=$('colors'),picker=$('picker');colors.replaceChildren();
+  const swatch=(c,cls)=>{const b=document.createElement('button');b.type='button';b.className='sw'+(cls?' '+cls:'');b.style.setProperty('--c',c);return b;};
+  // the first button shows the current colour and opens the picker; the rest are quick colours
+  const cur=swatch(tool.color,'cur');cur.setAttribute('aria-label','Choose any colour');cur.setAttribute('aria-expanded','false');
+  cur.onclick=()=>togglePicker();colors.appendChild(cur);
+  COLORS.forEach(c=>{const b=swatch(c);b.dataset.c=c;b.setAttribute('aria-label','Colour '+c);b.onclick=()=>setColor(c,true);colors.appendChild(b);});
+  const er=document.createElement('button');er.type='button';er.className='tb txt';er.id='eraser';er.textContent='Erase';er.setAttribute('aria-label','Eraser');er.onclick=()=>{tool.eraser=true;closePicker();mark();};
   const br=$('brushes');br.replaceChildren();
   [8,14,22].forEach((d,i)=>{const b=document.createElement('button');b.type='button';b.className='tb';b.style.setProperty('--d',d+'px');b.setAttribute('aria-label',['Thin','Medium','Thick'][i]+' brush');
     b.innerHTML='<i></i>';b.onclick=()=>{tool.size=i;mark();};br.appendChild(b);});
@@ -408,16 +462,58 @@ function buildTools(){
   const sk=document.createElement('button');sk.type='button';sk.className='tb txt';sk.textContent='Skip';sk.setAttribute('aria-label','Get a different word');
   sk.onclick=async()=>{if(!canDraw())return;finish();_clearing=true;await act(async()=>{const{error}=await sb.rpc('scr_skip');if(error)throw error;},'Skip failed');_clearing=false;};
   br.append(er,clr,sk);
+
+  /* the picker: palette, hue / richness / light-dark sliders, a hex box and the colours you used recently */
+  const H=$('pkH'),S=$('pkS'),L=$('pkL'),hexIn=$('pkHex');
+  let recent=[];try{recent=JSON.parse(localStorage.getItem('scr:recent')||'[]').filter(normHex);}catch(e){}
+  const grid=$('pkGrid');grid.replaceChildren();
+  PALETTE.forEach(c=>{const b=document.createElement('button');b.type='button';b.style.setProperty('--c',c);b.dataset.c=c;b.setAttribute('aria-label','Colour '+c);b.onclick=()=>setColor(c,true);grid.appendChild(b);});
+  function remember(c){recent=[c,...recent.filter(x=>x!==c)].slice(0,8);try{localStorage.setItem('scr:recent',JSON.stringify(recent));}catch(e){}drawRecent();}
+  function drawRecent(){const box=$('pkRecent');box.replaceChildren(...recent.map(c=>{const b=document.createElement('button');b.type='button';b.style.setProperty('--c',c);b.dataset.c=c;b.setAttribute('aria-label','Recent colour '+c);b.onclick=()=>setColor(c,false);return b;}));$('pkRecentLbl').hidden=box.hidden=!recent.length;mark();}
+  function paintSliders(h,s,l){
+    picker.style.setProperty('--c',tool.color);$('pkPrev').style.setProperty('--c',tool.color);
+    H.style.setProperty('--trk','linear-gradient(90deg,hsl(0 100% 50%),hsl(60 100% 50%),hsl(120 100% 50%),hsl(180 100% 50%),hsl(240 100% 50%),hsl(300 100% 50%),hsl(360 100% 50%))');
+    S.style.setProperty('--trk',`linear-gradient(90deg,hsl(${h} 0% ${l}%),hsl(${h} 100% ${l}%))`);
+    L.style.setProperty('--trk',`linear-gradient(90deg,#000,hsl(${h} ${s}% 50%),#fff)`);
+    [H,S,L].forEach(x=>x.style.setProperty('--thumb',tool.color));
+  }
+  function setColor(c,keepOpen,fromSlider){
+    c=normHex(c);if(!c)return;tool.color=c;tool.eraser=false;
+    try{localStorage.setItem('scr:color',c);}catch(e){}
+    cur.style.setProperty('--c',c);
+    const[h,s,l]=hex2hsl(c);
+    if(!fromSlider){H.value=h;S.value=s;L.value=l;}
+    if(document.activeElement!==hexIn)hexIn.value=c;
+    paintSliders(+H.value,+S.value,+L.value);mark();
+  }
+  const fromSliders=()=>setColor(hsl2hex(+H.value,+S.value,+L.value),true,true);
+  [H,S,L].forEach(x=>{x.addEventListener('input',fromSliders);x.addEventListener('change',()=>remember(tool.color));});
+  hexIn.addEventListener('input',()=>{const c=normHex(hexIn.value);if(c)setColor(c,true);});
+  hexIn.addEventListener('blur',()=>{hexIn.value=tool.color;});
+  $('pkDone').onclick=()=>{remember(tool.color);closePicker();};
+  function openPicker(){
+    picker.hidden=false;cur.setAttribute('aria-expanded','true');
+    // never cover the word card (the drawer must always see their word): use only the space between it and the tools
+    const free=$('tools').getBoundingClientRect().top-document.querySelector('.wordbar').getBoundingClientRect().bottom-14;
+    picker.style.maxHeight=Math.max(150,free)+'px';picker.style.overflowY='auto';
+  }
+  function closePicker(){if(picker.hidden)return;picker.hidden=true;cur.setAttribute('aria-expanded','false');remember(tool.color);}
+  function togglePicker(){picker.hidden?openPicker():closePicker();}
+  document.addEventListener('pointerdown',e=>{if(!picker.hidden&&!picker.contains(e.target)&&!cur.contains(e.target))closePicker();},true);
+  document.addEventListener('keydown',e=>{if(e.key==='Escape')closePicker();});
+  new MutationObserver(()=>{if($('tools').hidden)closePicker();}).observe($('tools'),{attributes:true,attributeFilter:['hidden']});
   function mark(){
-    [...colors.querySelectorAll('.sw')].forEach((b,i)=>b.setAttribute('aria-pressed',String(!tool.eraser&&COLORS[i]===tool.color)));
+    [...colors.querySelectorAll('.sw:not(.cur)')].forEach(b=>b.setAttribute('aria-pressed',String(!tool.eraser&&b.dataset.c===tool.color)));
+    [...grid.children,...$('pkRecent').children].forEach(b=>b.setAttribute('aria-pressed',String(!tool.eraser&&b.dataset.c===tool.color)));
+    cur.setAttribute('aria-pressed',String(!tool.eraser&&!COLORS.includes(tool.color)));
     er.setAttribute('aria-pressed',String(tool.eraser));
     [...br.querySelectorAll('.tb:not(.txt)')].forEach((b,i)=>b.setAttribute('aria-pressed',String(i===tool.size)));
   }
-  mark();
+  drawRecent();setColor(tool.color,false);
 }
 
 TetherUI.mount({extras:[
-  `<details class="how"><summary>How to play</summary><ol><li>One of you draws the secret word. The other guesses it.</li><li>Guess right before the 75 seconds run out to score a point.</li><li>You swap roles every round. Drawers can tap Skip for a different word if theirs is too hard.</li></ol></details>`,
+  `<details class="how"><summary>How to play</summary><ol><li>One of you draws the secret word. The other guesses it.</li><li>Guess within 75 seconds. Faster guesses score more: 3, 2 or 1 points, and the drawer gets 1 point too.</li><li>First to 15 points wins the match. You swap roles every round. Drawers can tap Skip for a different word.</li></ol></details>`,
   `<button type="button" class="link" id="tuiNew">${TetherUI.icon('reset')} Start a new round…</button>`,
   `<button type="button" class="link danger" id="tuiReset">${TetherUI.icon('reset')} Reset score…</button>`
 ]});
