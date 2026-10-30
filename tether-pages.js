@@ -76,7 +76,7 @@
     { file: 'dotsandboxes.html',type: 'game', title: 'Dots & Boxes',     icon: 'g-dab',     blurb: 'Close the boxes',            order: 40 },
     { file: 'bingo.html',       type: 'game', title: 'Bingo',            icon: 'g-bingo',   blurb: 'Pick your numbers, race to 5 lines', order: 50 },
     { file: 'scribble.html',    type: 'game', title: 'Scribble',         icon: 'g-scribble', blurb: 'Draw it, guess it',        order: 60 },
-    { file: 'photobooth.html',  type: 'tool', title: 'Photo Booth',      icon: 'g-booth',   blurb: 'Vintage film-strip collages', order: 10, action: 'Open' },
+    { file: 'photobooth.html',  type: 'tool', title: 'Photo Booth',      icon: 'g-booth',   blurb: 'Film looks, live lenses & collages', order: 10, action: 'Open' },
   ];
   const SECTION_LABEL = { game: 'Games', tool: 'Extras' };
   const SECTION_ORDER = ['game', 'tool'];

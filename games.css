@@ -443,3 +443,5 @@
 .backlink .bl-label{font:600 .9rem/1 var(--font-display,inherit);letter-spacing:.01em}
 .exit-row{display:grid;margin-top:.4rem}
 .exit-row .btn{inline-size:100%}
+/* very narrow phones: a little more room for the title next to the Exit button */
+@media (max-width:340px){.brand h1{font-size:1.05rem}.brand .ic{display:none}}

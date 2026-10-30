@@ -4,7 +4,7 @@
     "type": "tool",
     "title": "Photo Booth",
     "icon": "g-booth",
-    "blurb": "Vintage film-strip collages",
+    "blurb": "Film looks, live lenses & collages",
     "order": 10,
     "action": "Open",
     "section": ""
