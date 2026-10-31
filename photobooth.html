@@ -140,7 +140,7 @@ body[data-game="booth"]{--tint:var(--peach);--tint2:var(--lilac)}
 #segTpl{display:flex;overflow-x:auto;gap:.35rem;scrollbar-width:none;-webkit-overflow-scrolling:touch;scroll-snap-type:x proximity}
 #segTpl::-webkit-scrollbar{display:none}
 #segTpl button{flex:1 0 auto;white-space:nowrap;padding-inline:.9rem;scroll-snap-align:center}
-.booth:is([data-state=shooting],[data-state=result]) .controls .tabs{pointer-events:none}
+.booth[data-state=shooting] .controls .tabs{pointer-events:none}      /* only while the countdown runs */
 .booth[data-state=shooting] .controls .tray{opacity:.5;pointer-events:none}
 @media (max-width:340px){.tile{inline-size:3.5rem}.tile .th{inline-size:3.2rem;block-size:3.2rem}}
 @media (max-height:640px){.tray{min-block-size:4.6rem}.tile .th{inline-size:3rem;block-size:3rem}.tile{inline-size:3.3rem}}
@@ -222,7 +222,7 @@ const SK='sb_publishable_DMMJ2sFnGlFWogBs30qowg_-N0zk3OI';
 const prefs={tpl:'film',ctpl:'blend',look:'kodak',lastLook:'kodak',lens:'none',fx:'none',tab:'layout'};
 try{Object.assign(prefs,JSON.parse(localStorage.getItem('booth:prefs')||'{}'))}catch{}
 const reduced=()=>matchMedia('(prefers-reduced-motion: reduce)').matches;
-const S={mode:'solo',names:['you','me'],stream:null,facing:'user',frames:[],raws:[],busy:false,cancel:false,sent:false,composeToken:0};
+const S={mode:'solo',names:['you','me'],stream:null,facing:'user',frames:[],raws:[],base:[],mir:[],tAt:[],layers:[],layerKind:'none',busy:false,cancel:false,sent:false,composeToken:0};
 const booth=$('#booth'),video=$('#video'),result=$('#result'),acts=$('#acts');
 
 function setState(st){booth.dataset.state=st;renderActions();if(window.__fxSync)window.__fxSync()}
@@ -479,8 +479,8 @@ function thumbEngine(){
 }
 function refreshThumbs(){
   if(!tray.getClientRects().length)return;
-  const x=snapCv.getContext('2d'),live=S.stream&&video.readyState>=2,src=live?video:S.frames[0];
-  if(src){x.save();if(live&&S.facing==='user'){x.translate(88,0);x.scale(-1,1)}cover(x,src,88);x.restore()}
+  const x=snapCv.getContext('2d'),live=S.stream&&video.readyState>=2,plain=!live&&S.base[0]?S.base[0]:null,src=live?video:(plain||S.frames[0]);
+  if(src){x.save();if((live&&S.facing==='user')||(plain&&S.mir[0])){x.translate(88,0);x.scale(-1,1)}cover(x,src,88);x.restore()}
   else if(SAMPLE)x.drawImage(SAMPLE,0,0);
   tray.style.setProperty('--snap',`url(${snapCv.toDataURL('image/jpeg',.7)})`);
   if(prefs.tab!=='lens')return;
@@ -500,8 +500,8 @@ function buildTray(){
   $('#segLens').innerHTML=lenses.map(l=>tile('lens',l.key,l.label,l.key==='none'?'No lens':l.label+' lens')).join('')+(BL?BL.OVERLAYS.map(o=>tile('fx',o.key,o.label,o.label+' overlay')).join(''):'');
 }
 function updateTabs(){
-  const lensOK=booth.dataset.state!=='result';                // a lens is part of taking the photo, so it cannot be added afterwards
-  document.querySelectorAll('#tabs button[data-tab=lens]').forEach(b=>b.setAttribute('aria-disabled',String(!lensOK)));
+  const lensOK=!(booth.dataset.state==='result'&&S.mode==='couple');   // in couple mode each person's lens is chosen while shooting
+  document.querySelectorAll('#tabs button[data-tab=lens]').forEach(b=>{b.setAttribute('aria-disabled',String(!lensOK));b.title=lensOK?'':'In couple mode, choose your lens before taking the photos'});
   if(!lensOK&&prefs.tab==='lens')setTab('look',true);
 }
 function setTab(t,silent){
@@ -566,19 +566,42 @@ async function startCamera(){
 }
 function stopCamera(){if(S.stream){S.stream.getTracks().forEach(t=>t.stop());S.stream=null}video.srcObject=null;if(window.__fxSync)window.__fxSync()}
 function applyLive(){$('#cam').style.setProperty('--live',isRaw()?'none':LOOKS[prefs.look].live)}
-/* One photo, as you saw it: the centre square of the camera picture, with the lens (rendered at full resolution) and the
-   overlay baked in. In No filter mode there is no lens and no overlay, so this is the plain camera picture. */
-function grab(){
-  const w=video.videoWidth,h=video.videoHeight,s=Math.min(w,h),size=Math.min(s,1080);
-  const c=document.createElement('canvas');c.width=c.height=size;const x=c.getContext('2d');
-  const lens=effLens(),eng=lens!=='none'?snapEngine(size):null;
+const mkc=n=>{const c=document.createElement('canvas');c.width=c.height=n;return c};
+/* The plain photo: the centre square of the camera picture. Not mirrored, no lens, no overlay.
+   Keeping this is what lets a lens or overlay be changed (or removed) after the photo is taken. */
+function grabBase(){
+  const w=video.videoWidth,h=video.videoHeight,s=Math.min(w,h),size=Math.min(s,1080),c=mkc(size);
+  c.getContext('2d').drawImage(video,(w-s)/2,(h-s)/2,s,s,0,0,size,size);return c;
+}
+/* An overlay (hearts, snow...) frozen as a transparent picture, as it looked at that moment. */
+function ovLayerNow(size){
+  if(effFx()==='none'||!LV.ov)return null;
+  const c=mkc(size);LV.ov.draw(c.getContext('2d'),size);return c;
+}
+/* One finished photo, as you saw it: the lens rendered at full size, mirrored if it was a selfie, the overlay on top.
+   In No filter mode there is no lens and no overlay, so this is just the plain (mirrored) camera picture. */
+function finishFrame(base,mirror,lens,t,layer){
+  const size=base.width,out=mkc(size),x=out.getContext('2d');
+  let src=base;
+  if(lens!=='none'){const eng=snapEngine(size);if(eng&&eng.render(base,lens,t))src=eng.canvas}
   x.save();
-  if(S.facing==='user'){x.translate(size,0);x.scale(-1,1)}                  // selfie view is mirrored, so the photo matches what you saw
-  if(eng&&eng.render(video,lens,LV.t)) x.drawImage(eng.canvas,0,0,size,size);
-  else x.drawImage(video,(w-s)/2,(h-s)/2,s,s,0,0,size,size);
+  if(mirror){x.translate(size,0);x.scale(-1,1)}                              // selfie view is mirrored, so the photo matches what you saw
+  x.drawImage(src,0,0,size,size);
   x.restore();
-  if(effFx()!=='none'&&LV.ov) LV.ov.draw(x,size);                          // overlays are drawn upright, exactly as they appeared
-  return c;
+  if(layer)x.drawImage(layer,0,0,size,size);                                // overlays are upright, exactly as they appeared
+  return out;
+}
+function grab(){const base=grabBase();return finishFrame(base,S.facing==='user',effLens(),LV.t,ovLayerNow(base.width))}
+/* After the photos exist: redo the lens and overlay from the plain photos using the current choices.
+   (Couple mode keeps the lens each person chose while shooting, since the partner's photos arrive finished.) */
+function reprocess(){
+  if(!S.base.length||S.mode==='couple')return;
+  const lens=effLens(),fx=effFx();
+  if(fx!==S.layerKind){                                                     // a different overlay: make a fresh frozen frame of it for each photo
+    S.layerKind=fx;
+    S.layers=S.base.map(b=>{if(fx==='none'||!BL)return null;const o=BL.overlay(fx);o.warm(3);const c=mkc(b.width);o.draw(c.getContext('2d'),b.width);return c});
+  }
+  S.frames=S.base.map((b,i)=>finishFrame(b,S.mir[i],lens,S.tAt[i],fx==='none'?null:S.layers[i]));
 }
 /* The untouched camera frame: full size, not cropped, not mirrored, no lens, no overlay. */
 function grabRaw(){
@@ -596,7 +619,7 @@ async function saveOriginals(){
 
 async function shoot(){
   if(S.busy) return;
-  S.busy=true;S.cancel=false;S.frames=[];S.raws=[];S.sent=false;
+  S.busy=true;S.cancel=false;S.frames=[];S.raws=[];S.base=[];S.mir=[];S.tAt=[];S.layers=[];S.layerKind=effFx();S.sent=false;
   setState('shooting');
   const dots=[...document.querySelectorAll('#shots span')];
   dots.forEach(d=>{d.style.backgroundImage='';d.classList.remove('on')});
@@ -611,7 +634,8 @@ async function shoot(){
     if(S.cancel)break;
     count.textContent='';count.dataset.hint='';
     shutter();
-    const f=grab();S.frames.push(f);S.raws.push(grabRaw());
+    const base=grabBase(),mir=S.facing==='user',t=LV.t,layer=ovLayerNow(base.width),f=finishFrame(base,mir,effLens(),t,layer);
+    S.frames.push(f);S.base.push(base);S.mir.push(mir);S.tAt.push(t);S.layers.push(layer);S.raws.push(grabRaw());
     dots[i].classList.remove('on');flyTo(dots[i],f.toDataURL('image/jpeg',.4));
     await sleep(TICK*.7);
   }
@@ -636,6 +660,8 @@ async function fromFiles(files){
       if(bmp.close) bmp.close();
     }
     S.frames=frames;S.raws=list.slice();S.sent=false;
+    S.base=frames.slice();S.mir=frames.map(()=>false);S.tAt=frames.map((_,i)=>.8+i*1.7);S.layers=frames.map(()=>null);S.layerKind='none';
+    reprocess();                                                          // applies the lens / overlay you have chosen, if any
     stopCamera();setState('result');await compose();develop();
     TetherUI.sfx.play('claim');
     if(list.length<SHOTS) toast(`Used your ${list.length} photo${list.length>1?'s':''} to fill all ${SHOTS} spots`);
@@ -725,7 +751,7 @@ acts.addEventListener('click',e=>{
   ({camera:()=>{S.mode='solo';renderLayouts();startCamera()},pick:()=>{S.mode='solo';renderLayouts();$('#picker').click()},couple:coupleStart,ready:coupleReady,
     flip:()=>{S.facing=S.facing==='user'?'environment':'user';startCamera()},
     shoot,cancel:()=>{S.cancel=true},stop:()=>{coupleLeave(true);stopCamera();S.mode='solo';renderLayouts();setState('idle')},
-    again:()=>{S.frames=[];S.raws=[];coupleLeave(false);S.mode='solo';renderLayouts();setState('idle')},save,share,orig:saveOriginals,send:()=>send(b)})[b.dataset.act]();
+    again:()=>{S.frames=[];S.raws=[];S.base=[];S.mir=[];S.tAt=[];S.layers=[];coupleLeave(false);S.mode='solo';renderLayouts();setState('idle')},save,share,orig:saveOriginals,send:()=>send(b)})[b.dataset.act]();
 });
 $('#picker').addEventListener('change',e=>{fromFiles(e.target.files);e.target.value=''});
 
@@ -747,7 +773,7 @@ $('#tabs').addEventListener('click',e=>{const b=e.target.closest('button[data-ta
 function setLook(k){
   prefs.look=k;if(k!=='none')prefs.lastLook=k;savePrefs();syncSegs();applyLive();syncFx();
   if(k==='none')toast('No filter: your photos stay untouched');
-  if(booth.dataset.state==='result')compose();
+  if(booth.dataset.state==='result'){reprocess();compose()}
 }
 $('#segLook').addEventListener('click',e=>{const b=e.target.closest('button[data-look]');if(!b)return;setLook(b.dataset.look);popTile(b);TetherUI.sfx.play('tap')});
 $('#segLens').addEventListener('click',e=>{
@@ -757,6 +783,7 @@ $('#segLens').addEventListener('click',e=>{
   else prefs.fx=prefs.fx===b.dataset.fx?'none':b.dataset.fx;                                              // overlays toggle, and combine with a lens
   if(wasRaw&&(prefs.lens!=='none'||prefs.fx!=='none')){prefs.look=prefs.lastLook||'kodak';applyLive();toast('Filter is back on so the lens can show')}
   savePrefs();syncSegs();syncFx();popTile(b);TetherUI.sfx.play('tap');
+  if(booth.dataset.state==='result'){reprocess();compose()}               // the lens / overlay is applied to the photos you already have
 });
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&booth.dataset.state==='camera'){coupleLeave(true);stopCamera();S.mode='solo';renderLayouts();setState('idle')}});   // never keep the camera on in the background
 addEventListener('pagehide',stopCamera);
@@ -848,7 +875,7 @@ async function coupleSequence(){
   say('');
   if(C.theirs.filter(Boolean).length<ROUNDS){toast(`${partnerName()}'s photos did not arrive. Try again.`);coupleLeave(true);S.mode='solo';renderLayouts();setState('idle');return}
   S.names=[C.me,C.other].sort();
-  S.frames=[];                                           // strip order: round 1 (both of you), round 2 (both of you); the same on both phones
+  S.frames=[];S.base=[];S.mir=[];S.tAt=[];S.layers=[];                // strip order: round 1 (both of you), round 2 (both of you); the same on both phones
   for(let r=0;r<ROUNDS;r++) for(const nm of S.names) S.frames.push(nm===C.me?C.mine[r]:C.theirs[r]);
   S.raws=C.rawMine.filter(Boolean);                       // your own two untouched photos
   coupleLeave(false);
@@ -870,7 +897,7 @@ TetherUI.onExit(()=>{try{coupleLeave(true)}catch(e){}stopCamera();});   // Exit:
 TetherUI.mount({extras:[
   `<details class="how"><summary>How it works</summary><ol><li>Pick a layout, a film look (or No filter for untouched photos) and a lens.</li><li>Start the camera. It counts down and takes ${SHOTS} photos, or choose photos you already have.</li><li>Change the layout or look any time on the result, then save it or send it to the chat.</li><li>Couple photo: you both open it on your own phones, tap I'm ready, and each take 2 photos. The app merges them into one portrait.</li></ol></details>`
 ]});
-if(new URLSearchParams(location.search).has('fast'))window.__booth={S,prefs,compose,LV,LOOKS,grab,grabRaw,tone,setLook,setTab};   // for automated tests only
+if(new URLSearchParams(location.search).has('fast'))window.__booth={S,prefs,compose,LV,LOOKS,grab,grabRaw,grabBase,finishFrame,reprocess,tone,setLook,setTab};   // for automated tests only
 })();
 </script>
 </body>
